@@ -1,15 +1,28 @@
-function ts() {
-  return new Date().toISOString();
+const winston = require('winston');
+const path = require('path');
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.errors({ stack: true }),
+    winston.format.splat(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'fsa-parser' },
+  transports: [
+    new winston.transports.File({ filename: path.join(__dirname, '../../logs/error.log'), level: 'error' }),
+    new winston.transports.File({ filename: path.join(__dirname, '../../logs/combined.log') }),
+  ],
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  logger.add(new winston.transports.Console({
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.simple()
+    ),
+  }));
 }
 
-module.exports = {
-  info(tag, msg, ...rest) {
-    console.log(`[${ts()}][INFO]${tag ? `[${tag}]` : ''}`, msg, ...rest);
-  },
-  warn(tag, msg, ...rest) {
-    console.warn(`[${ts()}][WARN]${tag ? `[${tag}]` : ''}`, msg, ...rest);
-  },
-  error(tag, msg, ...rest) {
-    console.error(`[${ts()}][ERROR]${tag ? `[${tag}]` : ''}`, msg, ...rest);
-  },
-};
+module.exports = logger;

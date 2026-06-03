@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  fsa-parser:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - NODE_ENV=production
+      - JWT_SECRET=change-me-to-something-very-secure
+      - FSA_CRON_SCHEDULE=0 * * * *
+    restart: always
