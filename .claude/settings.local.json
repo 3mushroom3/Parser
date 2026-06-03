@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const db=require\\('../data/declarations.json'\\);const grain=db.records.filter\\(r=>r.technicalReglament&&r.technicalReglament.includes\\('зерна'\\)\\);console.log\\('Всего зерновых:',grain.length\\);if\\(grain.length\\){console.log\\('Первые 3 fsaId:',grain.slice\\(0,3\\).map\\(r=>r.fsaId\\)\\);}\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const db=JSON.parse\\(fs.readFileSync\\('d:/Project/fsa-parser/data/declarations.json','utf8'\\)\\);const grain=db.records.filter\\(r=>r.technicalReglament&&r.technicalReglament.includes\\('зерна'\\)\\);console.log\\('Всего зерновых:',grain.length\\);if\\(grain.length\\){console.log\\('Первые 3 fsaId:',grain.slice\\(0,3\\).map\\(r=>r.fsaId\\)\\);}\")",
+      "Bash(node -e ' *)",
+      "WebFetch(domain:egrul.nalog.ru)",
+      "Bash(curl -i -v -L http://egrul.nalog.ru/index.html)",
+      "Bash(curl -i -v https://egrul.nalog.ru/index.html)",
+      "Bash(curl -i -X POST https://egrul.nalog.ru/search.do -H 'Content-Type: application/x-www-form-urlencoded' -H 'Cookie: JSESSIONID=06FED393B550B9786B4BBD66478FC944' -d 'query=7743013901&region=&PreventChromeAutocomplete=')",
+      "Bash(curl -s https://egrul.nalog.ru/index.html)",
+      "Bash(curl -i -s https://egrul.nalog.ru/search-result/E961729A7FFEA491F4303FE8F20FEDF72C3470208F941AAD844C32843C3387D4BF635C2D2C540F39EF78ED71FA39FAC1B569C2DAFC57D05C0D6DDBEC360405AABCB16BAC738F60D37445805AFCA321BD -H 'Cookie: JSESSIONID=06FED393B550B9786B4BBD66478FC944')",
+      "Bash(curl -v https://egrul.nalog.ru/index.html)",
+      "Bash(curl -v -X POST https://egrul.nalog.ru/ -H 'Content-Type: application/x-www-form-urlencoded' -H 'Cookie: JSESSIONID=06FED393B550B9786B4BBD66478FC944' -d 'query=7743013901&region=&PreventChromeAutocomplete=')",
+      "Bash(curl -i https://egrul.nalog.ru/index.html)",
+      "Bash(curl -s -i https://egrul.nalog.ru/index.html)",
+      "Bash(node -e \"require\\('./node_modules/axios/package.json'\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./node_modules/axios/package.json'\\).version\\)\")",
+      "Read(//d/d/Project/fsa-parser/backend/**)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:antonshell.me)",
+      "WebFetch(domain:adne.info)",
+      "WebFetch(domain:qna.habr.com)",
+      "WebFetch(domain:ignatov-script.blogspot.com)",
+      "WebFetch(domain:egrul.org)",
+      "Bash(node scripts/test-fns.js)",
+      "Bash(node -e \"const d=require\\('../../data/declarations.json'\\); console.log\\(typeof d, Array.isArray\\(d\\), Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const raw=fs.readFileSync\\('/d/Project/fsa-parser/data/declarations.json','utf8'\\); const d=JSON.parse\\(raw\\); console.log\\(typeof d, Array.isArray\\(d\\), Array.isArray\\(d\\)?d.length:Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\); const raw=fs.readFileSync\\('d:/Project/fsa-parser/data/declarations.json','utf8'\\); const d=JSON.parse\\(raw\\); console.log\\(typeof d, Array.isArray\\(d\\), Array.isArray\\(d\\) ? 'length:'+d.length : 'keys:'+JSON.stringify\\(Object.keys\\(d\\).slice\\(0,5\\)\\)\\)\")",
+      "Bash(node scripts/apply-name-classify.js)"
+    ]
+  }
+}

@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Реестр производителей — ТР ТС 015/2011</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root {
+  --bg      : #f0f2f5;
+  --surface : #ffffff;
+  --surf2   : #f8f9fb;
+  --border  : #e2e6ec;
+  --text    : #1a1e27;
+  --muted   : #6b7280;
+  --accent  : #185FA5;
+  --acl     : #E6F1FB;
+  --acm     : #378ADD;
+  --succ    : #2d6a0f;
+  --succbg  : #dcf0cc;
+  --warn    : #854F0B;
+  --warnbg  : #FAEEDA;
+  --dng     : #A32D2D;
+  --dngbg   : #FCEBEB;
+  --r       : 8px;
+  --rl      : 12px;
+  --shadow  : 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+
+/* ── Header ──────────────────────────────────────────────── */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);height:56px;display:flex;align-items:center;padding:0 20px;gap:8px;position:sticky;top:0;z-index:200;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.logo{display:flex;align-items:center;gap:9px;font-weight:700;font-size:15px;color:var(--accent);text-decoration:none}
+.logo-ic{width:32px;height:32px;background:linear-gradient(135deg,#185FA5,#378ADD);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;letter-spacing:-.5px;box-shadow:0 2px 6px rgba(24,95,165,.35)}
+.hdr-sep{width:1px;height:22px;background:var(--border);margin:0 6px}
+.hdr-sub{font-size:12px;color:var(--muted)}
+.nav{display:flex;gap:2px;margin-left:12px}
+.nav-tab{padding:6px 14px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:none;background:none;color:var(--muted);transition:all .14s;white-space:nowrap}
+.nav-tab:hover{background:var(--acl);color:var(--accent)}
+.nav-tab.active{background:var(--acl);color:var(--accent);font-weight:600}
+.hdr-r{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:var(--r);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:background .12s,border-color .12s,box-shadow .12s;white-space:nowrap}
+.btn:hover{background:var(--surf2);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.btn-p{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 2px 6px rgba(24,95,165,.3)}
+.btn-p:hover{background:#0C447C;border-color:#0C447C;box-shadow:0 3px 10px rgba(24,95,165,.4)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-warn{background:var(--warnbg);color:var(--warn);border-color:#FAC775}
+.btn-dng{background:var(--dngbg);color:var(--dng);border-color:#F09595}
+
+/* ── Layout ──────────────────────────────────────────────── */
+.page-h{}
+.body{display:flex;align-items:flex-start}
+.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
+.main{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:13px;min-width:0}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.fs-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}
+.fi{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surf2);color:var(--text);outline:none;font-family:inherit;transition:border-color .14s}
+.fi:focus{border-color:var(--acm);background:var(--surface)}
+
+/* ── Parser status ───────────────────────────────────────── */
+.pstatus{padding:10px 12px;border-radius:var(--rl);border:1px solid var(--border);background:var(--surf2);font-size:12px;display:flex;flex-direction:column;gap:5px}
+.pst-row{display:flex;align-items:center;gap:7px}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot-live{background:#2d6a0f;animation:blink 2s infinite}
+.dot-run{background:var(--accent);animation:spin2 1.2s linear infinite}
+.dot-err{background:var(--dng)}
+.dot-idle{background:#aaa}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+@keyframes spin2{to{transform:rotate(360deg)}}
+
+/* ── Stats ───────────────────────────────────────────────── */
+.stats{display:flex;gap:10px}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;flex:1;min-width:0;display:flex;align-items:center;gap:14px;box-shadow:var(--shadow);transition:box-shadow .15s}
+.sc:hover{box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.sc-icon{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sc-icon svg{width:21px;height:21px}
+.sc-info{min-width:0}
+.sc-l{font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;white-space:nowrap}
+.sc-v{font-size:26px;font-weight:700;line-height:1;letter-spacing:-.5px}
+
+/* ── Toolbar ─────────────────────────────────────────────── */
+.tb{display:flex;gap:8px;align-items:center}
+.sw{flex:1;position:relative}
+.sw input{width:100%;padding:7px 11px 7px 34px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surface);color:var(--text);outline:none;transition:border-color .14s,box-shadow .14s}
+.sw input:focus{border-color:var(--acm);box-shadow:0 0 0 3px rgba(55,138,221,.12)}
+.sw-ic{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;pointer-events:none}
+
+/* ── Table ───────────────────────────────────────────────── */
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;box-shadow:var(--shadow)}
+.tw-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surf2)}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+colgroup .c1{width:100px}.c2{width:160px}.c3{width:155px}.c4{width:175px}.c5{width:200px}.c6{width:110px}.c7{width:155px}
+thead th{text-align:left;padding:9px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surf2);border-bottom:1px solid var(--border);user-select:none;white-space:nowrap;overflow:hidden}
+.col-search td{padding:5px 8px;background:#f1f5f9;border-bottom:2px solid var(--border)}
+.cs-inp{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;transition:border-color .14s}
+.cs-inp:focus{border-color:var(--acm)}
+tbody tr{border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--acl)}
+tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tbody td{padding:10px 14px;font-size:13px;vertical-align:middle;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+tbody td.actions{overflow:visible;padding:6px 8px}
+tbody td.muted{color:var(--muted);font-size:12px}
+
+/* ── Skeleton ────────────────────────────────────────────── */
+.skel{background:linear-gradient(90deg,var(--surf2) 0%,#dde2eb 50%,var(--surf2) 100%);background-size:400% 100%;animation:shimmer 1.5s ease infinite;border-radius:5px;display:inline-block}
+@keyframes shimmer{0%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+/* ── Pagination ──────────────────────────────────────────── */
+.pg{display:flex;align-items:center;gap:4px;justify-content:flex-end}
+.pg-btn{min-width:30px;height:30px;padding:0 6px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;color:var(--text);transition:all .12s}
+.pg-btn:hover,.pg-btn.act{background:var(--accent);color:#fff;border-color:var(--accent)}
+.pg-btn:disabled{opacity:.35;cursor:default}
+.pg-btn:disabled:hover{background:var(--surface);color:var(--text);border-color:var(--border)}
+
+/* ── Modal ───────────────────────────────────────────────── */
+.ov{display:none;position:fixed;inset:0;background:rgba(15,20,35,.5);z-index:500;align-items:center;justify-content:center}
+.ov.open{display:flex;animation:ovIn .15s ease-out}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--surface);border-radius:16px;border:1px solid var(--border);width:680px;max-width:96vw;max-height:92vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18),0 2px 8px rgba(0,0,0,.1);animation:modalIn .2s cubic-bezier(.34,1.2,.64,1)}
+@keyframes modalIn{from{transform:translateY(24px) scale(.97);opacity:0}to{transform:none;opacity:1}}
+.mh{padding:18px 20px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surf2);border-radius:16px 16px 0 0}
+.mh h3{font-size:15px;font-weight:700;color:var(--text)}
+.mcl{background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);padding:3px 6px;border-radius:6px;line-height:1;transition:background .12s}
+.mcl:hover{background:var(--border)}
+.mb{padding:20px}
+.mf{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;background:var(--surf2);border-radius:0 0 16px 16px}
+
+/* ── Form ────────────────────────────────────────────────── */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.frow{display:flex;flex-direction:column;gap:5px}
+.frow.full{grid-column:1/-1}
+.frow label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.frow input,.frow select,.frow textarea{padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;background:var(--surf2);color:var(--text);outline:none;font-family:inherit;transition:border-color .14s,box-shadow .14s}
+.frow input:focus,.frow select:focus,.frow textarea:focus{border-color:var(--acm);background:var(--surface);box-shadow:0 0 0 3px rgba(55,138,221,.12)}
+.frow textarea{resize:vertical;min-height:60px}
+.fsec{grid-column:1/-1;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;padding-bottom:6px;border-bottom:2px solid var(--acl);margin-top:4px}
+
+/* ── Detail ──────────────────────────────────────────────── */
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:14px 20px}
+.df{display:flex;flex-direction:column;gap:3px}
+.df.full{grid-column:1/-1}
+.df-l{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.df-v{font-size:13px;color:var(--text);word-break:break-word;line-height:1.5}
+.dsec{margin-bottom:18px}
+.dsec h4{font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--acl)}
+
+/* ── Progress bar ────────────────────────────────────────── */
+.bar{height:3px;background:var(--acl);border-radius:2px;overflow:hidden;margin-bottom:2px}
+.bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .5s}
+
+/* ── Empty ───────────────────────────────────────────────── */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty .ico{font-size:40px;margin-bottom:12px;opacity:.6}
+.empty p{font-size:14px}
+
+/* ── Alert ───────────────────────────────────────────────── */
+.alert{display:none;position:fixed;bottom:24px;right:24px;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.14);font-size:13px;max-width:360px;animation:alertIn .2s ease-out}
+@keyframes alertIn{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+.alert.show{display:flex;align-items:center;gap:8px}
+
+/* ── Map page ────────────────────────────────────────────── */
+#pg-map{display:none;position:relative;height:calc(100vh - 56px)}
+#map{width:100%;height:100%}
+.map-panel{position:absolute;top:16px;right:16px;z-index:1000;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;min-width:230px;max-width:280px;box-shadow:0 4px 20px rgba(0,0,0,.12)}
+.map-panel-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px}
+.map-stat{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.map-stat:last-child{border-bottom:none}
+.map-stat-label{font-size:12px;color:var(--muted)}
+.map-stat-val{font-size:14px;font-weight:700;color:var(--text)}
+.map-legend{position:absolute;bottom:30px;left:16px;z-index:1000;background:rgba(255,255,255,.92);backdrop-filter:blur(4px);border:1px solid var(--border);border-radius:10px;padding:10px 14px;box-shadow:0 2px 10px rgba(0,0,0,.08);font-size:11px}
+.map-legend-title{font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.map-legend-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.map-legend-dot{border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.2);flex-shrink:0}
+.map-empty{display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1000;text-align:center;background:rgba(255,255,255,.95);padding:40px 50px;border-radius:16px;border:1px solid var(--border);box-shadow:0 4px 20px rgba(0,0,0,.1)}
+.map-loader{display:none;position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:1000;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-size:13px;color:var(--muted);box-shadow:0 2px 10px rgba(0,0,0,.1)}
+
+/* ── Farmer type badges ──────────────────────────────────── */
+.ft{display:inline-flex;align-items:center;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:middle;margin-left:5px}
+.ft-farmer{background:#dcf0cc;color:#2d6a0f}
+.ft-trader{background:var(--dngbg);color:var(--dng)}
+.ft-unknown{background:var(--surf2);color:var(--muted)}
+
+/* ── Farmer filter bar ───────────────────────────────────── */
+.ftf{display:flex;gap:4px;flex-wrap:wrap}
+.ftf-btn{padding:4px 10px;border-radius:12px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .12s}
+.ftf-btn:hover{border-color:var(--acm);color:var(--accent)}
+.ftf-btn.act{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+/* ── Star / favourite button ─────────────────────────────── */
+.star-btn{background:none;border:none;cursor:pointer;padding:2px 4px;font-size:15px;color:#ccc;line-height:1;transition:color .12s;flex-shrink:0}
+.star-btn:hover,.star-btn.on{color:#f59e0b}
+
+/* ── Full-page panels (Избранные, Папки) ─────────────────── */
+.panel-page{display:none;padding:20px;overflow-y:auto;height:calc(100vh - 56px)}
+.panel-page.active{display:block}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.panel-hdr h2{font-size:17px;font-weight:700}
+
+/* ── Folder cards ────────────────────────────────────────── */
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:4px}
+.folder-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative}
+.folder-card:hover{box-shadow:var(--shadow);border-color:var(--acm)}
+.folder-card-name{font-size:14px;font-weight:600;margin-bottom:4px}
+.folder-card-count{font-size:12px;color:var(--muted)}
+.folder-del{position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:2px 5px;border-radius:4px;transition:background .12s;line-height:1}
+.folder-del:hover{background:var(--dngbg);color:var(--dng)}
+
+/* ── Fav / folder item list ──────────────────────────────── */
+.item-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+
+/* ── Folder breadcrumb ───────────────────────────────────── */
+.breadcrumb{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.breadcrumb-sep{color:var(--muted);font-size:14px;padding:0 2px}
+
+/* ── Product tabs ────────────────────────────────────────── */
+.tab-strip{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:0;border-bottom:2px solid var(--border);padding-bottom:0}
+.tab-btn{padding:6px 12px;border-radius:var(--r) var(--r) 0 0;border:1px solid transparent;border-bottom:none;background:none;cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);transition:all .12s;white-space:nowrap;margin-bottom:-2px}
+.tab-btn:hover{background:var(--acl);color:var(--accent)}
+.tab-btn.active{background:var(--surface);border-color:var(--border);border-bottom-color:var(--surface);color:var(--accent);font-weight:600}
+.tab-badge{display:inline-block;background:var(--acl);color:var(--accent);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:5px;font-weight:700}
+.tab-btn.active .tab-badge{background:var(--accent);color:#fff}
+.tab-content{padding-top:12px}
+.item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;display:flex;align-items:center;gap:10px;transition:box-shadow .14s}
+.item-card:hover{box-shadow:var(--shadow)}
+.item-card-info{flex:1;min-width:0}
+.item-card-name{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item-card-sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Production sites list ───────────────────────────────── */
+.sites-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}
+.sites-list li{font-size:12px;color:var(--text);padding:4px 0;border-bottom:1px solid var(--border);line-height:1.4}
+.sites-list li:last-child{border-bottom:none}
+
+/* ── Settings modal ──────────────────────────────────────── */
+.settings-section{margin-bottom:20px}
+.settings-section h4{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--acl)}
+/* ── Company modal ───────────────────────────────────────── */
+.comp-decls table{width:100%;border-collapse:collapse;font-size:12px}
+.comp-decls th{text-align:left;padding:5px 10px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surf2)}
+.comp-decls td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.comp-decls tr:last-child td{border-bottom:none}
+.comp-decls tr:hover td{background:var(--acl)}
+.comp-name-link{cursor:pointer;color:inherit}
+.comp-name-link:hover{text-decoration:underline;color:var(--accent)}
+/* ── Map filter chips ────────────────────────────────────── */
+.map-filter{display:flex;gap:4px;flex-wrap:wrap;margin-top:10px}
+.map-fc{padding:3px 9px;border-radius:10px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all .12s}
+.map-fc:hover{border-color:var(--acm);color:var(--accent)}
+.map-fc.act{background:var(--accent);color:#fff;border-color:var(--accent)}
+.map-fc.farmer-act{background:#2d6a0f;color:#fff;border-color:#2d6a0f}
+.map-fc.trader-act{background:var(--dng);color:#fff;border-color:var(--dng)}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <a class="logo" href="#" onclick="showPage('registry');return false">
+    <div class="logo-ic">РЗ</div>
+    <span>Реестр производителей</span>
+  </a>
+  <nav class="nav">
+    <button class="nav-tab active" data-page="registry" onclick="showPage('registry')">Реестр</button>
+    <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта</button>
+    <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
+    <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
+  </nav>
+  <div class="hdr-r">
+    <span id="hdrStatus" style="font-size:12px;color:var(--muted)"></span>
+    <button class="btn btn-warn btn-sm" onclick="triggerParse()">↺ Обновить</button>
+    <button class="btn btn-p btn-sm" onclick="openAdd()">+ Добавить</button>
+    <a class="btn btn-sm" href="/api/export/csv">⬇ CSV</a>
+    <button class="btn btn-sm" onclick="openSettings()" title="Настройки">⚙</button>
+  </div>
+</div>
+
+<!-- REGISTRY PAGE -->
+<div id="pg-registry" class="page-h">
+<div class="body">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div>
+    <div class="fs-title">Статус парсера</div>
+    <div class="pstatus">
+      <div class="pst-row">
+        <div class="dot dot-idle" id="stDot"></div>
+        <span id="stText" style="font-size:12px;color:var(--muted)">Загрузка...</span>
+      </div>
+      <div class="bar"><div class="bar-fill" id="stBar" style="width:0%"></div></div>
+      <span id="stTime" style="font-size:11px;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <div>
+    <div class="fs-title">Дата регистрации</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span style="font-size:12px;color:var(--muted);min-width:20px">От</span>
+      <input type="date" class="fi" id="flDateF" onchange="applyFilters()" style="flex:1">
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="font-size:12px;color:var(--muted);min-width:20px">До</span>
+      <input type="date" class="fi" id="flDateT" onchange="applyFilters()" style="flex:1">
+    </div>
+  </div>
+  <div>
+    <div class="fs-title">Тип компании</div>
+    <div class="ftf" id="ftfBar">
+      <button class="ftf-btn act" data-ft="" onclick="setFarmerFilter(this,'')">Все</button>
+      <button class="ftf-btn" data-ft="farmer" onclick="setFarmerFilter(this,'farmer')">Фермеры</button>
+      <button class="ftf-btn" data-ft="trader" onclick="setFarmerFilter(this,'trader')">Трейдеры</button>
+      <button class="ftf-btn" data-ft="unknown" onclick="setFarmerFilter(this,'unknown')">Не опред.</button>
+    </div>
+  </div>
+  <button class="btn" style="width:100%" onclick="resetFilters()">✕ Сбросить фильтры</button>
+
+  <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border)">
+    <div style="font-size:11px;color:var(--muted);line-height:1.7">
+      <b>Авто-парсинг:</b> каждые 30 мин.<br>
+      Записей: <b id="sideTotalRec">—</b><br>
+      Обновлено: <span id="sideLastUpd">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="sc">
+      <div class="sc-icon" style="background:#EBF5FF">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="1.8">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+      </div>
+      <div class="sc-info">
+        <div class="sc-l">Всего производителей</div>
+        <div class="sc-v" id="stTotal">—</div>
+      </div>
+    </div>
+    <div class="sc">
+      <div class="sc-icon" style="background:#E8F5E2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2d6a0f" stroke-width="1.8">
+          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div class="sc-info">
+        <div class="sc-l">Действуют</div>
+        <div class="sc-v" id="stActive" style="color:var(--succ)">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="tb">
+    <div class="sw">
+      <span class="sw-ic">🔍</span>
+      <input type="text" id="globalQ" placeholder="Поиск по всем полям..." oninput="applyFilters()">
+    </div>
+    <select class="btn" id="sortF" onchange="applyFilters()">
+      <option value="regDate">По дате рег.</option>
+      <option value="applicantName">По заявителю</option>
+      <option value="shortName">По изготовителю</option>
+      <option value="productName">По продукции</option>
+      <option value="group">По группе</option>
+    </select>
+    <select class="btn" id="sortD" onchange="applyFilters()">
+      <option value="desc">↓ Убыв.</option>
+      <option value="asc">↑ Возр.</option>
+    </select>
+    <select class="btn" id="pgSize" onchange="applyFilters()">
+      <option value="20">20 / стр.</option>
+      <option value="50">50 / стр.</option>
+      <option value="100">100 / стр.</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="tw">
+    <div class="tw-hdr">
+      <b id="tblCount" style="font-size:13px;color:var(--text)">—</b>
+      <span style="font-size:12px;color:var(--muted)">Стр. <b id="pgNow">1</b> из <b id="pgOf">1</b></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <colgroup><col style="width:30px"><col style="min-width:200px"><col style="min-width:220px"><col style="min-width:130px"><col style="width:116px;min-width:116px"></colgroup>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Производитель</th>
+            <th>Адрес</th>
+            <th>Продукция</th>
+            <th style="text-align:center">Записей</th>
+          </tr>
+          <tr class="col-search">
+            <td></td>
+            <td><input class="cs-inp" placeholder="Производитель…" id="csManuf" oninput="applyFilters()"></td>
+            <td><input class="cs-inp" placeholder="Адрес…" id="csAddress" oninput="applyFilters()"></td>
+            <td><input class="cs-inp" placeholder="Продукция…" id="csProduct" oninput="applyFilters()"></td>
+            <td></td>
+          </tr>
+          <!-- скрытые inputs для совместимости с getFilters() -->
+          <tr style="display:none">
+            <td><input id="csDate"><input id="csApplicant"><input id="csGroup"></td>
+          </tr>
+        </thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty" style="display:none">
+      <div class="ico">📋</div>
+      <p>Нет записей, соответствующих фильтрам</p>
+    </div>
+  </div>
+
+  <!-- Pagination -->
+  <div class="pg" id="pgBar"></div>
+</div>
+</div>
+</div>
+
+<!-- MAP PAGE -->
+<div id="pg-map" class="page-h">
+  <div id="map"></div>
+  <div class="map-panel">
+    <div class="map-panel-title">Статистика карты</div>
+    <div class="map-stat"><span class="map-stat-label">Городов на карте</span><span class="map-stat-val" id="mapCityCount">—</span></div>
+    <div class="map-stat"><span class="map-stat-label">Всего производителей</span><span class="map-stat-val" id="mapDeclCount">—</span></div>
+    <div class="map-stat"><span class="map-stat-label">Не распознано</span><span class="map-stat-val" id="mapUnknown" style="color:var(--muted)">—</span></div>
+    <div class="map-panel-title" style="margin-top:12px">Фильтр</div>
+    <div class="map-filter">
+      <button class="map-fc act" data-ft="" onclick="setMapFilter(this,'')">Все</button>
+      <button class="map-fc" data-ft="farmer" onclick="setMapFilter(this,'farmer')">Фермеры</button>
+      <button class="map-fc" data-ft="trader" onclick="setMapFilter(this,'trader')">Трейдеры</button>
+    </div>
+  </div>
+  <div class="map-legend">
+    <div class="map-legend-title">Деклараций</div>
+    <div class="map-legend-row"><div class="map-legend-dot" style="width:12px;height:12px;background:#7DB9E8"></div><span style="color:var(--muted)">1–10</span></div>
+    <div class="map-legend-row"><div class="map-legend-dot" style="width:18px;height:18px;background:#378ADD"></div><span style="color:var(--muted)">11–50</span></div>
+    <div class="map-legend-row"><div class="map-legend-dot" style="width:24px;height:24px;background:#185FA5"></div><span style="color:var(--muted)">51–200</span></div>
+    <div class="map-legend-row"><div class="map-legend-dot" style="width:30px;height:30px;background:#0C3B7A"></div><span style="color:var(--muted)">200+</span></div>
+  </div>
+  <div class="map-loader" id="mapLoader">Загрузка данных...</div>
+  <div class="map-empty" id="mapEmpty">
+    <div style="font-size:44px;margin-bottom:12px">🗺️</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px">Данных нет</div>
+    <div style="font-size:13px;color:var(--muted)">Запустите парсинг для загрузки производителей</div>
+  </div>
+</div>
+
+<!-- FAVORITES PAGE -->
+<div class="panel-page" id="pg-favorites">
+  <div class="panel-hdr">
+    <h2>⭐ Избранные компании</h2>
+    <span style="font-size:12px;color:var(--muted)">Уведомления в Telegram при новых декларациях</span>
+  </div>
+  <div id="favEmpty" class="empty" style="display:none"><div class="ico">⭐</div><p>Нет избранных компаний.<br>Нажмите ⭐ рядом с компанией в реестре, чтобы добавить.</p></div>
+  <div class="item-list" id="favList"></div>
+</div>
+
+<!-- FOLDERS PAGE -->
+<div class="panel-page" id="pg-folders">
+  <div class="panel-hdr">
+    <h2>📁 Папки</h2>
+    <button class="btn btn-p btn-sm" id="folderCreateBtn" onclick="createFolderCtx()">+ Новая папка</button>
+  </div>
+  <div id="foldersEmpty" class="empty" style="display:none"><div class="ico">📁</div><p>Нет папок. Создайте первую папку.</p></div>
+  <div class="folder-grid" id="folderGrid"></div>
+  <div id="folderContent" style="display:none;margin-top:20px">
+    <div class="breadcrumb" id="folderBreadcrumbEl"></div>
+    <div class="folder-grid" id="subFolderGrid" style="display:none;margin-bottom:16px"></div>
+    <div class="item-list" id="folderItems"></div>
+    <div id="folderItemsEmpty" class="empty" style="display:none"><div class="ico">📄</div><p>Папка пуста. Добавьте компании или декларации через 📁 в реестре.</p></div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="ov" id="settingsModal">
+<div class="modal" style="max-width:480px">
+  <div class="mh"><h3>⚙ Настройки</h3><button class="mcl" onclick="closeModal('settingsModal')">✕</button></div>
+  <div class="mb">
+    <div class="settings-section">
+      <h4>Telegram уведомления</h4>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+        Создайте бота через <b>@BotFather</b>, отправьте ему /newbot, получите токен.<br>
+        Узнать chat_id: напишите боту что-нибудь, затем откройте<br>
+        <code style="background:var(--surf2);padding:1px 4px;border-radius:3px;font-size:11px">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>
+      </div>
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="frow"><label>Bot Token</label><input type="text" id="tgBotToken" placeholder="1234567890:AAFF..."></div>
+        <div class="frow"><label>Chat ID</label><input type="text" id="tgChatId" placeholder="-1001234567890 или личный ID"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-p btn-sm" onclick="saveTelegramConfig()">Сохранить</button>
+        <button class="btn btn-sm" onclick="testTelegram()">Тест</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <h4>Обогащение данных ФНС (ОКВЭД)</h4>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5">
+        Для существующих записей в БД определяет тип компании (фермер / трейдер) по ОКВЭД через egrul.nalog.ru.<br>
+        Запускается в фоне, не мешает парсингу. Прогресс сохраняется.
+      </div>
+      <div id="enrichStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px">Загрузка...</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p btn-sm" id="enrichStartBtn" onclick="startEnrich()">▶ Запустить</button>
+        <button class="btn btn-sm" id="enrichStopBtn" onclick="stopEnrich()" style="display:none">⏹ Остановить</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ADD / EDIT MODAL -->
+<div class="ov" id="addModal">
+<div class="modal">
+  <div class="mh">
+    <h3 id="modalTitle">Добавить запись</h3>
+    <button class="mcl" onclick="closeModal('addModal')">✕</button>
+  </div>
+  <div class="mb">
+    <div class="fg">
+      <div class="fsec">Основные сведения</div>
+      <div class="frow full"><label>Группа продукции ЕАЭС</label><input type="text" id="f_group" placeholder="Зерно пшеницы..."></div>
+      <div class="frow"><label>Дата регистрации</label><input type="date" id="f_regDate"></div>
+      <div class="frow"><label>Дата окончания</label><input type="date" id="f_endDate"></div>
+      <div class="frow full"><label>Заявитель</label><input type="text" id="f_applicantName" placeholder='ООО "Заявитель"'></div>
+      <div class="fsec">Изготовитель</div>
+      <div class="frow"><label>Фамилия руководителя</label><input type="text" id="f_lastName" placeholder="Иванов"></div>
+      <div class="frow"><label>Имя руководителя</label><input type="text" id="f_firstName" placeholder="Иван"></div>
+      <div class="frow"><label>Отчество руководителя</label><input type="text" id="f_middleName" placeholder="Иванович"></div>
+      <div class="frow"><label>Наименование юл</label><input type="text" id="f_shortName" placeholder='ООО "Компания"'></div>
+      <div class="frow full"><label>Адрес</label><input type="text" id="f_address" placeholder="г. Краснодар, ул. ..."></div>
+      <div class="frow"><label>Телефон</label><input type="text" id="f_phone" placeholder="+7 (861) ..."></div>
+      <div class="fsec">Сведения о продукции</div>
+      <div class="frow full"><label>Наименование продукции</label><input type="text" id="f_productName" placeholder="Пшеница мягкая..."></div>
+      <div class="frow"><label>Размер партии</label><input type="text" id="f_batchSize" placeholder="Серийный выпуск"></div>
+      <div class="frow full"><label>Иная информация</label><textarea id="f_otherInfo" placeholder="Дополнительные сведения..."></textarea></div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('addModal')">Отмена</button>
+    <button class="btn btn-p" onclick="saveRecord()">Сохранить</button>
+  </div>
+</div>
+</div>
+
+<!-- COMPANY MODAL -->
+<div class="ov" id="compModal">
+<div class="modal" style="max-width:760px">
+  <div class="mh" style="padding-bottom:12px">
+    <div style="min-width:0;flex:1">
+      <h3 id="compModalName" style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></h3>
+      <div id="compModalSub" style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4"></div>
+    </div>
+    <button class="mcl" onclick="closeModal('compModal')">✕</button>
+  </div>
+  <div class="mb" id="compModalBody" style="padding-top:16px"></div>
+  <div class="mf" id="compModalFoot"></div>
+</div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div class="ov" id="detModal">
+<div class="modal">
+  <div class="mh"><h3>Карточка производителя</h3><button class="mcl" onclick="closeModal('detModal')">✕</button></div>
+  <div class="mb" id="detBody"></div>
+  <div class="mf" id="detFoot"></div>
+</div>
+</div>
+
+<!-- Alert -->
+<div class="alert" id="alertBox"><span id="alertTxt"></span></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Координаты российских городов ────────────────────────────────────────────
+const CITY_COORDS = {
+  'Москва':[55.7558,37.6176],'Санкт-Петербург':[59.9343,30.3351],'Новосибирск':[54.9924,82.8138],
+  'Екатеринбург':[56.8519,60.6122],'Казань':[55.7887,49.1221],'Нижний Новгород':[56.2965,43.9361],
+  'Челябинск':[55.1644,61.4368],'Самара':[53.2038,50.15],'Уфа':[54.7388,55.9721],
+  'Ростов-на-Дону':[47.2357,39.7015],'Краснодар':[45.0355,38.9753],'Воронеж':[51.672,39.1843],
+  'Пермь':[58.0104,56.2502],'Волгоград':[48.708,44.5133],'Красноярск':[56.0153,92.8672],
+  'Саратов':[51.5462,46.0154],'Тюмень':[57.1553,68.9683],'Тольятти':[53.5303,49.3461],
+  'Омск':[54.9885,73.3242],'Барнаул':[53.3547,83.7695],'Ижевск':[56.8527,53.2116],
+  'Иркутск':[52.2869,104.289],'Хабаровск':[48.4802,135.0719],'Ярославль':[57.6261,39.8845],
+  'Владивосток':[43.1332,131.9113],'Махачкала':[42.9849,47.5047],'Томск':[56.4977,84.9744],
+  'Оренбург':[51.7883,55.1023],'Кемерово':[55.3904,86.0427],'Новокузнецк':[53.7596,87.1152],
+  'Рязань':[54.6296,39.743],'Астрахань':[46.3497,48.0408],'Набережные Челны':[55.7391,52.4049],
+  'Пенза':[53.1959,45.0186],'Липецк':[52.6031,39.5708],'Тула':[54.1961,37.6182],
+  'Киров':[58.5977,49.6583],'Чебоксары':[56.1439,47.2489],'Улан-Удэ':[51.8279,107.6063],
+  'Курск':[51.7373,36.1873],'Ставрополь':[45.05,41.9734],'Белгород':[50.5956,36.5872],
+  'Мурманск':[68.9585,33.0827],'Архангельск':[64.5405,40.5154],'Калининград':[54.7104,20.4522],
+  'Сочи':[43.5855,39.7231],'Волжский':[48.7883,44.7636],'Чита':[52.0336,113.4994],
+  'Орёл':[52.9651,36.0785],'Владимир':[56.129,40.407],'Брянск':[53.2434,34.3634],
+  'Магнитогорск':[53.4153,58.9946],'Тверь':[56.8587,35.9176],'Иваново':[57.0005,40.9739],
+  'Калуга':[54.5293,36.2754],'Нижнекамск':[55.6374,51.816],'Смоленск':[54.7818,32.0401],
+  'Тамбов':[52.7212,41.4525],'Сургут':[61.2501,73.4201],'Симферополь':[44.9521,34.1024],
+  'Грозный':[43.3178,45.6984],'Кострома':[57.7678,40.9268],'Шахты':[47.7094,40.2149],
+  'Сыктывкар':[61.6689,50.8365],'Нижний Тагил':[57.9214,59.9707],'Петрозаводск':[61.7849,34.3469],
+  'Элиста':[46.3072,44.2552],'Нальчик':[43.4846,43.6029],'Владикавказ':[43.0362,44.6677],
+  'Черкесск':[44.2286,42.0578],'Майкоп':[44.6088,40.1073],'Новороссийск':[44.723,37.7694],
+  'Таганрог':[47.209,38.9371],'Батайск':[47.1395,39.7538],'Новочеркасск':[47.4182,40.0939],
+  'Волгодонск':[47.5168,42.162],'Армавир':[44.9936,41.1261],'Пятигорск':[44.0417,43.0631],
+  'Кисловодск':[43.9054,42.731],'Ессентуки':[44.0465,42.8602],'Минеральные Воды':[44.2185,43.1398],
+  'Кропоткин':[45.4354,40.5779],'Тихорецк':[45.8531,40.1218],'Темрюк':[45.2796,37.3835],
+  'Ейск':[46.71,38.2716],'Анапа':[44.8879,37.3195],'Геленджик':[44.5558,38.0747],
+  'Абинск':[44.8626,38.1615],'Крымск':[44.9264,37.9899],'Тимашевск':[45.6136,38.9441],
+  'Зерноград':[46.8497,40.3172],'Сальск':[46.4797,41.5394],'Белая Калитва':[48.1826,40.8017],
+  'Гулькевичи':[45.3586,40.6916],'Усть-Лабинск':[45.2166,39.6913],'Лабинск':[44.6339,40.7288],
+  'Апшеронск':[44.4647,39.731],'Лиски':[50.9889,39.5142],'Борисоглебск':[51.3723,42.0806],
+  'Острогожск':[50.8643,39.0695],'Россошь':[50.1972,39.5731],'Старый Оскол':[51.2974,37.8416],
+  'Губкин':[51.2808,37.5372],'Алексеевка':[50.627,38.6973],'Мичуринск':[52.9,40.5],
+  'Моршанск':[53.4281,41.8148],'Котовск':[52.5927,41.5023],'Уварово':[51.9853,42.2545],
+  'Балаково':[51.9956,47.8026],'Вольск':[52.0469,47.3869],'Энгельс':[51.5009,46.1237],
+  'Балашов':[51.5519,43.168],'Аткарск':[51.87,44.9905],'Орск':[51.229,58.4696],
+  'Бузулук':[52.788,52.2576],'Бугуруслан':[53.654,52.431],'Бугульма':[54.5384,52.797],
+  'Альметьевск':[54.9001,52.3019],'Курган':[55.4484,65.3391],'Шадринск':[56.0832,63.6326],
+  'Миасс':[54.9881,60.1112],'Троицк':[54.0803,61.5669],'Копейск':[55.1177,61.6254],
+  'Новотроицк':[51.2014,60.0821],'Бийск':[52.5408,85.2092],'Рубцовск':[51.5,81.2],
+  'Ачинск':[56.2697,90.4996],'Абакан':[53.7209,91.4424],'Бердск':[54.7603,82.981],
+  'Псков':[57.8194,28.332],'Великий Новгород':[58.5241,31.2699],'Вологда':[59.2181,39.8886],
+  'Череповец':[59.1257,37.9059],'Ухта':[63.5593,53.6831],'Нижневартовск':[60.9347,76.5696],
+  'Стерлитамак':[53.6254,55.9376],'Чебаркуль':[54.9849,60.3624],'Октябрьский':[54.4755,53.4671],
+  'Туапсе':[44.1073,39.0815],'Новоалтайск':[53.3835,83.9412],'Заринск':[53.7019,84.9309],
+  'Куйбышев':[55.4614,78.3239],'Северск':[56.6012,84.8802],'Искитим':[54.6325,83.3043],
+  'Камышин':[50.0989,45.4018],'Михайловка':[50.0608,43.2436],'Урюпинск':[50.7957,42.0124],
+  'Николаевск':[50.0235,45.4485],'Фролово':[49.7697,43.6629],'Новоаннинский':[50.5272,42.6822],
+  'Серпухов':[54.9158,37.4167],'Подольск':[55.431,37.5444],'Коломна':[55.0833,38.7667],
+  'Электросталь':[55.7935,38.4455],'Мытищи':[55.9135,37.7306],'Химки':[55.8883,37.4304],
+  'Балашиха':[55.7959,37.9385],'Люберцы':[55.6792,37.8931],'Домодедово':[55.4406,37.7715],
+  'Одинцово':[55.6728,37.2797],'Красногорск':[55.8244,37.3484],'Пушкино':[56.0146,37.8609],
+  'Щёлково':[55.9183,38.0211],'Раменское':[55.5702,38.2294],'Орехово-Зуево':[55.8058,38.9844],
+  'Ногинск':[55.8573,38.4396],'Воскресенск':[55.3246,38.6744],'Клин':[56.3348,36.7275],
+  'Дмитров':[56.3441,37.5241],'Наро-Фоминск':[55.3896,36.7298],'Жуковский':[55.5975,38.1167],
+  'Реутов':[55.7611,37.8619],'Королёв':[55.9226,37.8423],'Долгопрудный':[55.9383,37.5126],
+  'Фрязево':[55.8711,38.2239],'Ивантеевка':[55.9747,37.922],'Видное':[55.5562,37.7022],
+  'Дзержинск':[56.2346,43.4601],'Арзамас':[55.3897,43.8401],'Саров':[54.9267,35.8389],
+  'Выкса':[55.3205,42.1735],'Кстово':[56.1451,44.1987],'Бор':[56.3594,44.0671],
+  'Бузулук':[52.788,52.2576],'Соль-Илецк':[51.1587,55.0013],'Медногорск':[51.4082,57.5875],
+  'Ртищево':[52.2639,43.7919],'Павловск':[50.4567,40.1318],'Новый Оскол':[50.7614,37.8784],
+  'Валуйки':[50.2118,38.1061],'Бирюч':[50.6279,38.3988],'Обоянь':[51.2127,36.2725],
+  'Льгов':[51.6674,35.2642],'Железногорск':[52.3353,35.3639],'Дмитриев':[52.1271,35.0813],
+  'Рыльск':[51.5705,34.6845],'Суджа':[51.1911,35.2683],'Щигры':[51.8664,36.9012],
+  'Фатеж':[52.0874,36.0624],'Конотоп':[51.2367,33.1988],'Путивль':[51.3344,33.8722],
+  'Сумы':[50.9077,34.7981],'Харьков':[49.9808,36.2527],'Белгород-Днестровский':[46.1925,30.3478],
+  'Семилуки':[51.6847,39.0264],'Иланский':[56.2397,96.0417],
+  'Горняк':[50.9869,81.4556],'Ершов':[51.3628,48.2814],'Новокубанск':[45.1178,41.0333],
+  'Тетюши':[54.9278,48.8408],'Гурьевск':[54.3019,85.9453],'Новопавловск':[43.9572,43.6253],
+  'Мелеуз':[52.9608,55.9217],'Зарайск':[54.7653,38.8731],'Дигора':[43.1526,44.1597],
+  'Красный Сулин':[47.8903,40.0731],'Ялта':[44.4980,34.1558],
+  // Новые регионы РФ
+  'Донецк':[48.0059,37.8028],'Луганск':[48.5740,39.3070],'Мариуполь':[47.0966,37.5494],
+  'Макеевка':[47.9961,37.9603],'Горловка':[48.2954,37.9728],'Енакиево':[48.2306,38.1986],
+  'Алчевск':[48.4757,38.7971],'Краснодон':[48.2898,39.7348],'Стаханов':[48.5586,38.6563],
+  'Херсон':[46.6354,32.6169],'Скадовск':[46.1111,32.9111],'Геническ':[46.1694,34.8264],
+  'Запорожье':[47.8388,35.1396],'Мелитополь':[46.8481,35.3617],'Энергодар':[47.5014,34.6553],
+  'Бердянск':[46.7639,36.8058],'Токмак':[47.2667,35.7167],
+};
+
+// ── App state ─────────────────────────────────────────────────────────────
+const API = '';
+let curPage = 0;
+let editingId = null;
+let mapInstance = null;
+let mapInitialized = false;
+let mapAllCities = [];     // все города из API
+let mapFilter = '';        // '' | 'farmer' | 'trader'
+let curFarmerFilter = '';
+let curFolderOpen = null;
+let producerDataCache = new Map(); // ключ: inn || name → данные producer
+let lastUpdatedAt = null;          // для умного обновления таблицы
+
+// ── API helper ────────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.getElementById('pg-registry').style.display = name === 'registry' ? '' : 'none';
+  document.getElementById('pg-map').style.display = name === 'map' ? 'block' : 'none';
+  document.getElementById('pg-favorites').className = 'panel-page' + (name === 'favorites' ? ' active' : '');
+  document.getElementById('pg-folders').className   = 'panel-page' + (name === 'folders'   ? ' active' : '');
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
+  if (name === 'map') {
+    if (!mapInitialized) { mapInitialized = true; setTimeout(initMap, 150); }
+    else if (mapInstance) { setTimeout(() => mapInstance.invalidateSize(), 50); }
+  }
+  if (name === 'favorites') loadFavorites();
+  if (name === 'folders')   loadFolders();
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────
+function getFilters() {
+  return {
+    page        : curPage,
+    size        : document.getElementById('pgSize').value || 20,
+    search      : document.getElementById('globalQ').value || '',
+    dateFrom    : document.getElementById('flDateF').value || '',
+    dateTo      : document.getElementById('flDateT').value || '',
+    dateSearch  : document.getElementById('csDate').value || '',
+    applicant   : document.getElementById('csApplicant').value || '',
+    manufacturer: document.getElementById('csManuf').value || '',
+    address     : document.getElementById('csAddress').value || '',
+    product     : document.getElementById('csProduct').value || '',
+    group       : document.getElementById('csGroup').value || '',
+    sortField   : document.getElementById('sortF').value || 'regDate',
+    sortDir     : document.getElementById('sortD').value || 'desc',
+    farmerType  : curFarmerFilter,
+  };
+}
+
+function setFarmerFilter(btn, val) {
+  curFarmerFilter = val;
+  document.querySelectorAll('.ftf-btn').forEach(b => b.classList.toggle('act', b === btn));
+  curPage = 0;
+  loadTable();
+}
+
+function buildQS(p) {
+  return '?' + Object.entries(p).filter(([,v]) => v !== '').map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+}
+
+async function applyFilters() { curPage = 0; await loadTable(); }
+
+function resetFilters() {
+  ['flDateF','flDateT','globalQ'].forEach(id => document.getElementById(id).value = '');
+  ['csDate','csApplicant','csManuf','csAddress','csProduct','csGroup'].forEach(id => document.getElementById(id).value = '');
+  curFarmerFilter = '';
+  document.querySelectorAll('.ftf-btn').forEach(b => b.classList.toggle('act', b.dataset.ft === ''));
+  applyFilters();
+}
+
+// ── Table ─────────────────────────────────────────────────────────────────
+function showSkeleton() {
+  const rows = Array(8).fill(0).map(() =>
+    '<tr>' + [20,180,200,160,60].map(w =>
+      `<td><span class="skel" style="width:${w*(.5+Math.random()*.5)|0}px;height:13px"> </span></td>`
+    ).join('') + '</tr>'
+  ).join('');
+  document.getElementById('tblBody').innerHTML = rows;
+}
+
+async function loadTable() {
+  const tbody = document.getElementById('tblBody');
+  if (!tbody.childElementCount) showSkeleton();
+  let data;
+  try {
+    data = await apiFetch('/api/producers' + buildQS(getFilters()));
+  } catch(e) {
+    showAlert('Ошибка загрузки: ' + e.message, 'err'); return;
+  }
+  // Кешируем данные производителей для модального окна компании
+  (data.items || []).forEach(p => {
+    const key = p.inn || p.name;
+    if (key) producerDataCache.set(key, p);
+  });
+  const { items, total, pages, page } = data;
+  document.getElementById('tblCount').textContent = total.toLocaleString('ru') + ' производителей';
+  document.getElementById('pgNow').textContent = (page || 0) + 1;
+  document.getElementById('pgOf').textContent  = pages || 1;
+  document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
+
+  const q = (document.getElementById('globalQ').value || '').trim();
+  const hl = t => q
+    ? (t||'').replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),
+        '<mark style="background:#FEF3C7;border-radius:2px;padding:0 1px">$1</mark>')
+    : (t||'');
+
+  const ftLabel = { farmer: '<span class="ft ft-farmer">Фермер</span>', trader: '<span class="ft ft-trader">Трейдер</span>', unknown: '' };
+
+  tbody.innerHTML = items.map((p, idx) => {
+    const hasMany = p.decls.length > 1;
+    const firstProduct = (p.decls[0]?.productName || '—').slice(0, 60);
+    const badge = ftLabel[p.farmerType] || '';
+    const innHint = p.inn ? `<span style="font-size:10px;color:var(--muted);display:block">ИНН: ${p.inn}</span>` : '';
+    const isFav = isFavorite(p.inn, p.name);
+    const safeInn = (p.inn||'').replace(/'/g,"\\'");
+    const safeName = (p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    const subRows = p.decls.map(d => `
+      <tr class="decl-sub-row" id="sub_${page}_${idx}_${d.id}" style="display:none">
+        <td></td>
+        <td style="padding-left:20px;font-size:12px;color:var(--muted);white-space:nowrap">${d.regDate||'—'}</td>
+        <td style="font-size:12px" title="${(d.productName||'').replace(/"/g,'&quot;')}">${hl(d.productName||'—')}</td>
+        <td style="font-size:12px;color:var(--muted)">${d.batchSize||'—'}</td>
+        <td style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
+          <button class="btn btn-sm" style="padding:2px 5px;font-size:11px" onclick="event.stopPropagation();addDeclToFolder('${d.id}','${(d.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" title="В папку">📁</button>
+          <button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="event.stopPropagation();openDetail('${d.id}')">↗</button>
+        </td>
+      </tr>`).join('');
+    return `
+      <tr class="producer-row" id="prod_${page}_${idx}" onclick="toggleProducer(${page},${idx},${p.decls.length})" style="cursor:${hasMany?'pointer':'default'}">
+        <td style="text-align:center;color:var(--muted);font-size:11px;user-select:none" id="arr_${page}_${idx}">${hasMany?'▶':''}</td>
+        <td title="${(p.name).replace(/"/g,'&quot;')}" style="font-weight:500">
+          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name)}${badge}</span>${innHint}
+        </td>
+        <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—')}</td>
+        <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
+        <td class="actions" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
+          <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="${isFav?'Убрать из избранного':'Добавить в избранное'}">★</button>
+          <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'")}',this)" title="В папку">📁</button>
+          ${p.decls.length === 1
+            ? `<button class="btn btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();openDetail('${p.decls[0].id}')">↗</button>`
+            : `<span style="background:var(--acl);color:var(--accent);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${p.decls.length}</span>`}
+        </td>
+      </tr>${subRows}`;
+  }).join('');
+
+  renderPagination(page || 0, pages || 1);
+}
+
+function toggleProducer(page, idx, count) {
+  if (count <= 1) return;
+  const arr = document.getElementById('arr_' + page + '_' + idx);
+  const tbody = document.getElementById('tblBody');
+  const allSubs = tbody.querySelectorAll(`[id^="sub_${page}_${idx}_"]`);
+  const expanded = arr && arr.textContent === '▼';
+  allSubs.forEach(r => r.style.display = expanded ? 'none' : '');
+  if (arr) arr.textContent = expanded ? '▶' : '▼';
+}
+
+function renderPagination(page, pages) {
+  const bar = document.getElementById('pgBar');
+  if (pages <= 1) { bar.innerHTML = ''; return; }
+  let h = `<button class="pg-btn" onclick="goPage(${page-1})" ${page===0?'disabled':''}>&lsaquo;</button>`;
+  for (let p = 0; p < pages; p++) {
+    if (p===0||p===pages-1||Math.abs(p-page)<=2)
+      h += `<button class="pg-btn ${p===page?'act':''}" onclick="goPage(${p})">${p+1}</button>`;
+    else if (Math.abs(p-page)===3)
+      h += `<span style="padding:0 4px;color:var(--muted)">…</span>`;
+  }
+  h += `<button class="pg-btn" onclick="goPage(${page+1})" ${page===pages-1?'disabled':''}>&rsaquo;</button>`;
+  bar.innerHTML = h;
+}
+
+function goPage(p) { curPage = p; loadTable(); }
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats() {
+  try {
+    const s = await apiFetch('/api/stats');
+    document.getElementById('stTotal').textContent  = s.total.toLocaleString('ru');
+    document.getElementById('stActive').textContent = s.active.toLocaleString('ru');
+    document.getElementById('sideTotalRec').textContent = s.total.toLocaleString('ru');
+  } catch(_) {}
+}
+
+// ── Parser status poll ────────────────────────────────────────────────────
+async function pollStatus() {
+  try {
+    const s = await apiFetch('/api/status');
+    document.getElementById('stDot').className =
+      'dot ' + (s.isRunning ? 'dot-run' : s.state==='error' ? 'dot-err' : 'dot-live');
+    document.getElementById('stText').textContent = s.message || '—';
+    const bar = document.getElementById('stBar');
+    bar.style.width = '100%';
+    bar.style.background = s.isRunning ? 'var(--acm)' : s.state==='error' ? 'var(--dng)' : 'var(--succ)';
+    if (s.lastUpdated) {
+      const d = new Date(s.lastUpdated);
+      document.getElementById('stTime').textContent = 'Обновлено: ' + d.toLocaleString('ru-RU');
+      document.getElementById('sideLastUpd').textContent = d.toLocaleTimeString('ru-RU');
+      document.getElementById('hdrStatus').textContent = d.toLocaleTimeString('ru-RU');
+    }
+    if (!s.isRunning) {
+      await loadStats();
+      // Перезагружаем таблицу только если данные изменились
+      if (s.lastUpdated !== lastUpdatedAt) {
+        lastUpdatedAt = s.lastUpdated;
+        await loadTable();
+      }
+    }
+  } catch(_) {}
+}
+
+async function triggerParse() {
+  try {
+    const r = await apiFetch('/api/parse', { method: 'POST' });
+    showAlert(r.message, r.ok ? 'ok' : 'warn');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Add / Edit ────────────────────────────────────────────────────────────
+function openAdd(id, record) {
+  editingId = id || null;
+  document.getElementById('modalTitle').textContent = id ? 'Редактировать запись' : 'Добавить запись вручную';
+  ['group','regDate','endDate','applicantName','lastName','firstName','middleName','shortName','address','phone','productName','batchSize','otherInfo'].forEach(f => {
+    const el = document.getElementById('f_' + f);
+    if (el) el.value = (record && record[f] != null) ? record[f] : '';
+  });
+  document.getElementById('addModal').classList.add('open');
+}
+
+async function saveRecord() {
+  const fields = ['group','regDate','endDate','applicantName','lastName','firstName','middleName','shortName','address','phone','productName','batchSize','otherInfo'];
+  const data = {};
+  fields.forEach(f => { const el = document.getElementById('f_'+f); data[f] = el ? el.value.trim() : ''; });
+  if (!data.group && !data.shortName && !data.productName && !data.applicantName)
+    return showAlert('Заполните хотя бы одно поле', 'err');
+  try {
+    if (editingId) {
+      await apiFetch('/api/declarations/'+editingId, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+      showAlert('Запись обновлена', 'ok');
+    } else {
+      await apiFetch('/api/declarations', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,status:'active'})});
+      showAlert('Запись добавлена', 'ok');
+    }
+    closeModal('addModal');
+    await loadTable(); await loadStats();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Detail ────────────────────────────────────────────────────────────────
+async function openDetail(id) {
+  let r;
+  try { r = await apiFetch('/api/declarations/' + id); }
+  catch(e) { showAlert('Ошибка загрузки: ' + e.message, 'err'); return; }
+
+  document.getElementById('detBody').innerHTML = `
+    <div class="dsec"><h4>Основные сведения</h4>
+      <div class="dg">
+        <div class="df full"><div class="df-l">Группа продукции ЕАЭС</div><div class="df-v">${r.group||'—'}</div></div>
+        <div class="df"><div class="df-l">Дата регистрации</div><div class="df-v">${r.regDate||'—'}</div></div>
+        <div class="df"><div class="df-l">Дата окончания</div><div class="df-v">${r.endDate||'—'}</div></div>
+        <div class="df full"><div class="df-l">Заявитель</div><div class="df-v">${r.applicantName||'—'}</div></div>
+      </div>
+    </div>
+    <div class="dsec"><h4>Изготовитель</h4>
+      <div class="dg">
+        <div class="df"><div class="df-l">Фамилия</div><div class="df-v">${r.lastName||'—'}</div></div>
+        <div class="df"><div class="df-l">Имя</div><div class="df-v">${r.firstName||'—'}</div></div>
+        <div class="df"><div class="df-l">Отчество</div><div class="df-v">${r.middleName||'—'}</div></div>
+        <div class="df full"><div class="df-l">Наименование юл</div><div class="df-v">${r.shortName||'—'}</div></div>
+        ${r.inn ? `<div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn}</div></div>` : ''}
+        ${r.okved ? `<div class="df"><div class="df-l">ОКВЭД</div><div class="df-v">${r.okved}</div></div>` : ''}
+        ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${r.farmerType === 'farmer' ? '<span class="ft ft-farmer">Фермер</span>' : '<span class="ft ft-trader">Трейдер</span>'}</div></div>` : ''}
+        <div class="df"><div class="df-l">Телефон</div><div class="df-v">${r.phone||'—'}</div></div>
+      </div>
+    </div>
+    ${Array.isArray(r.productionSites) && r.productionSites.length > 0 ? `
+    <div class="dsec"><h4>Производственные площадки</h4>
+      <ul class="sites-list">
+        ${r.productionSites.map(s => `<li>${s}</li>`).join('')}
+      </ul>
+    </div>` : `<div class="dsec"><h4>Производственные площадки</h4>
+      <div class="df-v" style="color:var(--muted)">${r.address||'—'}</div>
+    </div>`}
+    <div class="dsec"><h4>Сведения о продукции</h4>
+      <div class="dg">
+        <div class="df full"><div class="df-l">Наименование продукции</div><div class="df-v">${r.productName||'—'}</div></div>
+        <div class="df"><div class="df-l">Размер партии</div><div class="df-v">${r.batchSize||'—'}</div></div>
+      </div>
+    </div>`;
+
+  const detIsFav = isFavorite(r.inn, r.shortName);
+  document.getElementById('detFoot').innerHTML = `
+    <button class="btn btn-dng btn-sm" onclick="deleteRecord('${r.id||r.fsaId}')">Удалить</button>
+    <button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id||r.fsaId}',${JSON.stringify(r).replace(/'/g,"\\'")} )">✎ Редактировать</button>
+    <button class="btn btn-sm ${detIsFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavoriteRec('${(r.inn||'').replace(/'/g,"\\'")}','${(r.shortName||r.applicantName||'').replace(/'/g,"\\'")}',this)">${detIsFav?'★ В избранном':'☆ В избранное'}</button>
+    <button class="btn btn-sm" onclick="addDeclToFolder('${r.id||r.fsaId}','${(r.declNumber||'').replace(/'/g,"\\'")}')">📁 В папку</button>
+    <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
+
+  document.getElementById('detModal').classList.add('open');
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Удалить эту запись?')) return;
+  try {
+    await apiFetch('/api/declarations/'+id, {method:'DELETE'});
+    showAlert('Запись удалена', 'ok');
+    closeModal('detModal');
+    loadTable(); loadStats();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Product crop classification ───────────────────────────────────────────
+const CROPS = [
+  { key:'пшеница',      label:'Пшеница',       re:/пшениц/i,                     ys:{m:5,d:25} },
+  { key:'ячмень',       label:'Ячмень',        re:/ячмен/i,                      ys:{m:5,d:25} },
+  { key:'рожь',         label:'Рожь',          re:/рожь|ржи|ржан/i,              ys:{m:5,d:25} },
+  { key:'тритикале',    label:'Тритикале',     re:/тритикал/i,                   ys:{m:5,d:25} },
+  { key:'злаковые',     label:'Злаковые',      re:/злаков/i,                     ys:{m:5,d:25} },
+  { key:'кукуруза',     label:'Кукуруза',      re:/кукуруз/i,                    ys:{m:10,d:1} },
+  { key:'подсолнечник', label:'Подсолнечник',  re:/подсолнеч/i,                  ys:{m:9,d:1}  },
+  { key:'соя',          label:'Соя',           re:/\bсо[яи]\b|соев/i,            ys:{m:9,d:1}  },
+  { key:'рапс',         label:'Рапс',          re:/рапс/i,                       ys:{m:7,d:1}  },
+  { key:'овёс',         label:'Овёс',          re:/овёс|овса|овсян/i,            ys:{m:7,d:1}  },
+  { key:'гречиха',      label:'Гречиха',       re:/гречих/i,                     ys:{m:8,d:1}  },
+  { key:'просо',        label:'Просо/Сорго',   re:/просо|сорго/i,                ys:{m:9,d:1}  },
+  { key:'горох',        label:'Горох/Бобовые', re:/горох|нут\b|чечевиц/i,        ys:{m:7,d:1}  },
+  { key:'масличные',    label:'Масличные',     re:/масличн/i,                    ys:{m:9,d:1}  },
+  { key:'зернобобовые', label:'Зернобобовые',  re:/зернобобов/i,                 ys:{m:7,d:1}  },
+  { key:'лён',          label:'Лён',           re:/лён|льна/i,                   ys:{m:8,d:1}  },
+  { key:'свёкла',       label:'Свёкла',        re:/свёкл|свекл/i,                ys:{m:10,d:1} },
+];
+const CROP_OTHER = { key:'прочее', label:'Прочее', ys:{m:1,d:1} };
+
+function classifyProd(name) {
+  for (const c of CROPS) if (c.re.test(name||'')) return c;
+  return CROP_OTHER;
+}
+
+function parseTon(s) {
+  if (!s) return 0;
+  const str = String(s).replace(/\s/g,'').toLowerCase();
+  const n = parseFloat(str.replace(',','.'));
+  if (isNaN(n)||n<=0) return 0;
+  if (/цент|^\d+ц[^и]/.test(str)) return n/10;
+  if (/кг|кило/.test(str)) return n/1000;
+  return n;
+}
+
+function fmtTon(t) {
+  if (!t) return '—';
+  if (t>=1000000) return (t/1000000).toFixed(2)+' млн т';
+  if (t>=1000) return (t/1000).toFixed(1)+' тыс.т';
+  return Math.round(t).toLocaleString('ru')+' т';
+}
+
+function getCropYearRange(ys, yearsAgo=0) {
+  const now = new Date();
+  const cut = new Date(now.getFullYear(), ys.m-1, ys.d);
+  const base = now>=cut ? now.getFullYear() : now.getFullYear()-1;
+  const y = base-yearsAgo;
+  const p2 = n=>String(n).padStart(2,'0');
+  return { from:`${y}-${p2(ys.m)}-${p2(ys.d)}`, to:`${y+1}-${p2(ys.m)}-${p2(ys.d)}` };
+}
+
+let curCompDecls = [];
+let curCropTab = 'all';
+
+function updateCropTabs() {
+  const periodEl = document.getElementById('compPeriodSel');
+  if (!periodEl) return;
+  const period = periodEl.value;
+
+  // Build groups
+  const groups = new Map();
+  groups.set('all', { crop:{key:'all',label:'Все',ys:{m:1,d:1}}, decls:[...curCompDecls] });
+  for (const d of curCompDecls) {
+    const c = classifyProd(d.productName);
+    if (!groups.has(c.key)) groups.set(c.key, {crop:c, decls:[]});
+    groups.get(c.key).decls.push(d);
+  }
+
+  function filterPeriod(decls, ys) {
+    if (period==='all') return decls;
+    const ago = parseInt(period)||0;
+    const r = getCropYearRange(ys, ago);
+    return decls.filter(d=>d.regDate>=r.from && d.regDate<r.to);
+  }
+
+  // Render tab strip
+  const strip = document.getElementById('cropTabStrip');
+  if (!strip) return;
+  const tabs = [];
+  for (const [key,g] of groups) {
+    const fd = filterPeriod(g.decls, g.crop.ys);
+    const ton = fd.reduce((s,d)=>s+parseTon(d.batchSize),0);
+    const badge = ton>0 ? fmtTon(ton) : String(fd.length);
+    tabs.push({key, label:g.crop.label, badge, hasData: g.decls.length>0});
+  }
+  const showAll = groups.size>2;
+  strip.innerHTML = tabs
+    .filter(t=>t.key==='all'?showAll:t.hasData)
+    .map(t=>`<button class="tab-btn${curCropTab===t.key?' active':''}" onclick="selectCropTab('${t.key}')">${t.label}<span class="tab-badge">${t.badge}</span></button>`)
+    .join('');
+
+  // Render content
+  const g = groups.get(curCropTab) || groups.get('all');
+  if (!g) return;
+  const fd = filterPeriod(g.decls, g.crop.ys);
+  const sbadge = {active:'<span style="color:var(--succ)">●</span> Действует',suspended:'<span style="color:var(--warn)">●</span> Приостановлена',expired:'<span style="color:var(--muted)">●</span> Истекла'};
+  const rows = fd.length ? fd.map(d=>`
+    <tr>
+      <td style="color:var(--muted);white-space:nowrap">${d.regDate||'—'}</td>
+      <td>${(d.declNumber||'').slice(0,28)||'—'}</td>
+      <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
+      <td style="color:var(--muted)">${d.batchSize||'—'}</td>
+      <td>${sbadge[d.status]||d.status||'—'}</td>
+      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
+  document.getElementById('cropTabContent').innerHTML = `
+    <div class="comp-decls tab-content"><table>
+      <thead><tr><th>Дата рег.</th><th>Номер</th><th>Продукция</th><th>Партия</th><th>Статус</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+function selectCropTab(key) {
+  curCropTab = key;
+  updateCropTabs();
+}
+
+// ── Company modal ─────────────────────────────────────────────────────────
+async function openCompany(inn, name) {
+  const key = inn || name;
+  document.getElementById('compModalName').textContent = name || inn;
+  document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
+  document.getElementById('compModalBody').innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">Загрузка данных компании...</div>';
+  document.getElementById('compModalFoot').innerHTML = '';
+  document.getElementById('compModal').classList.add('open');
+
+  let p;
+  try {
+    const qs = inn ? '?inn=' + encodeURIComponent(inn) : '?name=' + encodeURIComponent(name);
+    p = await apiFetch('/api/company' + qs);
+  } catch(e) {
+    // Fallback: используем кешированные данные из таблицы
+    p = producerDataCache.get(key) || null;
+    if (!p) { document.getElementById('compModalBody').innerHTML = '<div class="empty"><p>Не удалось загрузить данные</p></div>'; return; }
+    p = { found: true, inn: p.inn||'', name: p.name||name, address: p.address||'', phone: p.phone||'',
+           farmerType: p.farmerType||'unknown', okved: p.okved||'', notes: '', decls: p.decls||[] };
+  }
+
+  const ftBadge = { farmer: '<span class="ft ft-farmer">Фермер</span>', trader: '<span class="ft ft-trader">Трейдер</span>' }[p.farmerType] || '<span class="ft ft-unknown">Не определён</span>';
+  document.getElementById('compModalName').textContent = p.name || name;
+  document.getElementById('compModalSub').innerHTML = [
+    p.inn ? 'ИНН: <b>' + p.inn + '</b>' : '',
+    p.okved ? 'ОКВЭД: <b>' + p.okved + '</b>' : '',
+  ].filter(Boolean).join(' &nbsp;·&nbsp; ');
+
+
+  const fioStr = [p.lastName, p.firstName, p.middleName].filter(Boolean).join(' ');
+  const fioHtml = fioStr ? `<div class="df full"><div class="df-l">ФИО</div><div class="df-v">${fioStr}</div></div>` : '';
+  const applicantHtml = (p.applicantName && p.applicantName !== p.name) ? `<div class="df full"><div class="df-l">Заявитель</div><div class="df-v" style="font-size:12px">${p.applicantName}</div></div>` : '';
+  const safeDesc = (p.description||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const safeInnE = (p.inn||'').replace(/'/g,"\\'");
+  const safeNameE = (p.name||name||'').replace(/'/g,"\\'");
+
+  curCompDecls = p.decls || [];
+  curCropTab = 'all';
+
+  document.getElementById('compModalBody').innerHTML = `
+    <div id="compDescArea" style="margin-bottom:14px">
+      <div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:${p.description?'var(--text)':'var(--muted)'}" onclick="editCompDesc()" title="Нажмите для редактирования">${p.description ? safeDesc : '+ Добавить описание компании...'}</div>
+      <div id="compDescEdit" style="display:none">
+        <input id="compDescInput" type="text" style="width:100%;padding:7px 10px;border:1px solid var(--acm);border-radius:var(--r);font-size:13px;font-family:inherit;outline:none" placeholder="Краткое описание компании..." value="${safeDesc}">
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="btn btn-sm btn-p" onclick="saveCompanyDesc('${safeInnE}','${safeNameE}')">💾 Сохранить</button>
+          <button class="btn btn-sm" onclick="cancelCompDesc()">Отмена</button>
+        </div>
+      </div>
+    </div>
+    <div class="dg" style="margin-bottom:18px;gap:10px 20px">
+      <div class="df"><div class="df-l">Тип компании</div><div class="df-v">${ftBadge}</div></div>
+      <div class="df"><div class="df-l">Телефон</div><div class="df-v">${p.phone||'—'}</div></div>
+      ${fioHtml}
+      ${applicantHtml}
+      ${p.address ? `<div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address}</div></div>` : ''}
+    </div>
+    <div class="dsec">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <h4 style="margin:0">Декларации (${(p.decls||[]).length})</h4>
+        <select id="compPeriodSel" onchange="updateCropTabs()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer">
+          <option value="0">Текущий год</option>
+          <option value="1">Прошлый год</option>
+          <option value="2">2 года назад</option>
+          <option value="all" selected>Всё время</option>
+        </select>
+      </div>
+      <div class="tab-strip" id="cropTabStrip"></div>
+      <div id="cropTabContent"></div>
+    </div>
+    <div class="dsec" style="margin-top:16px">
+      <h4>Заметки</h4>
+      <textarea id="compNotes" style="width:100%;min-height:70px;padding:8px 10px;border:1px solid var(--border);border-radius:var(--r);font-size:13px;font-family:inherit;resize:vertical;outline:none;transition:border-color .14s" placeholder="Заметки о компании..." onfocus="this.style.borderColor='var(--acm)'" onblur="this.style.borderColor='var(--border)'">${(p.notes||'').replace(/</g,'&lt;')}</textarea>
+      <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInnE}','${safeNameE}')">💾 Сохранить заметку</button>
+    </div>`;
+
+  updateCropTabs();
+
+  const isFav = isFavorite(p.inn, p.name||name);
+  const safeInn = (p.inn||'').replace(/'/g,"\\'");
+  const safeName = (p.name||name||'').replace(/'/g,"\\'");
+  document.getElementById('compModalFoot').innerHTML = `
+    <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
+    <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
+    <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>`;
+}
+
+function updateCompFavBtn(inn, name) {
+  const btn = document.getElementById('compFavBtn');
+  if (!btn) return;
+  const isFav = isFavorite(inn, name);
+  btn.textContent = isFav ? '★ В избранном' : '☆ В избранное';
+}
+
+function editCompDesc() {
+  document.getElementById('compDescShow').style.display = 'none';
+  document.getElementById('compDescEdit').style.display = 'block';
+  document.getElementById('compDescInput').focus();
+}
+
+function cancelCompDesc() {
+  document.getElementById('compDescEdit').style.display = 'none';
+  document.getElementById('compDescShow').style.display = '';
+}
+
+async function saveCompanyDesc(inn, name) {
+  const desc = document.getElementById('compDescInput')?.value.trim() || '';
+  try {
+    await apiFetch('/api/company/notes', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inn, name, description: desc })
+    });
+    const show = document.getElementById('compDescShow');
+    show.textContent = desc || '+ Добавить описание компании...';
+    show.style.color = desc ? 'var(--text)' : 'var(--muted)';
+    cancelCompDesc();
+    showAlert('Описание сохранено', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function saveCompanyNotes(inn, name) {
+  const notes = document.getElementById('compNotes')?.value || '';
+  try {
+    await apiFetch('/api/company/notes', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ inn, name, notes })
+    });
+    showAlert('Заметка сохранена', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Map ───────────────────────────────────────────────────────────────────
+function getCityCoords(name) {
+  if (!name) return null;
+  if (CITY_COORDS[name]) return CITY_COORDS[name];
+  const low = name.toLowerCase();
+  const found = Object.keys(CITY_COORDS).find(k => k.toLowerCase() === low);
+  return found ? CITY_COORDS[found] : null;
+}
+
+function markerColor(count) {
+  if (count >= 200) return '#0C3B7A';
+  if (count >= 51)  return '#185FA5';
+  if (count >= 11)  return '#378ADD';
+  return '#7DB9E8';
+}
+
+async function initMap() {
+  mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: false }).setView([55, 55], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(mapInstance);
+  // Принудительно пересчитываем размер контейнера — нужно если карта была hidden при инициализации
+  setTimeout(() => mapInstance.invalidateSize(), 100);
+
+  document.getElementById('mapLoader').style.display = 'block';
+  try {
+    const data = await apiFetch('/api/map-data');
+    mapAllCities = data.cities || [];
+    renderMarkers(mapAllCities, data.total);
+  } catch(e) {
+    document.getElementById('mapLoader').textContent = 'Ошибка загрузки данных';
+  } finally {
+    document.getElementById('mapLoader').style.display = 'none';
+  }
+}
+
+function setMapFilter(btn, ft) {
+  mapFilter = ft;
+  document.querySelectorAll('.map-fc').forEach(b => {
+    b.className = 'map-fc' + (b === btn ? (ft === 'farmer' ? ' farmer-act' : ft === 'trader' ? ' trader-act' : ' act') : '');
+  });
+  if (mapInstance) {
+    mapInstance.eachLayer(l => { if (l instanceof L.CircleMarker) mapInstance.removeLayer(l); });
+    const total = mapAllCities.reduce((s, c) => s + c.count, 0);
+    renderMarkers(mapAllCities, total);
+  }
+}
+
+function markerColorByType(ft) {
+  if (ft === 'farmer') return '#2d6a0f';
+  if (ft === 'trader') return '#A32D2D';
+  return '#378ADD';
+}
+
+function renderMarkers(cities, totalDecl) {
+  let mapped = 0, unmapped = 0, mappedDecl = 0;
+
+  for (const c of cities) {
+    const coords = getCityCoords(c.city);
+    if (!coords) { unmapped++; continue; }
+
+    // Фильтрация по типу: фильтруем организации
+    let orgs = c.orgs;
+    let count = c.count;
+    if (mapFilter === 'farmer') {
+      orgs = orgs.filter(o => o.farmerType === 'farmer');
+      count = c.farmers || orgs.reduce((s, o) => s + o.count, 0);
+    } else if (mapFilter === 'trader') {
+      orgs = orgs.filter(o => o.farmerType === 'trader');
+      count = c.traders || orgs.reduce((s, o) => s + o.count, 0);
+    }
+    if (mapFilter && count === 0) continue;
+
+    mapped++;
+    mappedDecl += count;
+    const r = Math.max(8, Math.min(40, 8 + Math.sqrt(count) * 2.8));
+    // Цвет: если фильтр активен — цвет по типу, иначе по размеру
+    const color = mapFilter ? markerColorByType(mapFilter) : markerColor(count);
+
+    const marker = L.circleMarker(coords, {
+      radius: r,
+      fillColor: color,
+      fillOpacity: 0.75,
+      color: '#fff',
+      weight: 2.5,
+      interactive: true,
+    }).addTo(mapInstance);
+
+    marker.bindTooltip(`<b>${c.city}</b>: ${count} декл.`, { permanent: false, direction: 'top' });
+    marker.bindPopup(buildPopup({ ...c, orgs, count }), { maxWidth: 320, className: 'map-popup' });
+  }
+
+  document.getElementById('mapCityCount').textContent = mapped;
+  document.getElementById('mapDeclCount').textContent = mappedDecl.toLocaleString('ru');
+  document.getElementById('mapUnknown').textContent = (totalDecl - mappedDecl).toLocaleString('ru');
+
+  if (mapped === 0) document.getElementById('mapEmpty').style.display = 'block';
+}
+
+function buildPopup(c) {
+  const orgsHtml = c.orgs.map(o => {
+    const declsHtml = o.decls.map(d => {
+      const label = d.product || 'Декларация';
+      const safeId = d.id.replace(/'/g, '');
+      return `<div onclick="mapOpenDecl('${safeId}')" style="cursor:pointer;padding:3px 8px;margin:2px 0;border-radius:4px;font-size:11px;color:#185FA5;background:#eef4ff;line-height:1.4" onmouseover="this.style.background='#d9e8ff'" onmouseout="this.style.background='#eef4ff'">${label}</div>`;
+    }).join('');
+    return `
+      <div style="padding:7px 0;border-bottom:1px solid #f0f2f5">
+        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${o.name} <span style="font-weight:400;color:#6b7280">${o.count > 1 ? '(' + o.count + ')' : ''}</span></div>
+        ${declsHtml}
+      </div>`;
+  }).join('');
+  return `
+    <div style="font-family:'Segoe UI',system-ui,sans-serif;min-width:280px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:2px">${c.city}</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid #185FA5">${c.count} деклараций</div>
+      <div style="max-height:340px;overflow-y:auto;padding-right:2px">${orgsHtml}</div>
+    </div>`;
+}
+
+function mapOpenDecl(id) {
+  if (mapInstance) mapInstance.closePopup();
+  openDetail(id);
+}
+
+// ── Favourites ────────────────────────────────────────────────────────────
+let favsCache = null;
+
+async function loadFavsCache() {
+  try { favsCache = await apiFetch('/api/favorites'); } catch(_) { favsCache = []; }
+}
+
+function isFavorite(inn, name) {
+  if (!favsCache) return false;
+  const key = inn || name;
+  return favsCache.some(f => (f.inn || f.name) === key);
+}
+
+async function toggleFavorite(inn, name, btn) {
+  const key = inn || name;
+  const was = isFavorite(inn, name);
+  try {
+    if (was) {
+      await apiFetch('/api/favorites', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inn, name }) });
+    } else {
+      await apiFetch('/api/favorites', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inn, name }) });
+    }
+    await loadFavsCache();
+    if (btn) btn.classList.toggle('on', !was);
+    showAlert(was ? 'Убрано из избранного' : 'Добавлено в избранное', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function toggleFavoriteRec(inn, name, btn) {
+  await toggleFavorite(inn, name, null);
+  const isFav = isFavorite(inn, name);
+  if (btn) { btn.textContent = isFav ? '★ В избранном' : '☆ В избранное'; btn.className = 'btn btn-sm' + (isFav ? '' : ' btn-p'); }
+}
+
+async function loadFavorites() {
+  await loadFavsCache();
+  const list = favsCache || [];
+  const el = document.getElementById('favList');
+  const empty = document.getElementById('favEmpty');
+  empty.style.display = list.length ? 'none' : 'block';
+  el.innerHTML = list.map(f => {
+    const safeInn = (f.inn||'').replace(/'/g,"\\'");
+    const safeName = (f.name||'').replace(/'/g,"\\'");
+    return `
+    <div class="item-card">
+      <span style="font-size:22px">⭐</span>
+      <div class="item-card-info">
+        <div class="item-card-name">${f.name||'—'}</div>
+        <div class="item-card-sub">${f.inn ? 'ИНН: ' + f.inn + ' · ' : ''}Добавлено: ${f.addedAt ? new Date(f.addedAt).toLocaleDateString('ru-RU') : '—'}</div>
+      </div>
+      <button class="btn btn-sm" onclick="openCompany('${safeInn}','${safeName}')">→ Карточка</button>
+      <button class="btn btn-dng btn-sm" onclick="removeFav('${safeInn}','${safeName}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function removeFav(inn, name) {
+  await apiFetch('/api/favorites', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ inn, name }) });
+  await loadFavorites();
+  showAlert('Убрано из избранного', 'ok');
+}
+
+// ── Folders ───────────────────────────────────────────────────────────────
+let foldersCache = [];
+let folderBreadcrumb = []; // [{id, name}]
+
+async function loadFolders() {
+  try { foldersCache = await apiFetch('/api/folders'); } catch(_) { foldersCache = []; }
+  renderFolderGrid();
+}
+
+function renderFolderGrid() {
+  curFolderOpen = null;
+  folderBreadcrumb = [];
+  const grid = document.getElementById('folderGrid');
+  const empty = document.getElementById('foldersEmpty');
+  document.getElementById('folderContent').style.display = 'none';
+  grid.style.display = '';
+  document.getElementById('folderCreateBtn').textContent = '+ Новая папка';
+  const topLevel = foldersCache.filter(f => !f.parentId);
+  empty.style.display = topLevel.length ? 'none' : 'block';
+  grid.innerHTML = topLevel.map(f => {
+    const childCount = foldersCache.filter(c => c.parentId === f.id).length;
+    const total = (f.items?.length || 0) + childCount;
+    return `
+    <div class="folder-card" onclick="openFolder('${f.id}')">
+      <div style="font-size:28px;margin-bottom:6px">📁</div>
+      <div class="folder-card-name">${f.name}</div>
+      <div class="folder-card-count">${total} элем. · ${new Date(f.createdAt).toLocaleDateString('ru-RU')}</div>
+      <button class="folder-del" onclick="event.stopPropagation();deleteFolder('${f.id}')" title="Удалить папку">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function showFolderGrid() {
+  folderBreadcrumb = [];
+  renderFolderGrid();
+}
+
+function renderFolderBreadcrumb() {
+  const el = document.getElementById('folderBreadcrumbEl');
+  const parts = [`<button class="btn btn-sm" style="font-size:12px;padding:3px 8px" onclick="showFolderGrid()">📁 Все папки</button>`];
+  folderBreadcrumb.forEach((crumb, i) => {
+    parts.push(`<span class="breadcrumb-sep">›</span>`);
+    if (i < folderBreadcrumb.length - 1) {
+      parts.push(`<button class="btn btn-sm" style="font-size:12px;padding:3px 8px" onclick="navBreadcrumb(${i})">${crumb.name}</button>`);
+    } else {
+      parts.push(`<span style="font-weight:600;font-size:13px">${crumb.name}</span>`);
+    }
+  });
+  el.innerHTML = parts.join('');
+}
+
+function navBreadcrumb(idx) {
+  folderBreadcrumb = folderBreadcrumb.slice(0, idx + 1);
+  _renderFolderContent(folderBreadcrumb[idx].id);
+}
+
+async function createFolderCtx() {
+  const isNested = !!curFolderOpen;
+  const name = prompt(isNested ? 'Название подпапки:' : 'Название папки:');
+  if (!name?.trim()) return;
+  try {
+    const body = { name: name.trim() };
+    if (isNested) body.parentId = curFolderOpen;
+    await apiFetch('/api/folders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    await loadFolders();
+    if (isNested) _renderFolderContent(curFolderOpen);
+    showAlert(isNested ? 'Подпапка создана' : 'Папка создана', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function deleteFolder(id) {
+  if (!confirm('Удалить папку и все её содержимое?')) return;
+  // Delete all sub-folders first
+  const children = foldersCache.filter(f => f.parentId === id);
+  for (const c of children) await apiFetch('/api/folders/' + c.id, { method: 'DELETE' });
+  await apiFetch('/api/folders/' + id, { method: 'DELETE' });
+  await loadFolders();
+  const parentCrumb = folderBreadcrumb[folderBreadcrumb.length - 2];
+  if (curFolderOpen === id) {
+    if (parentCrumb) { folderBreadcrumb = folderBreadcrumb.slice(0, -1); _renderFolderContent(parentCrumb.id); }
+    else showFolderGrid();
+  }
+  showAlert('Папка удалена', 'ok');
+}
+
+function _renderFolderItems(id, items) {
+  const emptyEl = document.getElementById('folderItemsEmpty');
+  const listEl = document.getElementById('folderItems');
+  const children = foldersCache.filter(f => f.parentId === id);
+  const hasContent = items.length > 0 || children.length > 0;
+  emptyEl.style.display = hasContent ? 'none' : 'block';
+  listEl.innerHTML = items.map(item => {
+    const safeVal = (item.value||'').replace(/'/g,"\\'");
+    const isInn = item.type === 'inn';
+    const isDecl = item.type === 'decl';
+    const icon = isInn ? '🏢' : '📄';
+    const displayName = item.label || item.value;
+    const subLabel = isInn ? 'Компания' : (isDecl ? 'Декларация' : 'Компания (название)');
+    return `
+    <div class="item-card">
+      <span style="font-size:18px">${icon}</span>
+      <div class="item-card-info">
+        <div class="item-card-name">${displayName}</div>
+        <div class="item-card-sub">${subLabel}</div>
+      </div>
+      ${isInn ? `<button class="btn btn-sm" onclick="openCompany('${safeVal}','')">→ Карточка</button>` : ''}
+      ${isDecl ? `<button class="btn btn-sm" onclick="openDetail('${safeVal}')">↗ Открыть</button>` : ''}
+      <button class="btn btn-dng btn-sm" onclick="removeFolderItem('${id}','${item.type}','${safeVal}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function _renderFolderContent(id) {
+  const folder = foldersCache.find(f => f.id === id);
+  if (!folder) return;
+  curFolderOpen = id;
+  document.getElementById('folderGrid').style.display = 'none';
+  document.getElementById('foldersEmpty').style.display = 'none';
+  document.getElementById('folderContent').style.display = 'block';
+  document.getElementById('folderCreateBtn').textContent = '+ Подпапка';
+  renderFolderBreadcrumb();
+  // Sub-folders
+  const children = foldersCache.filter(f => f.parentId === id);
+  const subGrid = document.getElementById('subFolderGrid');
+  subGrid.style.display = children.length ? '' : 'none';
+  subGrid.innerHTML = children.map(c => `
+    <div class="folder-card" onclick="openFolder('${c.id}')">
+      <div style="font-size:28px;margin-bottom:6px">📁</div>
+      <div class="folder-card-name">${c.name}</div>
+      <div class="folder-card-count">${c.items?.length || 0} элем.</div>
+      <button class="folder-del" onclick="event.stopPropagation();deleteFolder('${c.id}')" title="Удалить папку">✕</button>
+    </div>`).join('');
+  _renderFolderItems(id, folder.items || []);
+}
+
+function openFolder(id, push = true) {
+  if (push) {
+    const folder = foldersCache.find(f => f.id === id);
+    if (folder) folderBreadcrumb.push({ id, name: folder.name });
+  }
+  _renderFolderContent(id);
+}
+
+async function removeFolderItem(folderId, type, value) {
+  await apiFetch('/api/folders/' + folderId + '/items', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, value }) });
+  await loadFolders();
+  _renderFolderContent(folderId);
+}
+
+function _folderPickerOpts() {
+  return foldersCache.map((f, i) => {
+    const parent = f.parentId ? foldersCache.find(p => p.id === f.parentId) : null;
+    return `${i + 1}. ${parent ? parent.name + ' › ' : ''}${f.name}`;
+  }).join('\n');
+}
+
+async function addToFolder(inn, name) {
+  if (!foldersCache.length) { showAlert('Сначала создайте папку на вкладке Папки', 'warn'); return; }
+  const idx = parseInt(prompt('Выберите папку (введите номер):\n' + _folderPickerOpts())) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= foldersCache.length) return;
+  const folder = foldersCache[idx];
+  const val = inn || name;
+  const type = inn ? 'inn' : 'name';
+  try {
+    await apiFetch('/api/folders/' + folder.id + '/items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type, value: val, label: name || val }) });
+    showAlert(`Добавлено в "${folder.name}"`, 'ok');
+    await loadFolders();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function addDeclToFolder(id, declNumber) {
+  if (!foldersCache.length) {
+    try { foldersCache = await apiFetch('/api/folders'); } catch(_) { foldersCache = []; }
+  }
+  if (!foldersCache.length) { showAlert('Сначала создайте папку на вкладке Папки', 'warn'); return; }
+  const idx = parseInt(prompt('Выберите папку (введите номер):\n' + _folderPickerOpts())) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= foldersCache.length) return;
+  const folder = foldersCache[idx];
+  try {
+    await apiFetch('/api/folders/' + folder.id + '/items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'decl', value: id, label: declNumber || id }) });
+    showAlert(`Декларация добавлена в "${folder.name}"`, 'ok');
+    await loadFolders();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Enrich ────────────────────────────────────────────────────────────────
+let enrichPollTimer = null;
+
+async function refreshEnrichStatus() {
+  try {
+    const s = await apiFetch('/api/enrich-status');
+    const el = document.getElementById('enrichStatus');
+    const startBtn = document.getElementById('enrichStartBtn');
+    const stopBtn  = document.getElementById('enrichStopBtn');
+    if (!el) return;
+
+    if (s.running) {
+      const pct = s.total > 0 ? Math.round(s.done / s.total * 100) : 0;
+      el.innerHTML = `<b style="color:var(--accent)">Работает...</b> ${s.done.toLocaleString('ru')} / ${s.total.toLocaleString('ru')} (${pct}%) · Ошибок: ${s.errors}`;
+      startBtn.style.display = 'none';
+      stopBtn.style.display  = '';
+      if (!enrichPollTimer) enrichPollTimer = setInterval(refreshEnrichStatus, 3000);
+    } else {
+      clearInterval(enrichPollTimer); enrichPollTimer = null;
+      startBtn.style.display = '';
+      stopBtn.style.display  = 'none';
+      const pendingTxt = s.pending > 0 ? `Не обработано: <b>${s.pending.toLocaleString('ru')}</b>` : '<b style="color:var(--succ)">Все записи обработаны ✓</b>';
+      const doneTxt = s.done > 0 ? ` · Последний прогон: ${s.done.toLocaleString('ru')} записей, ${s.errors} ошибок` : '';
+      el.innerHTML = pendingTxt + doneTxt;
+    }
+  } catch(_) {}
+}
+
+async function startEnrich() {
+  try {
+    const r = await apiFetch('/api/enrich', { method: 'POST' });
+    showAlert(r.message, r.ok ? 'ok' : 'warn');
+    await refreshEnrichStatus();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function stopEnrich() {
+  await apiFetch('/api/enrich/stop', { method: 'POST' });
+  await refreshEnrichStatus();
+}
+
+// ── Settings / Telegram ───────────────────────────────────────────────────
+async function openSettings() {
+  try {
+    const cfg = await apiFetch('/api/telegram-config');
+    document.getElementById('tgBotToken').value = cfg.botToken || '';
+    document.getElementById('tgChatId').value = cfg.chatId || '';
+  } catch(_) {}
+  document.getElementById('settingsModal').classList.add('open');
+  refreshEnrichStatus();
+}
+
+async function saveTelegramConfig() {
+  const botToken = document.getElementById('tgBotToken').value.trim();
+  const chatId = document.getElementById('tgChatId').value.trim();
+  if (!botToken || !chatId) return showAlert('Заполните оба поля', 'err');
+  try {
+    await apiFetch('/api/telegram-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ botToken, chatId }) });
+    showAlert('Настройки сохранены', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function testTelegram() {
+  try {
+    const r = await apiFetch('/api/telegram-test', { method: 'POST' });
+    showAlert(r.ok ? 'Тест отправлен! Проверьте Telegram.' : 'Не удалось отправить. Проверьте настройки.', r.ok ? 'ok' : 'err');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+['addModal','detModal','settingsModal','compModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) closeModal(id);
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') ['addModal','detModal','settingsModal','compModal'].forEach(closeModal);
+});
+
+function showAlert(msg, type = 'ok') {
+  const el = document.getElementById('alertBox');
+  const txt = document.getElementById('alertTxt');
+  txt.textContent = msg;
+  const colors = { ok: '#185FA5', err: '#A32D2D', warn: '#854F0B' };
+  el.style.borderLeftColor = colors[type] || colors.ok;
+  el.style.borderLeftWidth = '4px';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(async function init() {
+  await Promise.all([loadFavsCache(), loadFolders()]);
+  await Promise.all([loadTable(), loadStats(), pollStatus()]);
+  setInterval(pollStatus, 5000);
+})();
+</script>
+</body>
+</html>
