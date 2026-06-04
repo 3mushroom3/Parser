@@ -74,8 +74,6 @@ app.use('/api/enrich', enrichRoutes);
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);
 app.use('/api/stats', systemRoutes);
-app.use('/api/producers', declarationRoutes);
-app.use('/api/map-data', declarationRoutes);
 app.use('/api/company', businessRoutes);
 app.use('/api/favorites', businessRoutes);
 
@@ -137,14 +135,6 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     logger.info(`Server running on http://localhost:${PORT}`);
     logger.info(`API Docs: http://localhost:${PORT}/api-docs`);
-
-    // Create default admin if none exists
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-    if (userCount === 0) {
-      const hashed = bcrypt.hashSync('admin', 10);
-      db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hashed, 'admin');
-      logger.info('Default admin user created (admin/admin)');
-    }
 
     // Start cron
     cron.schedule(process.env.FSA_CRON_SCHEDULE || '*/30 * * * *', safeRunParser);

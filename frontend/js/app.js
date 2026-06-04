@@ -240,7 +240,7 @@ async function loadTable() {
 
   try {
     const filters = getFilters();
-    const data = await apiFetch('/api/producers' + buildQS(filters));
+    const data = await apiFetch('/api/declarations' + buildQS(filters));
     renderTable(data);
   } catch (err) {
     showAlert(err.message, 'err');

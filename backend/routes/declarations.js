@@ -11,7 +11,7 @@ function extractCity(address) {
   return null;
 }
 
-router.get('/producers', (req, res) => {
+router.get('/', (req, res) => {
   const {
     page = 0,
     size = 50,
@@ -132,7 +132,7 @@ router.get('/map-data', (req, res) => {
   res.json({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
 });
 
-router.get('/', (req, res) => {
+router.get('/raw', (req, res) => {
   const {
     page = 0,
     size = 20,
