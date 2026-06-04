@@ -125,17 +125,57 @@ async function apiFetch(path, opts = {}) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
+let isLoginMode = true;
+
+function toggleAuthMode(e) {
+  e.preventDefault();
+  isLoginMode = !isLoginMode;
+
+  const title = document.querySelector('.login-title');
+  const btn = document.getElementById('loginBtn');
+  const toggleBtn = document.getElementById('authToggleBtn');
+  const toggleText = document.getElementById('authToggleText');
+  const errorEl = document.getElementById('loginError');
+
+  errorEl.style.display = 'none';
+
+  if (isLoginMode) {
+    title.textContent = 'Вход в систему';
+    btn.textContent = 'Войти';
+    toggleText.textContent = 'Нет аккаунта?';
+    toggleBtn.textContent = 'Зарегистрироваться';
+  } else {
+    title.textContent = 'Регистрация';
+    btn.textContent = 'Создать аккаунт';
+    toggleText.textContent = 'Уже есть аккаунт?';
+    toggleBtn.textContent = 'Войти';
+  }
+}
+
 async function handleLogin(e) {
   e.preventDefault();
   const username = document.getElementById('loginUser').value;
   const password = document.getElementById('loginPass').value;
   const errorEl = document.getElementById('loginError');
 
+  const path = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+
   try {
-    const data = await apiFetch('/api/auth/login', {
+    const data = await apiFetch(path, {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
+
+    if (!isLoginMode) {
+      // After registration, auto-login or switch to login mode
+      showAlert('Регистрация успешна! Теперь вы можете войти.', 'ok');
+      isLoginMode = true;
+      document.querySelector('.login-title').textContent = 'Вход в систему';
+      document.getElementById('loginBtn').textContent = 'Войти';
+      document.getElementById('authToggleText').textContent = 'Нет аккаунта?';
+      document.getElementById('authToggleBtn').textContent = 'Зарегистрироваться';
+      return;
+    }
 
     State.token = data.token;
     State.user = data.user;

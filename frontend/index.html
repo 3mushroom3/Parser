@@ -18,18 +18,24 @@
     <h1 class="login-title">Вход в систему</h1>
     <p class="login-subtitle">FSA Declarations Parser</p>
     <form id="loginForm" onsubmit="handleLogin(event)">
-      <div class="fg" style="grid-template-columns:1fr">
-        <div class="frow">
-          <label>Логин</label>
-          <input type="text" id="loginUser" required placeholder="Введите логин">
+      <div id="loginInputs">
+        <div class="fg" style="grid-template-columns:1fr">
+          <div class="frow">
+            <label>Логин</label>
+            <input type="text" id="loginUser" required placeholder="Введите логин">
+          </div>
+          <div class="frow">
+            <label>Пароль</label>
+            <input type="password" id="loginPass" required placeholder="Введите пароль">
+          </div>
+          <button type="submit" id="loginBtn" class="btn btn-p" style="margin-top:10px;justify-content:center;padding:12px;width:100%">Войти</button>
         </div>
-        <div class="frow">
-          <label>Пароль</label>
-          <input type="password" id="loginPass" required placeholder="Введите пароль">
-        </div>
-        <button type="submit" class="btn btn-p" style="margin-top:10px;justify-content:center;padding:12px;width:100%">Войти</button>
       </div>
       <p id="loginError" style="color:var(--dng);font-size:12px;margin-top:10px;text-align:center;display:none"></p>
+      <div style="margin-top:20px; text-align:center; font-size:13px">
+        <span id="authToggleText">Нет аккаунта?</span>
+        <a href="#" id="authToggleBtn" onclick="toggleAuthMode(event)" style="color:var(--accent); font-weight:600">Зарегистрироваться</a>
+      </div>
     </form>
   </div>
 </div>

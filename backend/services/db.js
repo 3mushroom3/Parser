@@ -93,4 +93,13 @@ db.exec(`
   );
 `);
 
+// Seed default admin if no users exist
+const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+if (userCount === 0) {
+  const bcrypt = require('bcryptjs');
+  const hashedPassword = bcrypt.hashSync('admin', 10);
+  db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hashedPassword, 'admin');
+  console.log('Default admin user created: admin / admin');
+}
+
 module.exports = db;
