@@ -108,6 +108,11 @@
     "inn": "1211003549",
     "checkedAt": "2026-05-18T21:14:48.153Z"
   },
+  "1212003929": {
+    "farmerType": "farmer",
+    "okved": "01.45.2",
+    "checkedAt": "2026-06-03T20:45:08.062Z"
+  },
   "1215110319": {
     "farmerType": "unknown",
     "okved": "",
@@ -148,6 +153,11 @@
     "inn": "1300009373",
     "checkedAt": "2026-05-18T23:25:15.752Z"
   },
+  "1300013517": {
+    "farmerType": "farmer",
+    "okved": "01.41.11",
+    "checkedAt": "2026-06-04T09:02:39.771Z"
+  },
   "1301000905": {
     "farmerType": "unknown",
     "okved": "",
@@ -159,6 +169,21 @@
     "okved": "",
     "inn": "1302000471",
     "checkedAt": "2026-05-18T23:05:55.517Z"
+  },
+  "1302001235": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:52.102Z"
+  },
+  "1303017220": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:13.298Z"
+  },
+  "1303027451": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:21.231Z"
   },
   "1303069028": {
     "farmerType": "farmer",
@@ -334,6 +359,11 @@
     "inn": "1326194191",
     "checkedAt": "2026-05-18T21:43:29.884Z"
   },
+  "1326200261": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:29.040Z"
+  },
   "1326251555": {
     "farmerType": "trader",
     "okved": "52.10.3",
@@ -395,6 +425,11 @@
     "farmerType": "trader",
     "okved": "46.21",
     "checkedAt": "2026-05-18T22:06:20.534Z"
+  },
+  "1500003523": {
+    "farmerType": "trader",
+    "okved": "46.31",
+    "checkedAt": "2026-06-03T20:46:23.371Z"
   },
   "1500005111": {
     "farmerType": "unknown",
@@ -550,6 +585,11 @@
     "inn": "1513076222",
     "checkedAt": "2026-05-18T22:06:15.154Z"
   },
+  "1513084600": {
+    "farmerType": "farmer",
+    "okved": "01.25",
+    "checkedAt": "2026-06-03T20:44:37.663Z"
+  },
   "1514004654": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -607,6 +647,16 @@
     "farmerType": "farmer",
     "okved": "01.50",
     "checkedAt": "2026-05-18T21:47:50.869Z"
+  },
+  "1604006448": {
+    "farmerType": "farmer",
+    "okved": "01.41.11",
+    "checkedAt": "2026-06-03T20:46:02.983Z"
+  },
+  "1604008043": {
+    "farmerType": "farmer",
+    "okved": "01.41.11",
+    "checkedAt": "2026-06-03T20:46:05.346Z"
   },
   "1605005670": {
     "farmerType": "farmer",
@@ -686,6 +736,16 @@
     "okved": "01.41.21",
     "inn": "1610000910",
     "checkedAt": "2026-05-18T21:45:20.910Z"
+  },
+  "1610002709": {
+    "farmerType": "farmer",
+    "okved": "01.41.11",
+    "checkedAt": "2026-06-03T20:45:42.716Z"
+  },
+  "1611001056": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:39.219Z"
   },
   "1611007555": {
     "farmerType": "farmer",
@@ -1176,6 +1236,11 @@
     "inn": "1655377218",
     "checkedAt": "2026-05-18T21:56:33.424Z"
   },
+  "1655377264": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:38.019Z"
+  },
   "1655389703": {
     "farmerType": "unknown",
     "okved": "",
@@ -1371,6 +1436,11 @@
     "farmerType": "unknown",
     "okved": "71.11",
     "checkedAt": "2026-05-18T21:20:44.154Z"
+  },
+  "1800015199": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:15.606Z"
   },
   "1801000501": {
     "farmerType": "unknown",
@@ -1697,17 +1767,37 @@
     "inn": "2101006186",
     "checkedAt": "2026-05-18T22:47:38.517Z"
   },
+  "2102003011": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:14.488Z"
+  },
   "2103004650": {
     "farmerType": "unknown",
     "okved": "",
     "inn": "2103004650",
     "checkedAt": "2026-05-18T23:13:18.422Z"
   },
+  "2103006569": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:54.460Z"
+  },
+  "2103006625": {
+    "farmerType": "farmer",
+    "okved": "01.5",
+    "checkedAt": "2026-06-03T20:45:06.519Z"
+  },
   "2104000312": {
     "farmerType": "farmer",
     "okved": "01.41.21",
     "inn": "2104000312",
     "checkedAt": "2026-05-18T21:24:52.250Z"
+  },
+  "2104008946": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:38.456Z"
   },
   "2106007320": {
     "farmerType": "unknown",
@@ -1758,6 +1848,11 @@
     "farmerType": "farmer",
     "okved": "01.13.31",
     "checkedAt": "2026-05-24T17:32:18.434Z"
+  },
+  "2115005489": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:12.713Z"
   },
   "2115904670": {
     "farmerType": "unknown",
@@ -1836,6 +1931,11 @@
     "inn": "2130164853",
     "checkedAt": "2026-05-18T23:04:59.427Z"
   },
+  "2130169499": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:23.691Z"
+  },
   "2201003164": {
     "farmerType": "unknown",
     "okved": "94.20",
@@ -1864,6 +1964,11 @@
     "okved": "",
     "inn": "2204071469",
     "checkedAt": "2026-05-18T22:09:28.308Z"
+  },
+  "2204079436": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:03.043Z"
   },
   "2204093712": {
     "farmerType": "farmer",
@@ -1985,6 +2090,11 @@
     "inn": "2221064920",
     "checkedAt": "2026-05-18T22:06:43.169Z"
   },
+  "2221128210": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:46:15.546Z"
+  },
   "2221176662": {
     "farmerType": "trader",
     "okved": "46.38",
@@ -2059,6 +2169,11 @@
     "inn": "2222068099",
     "checkedAt": "2026-05-18T21:49:12.334Z"
   },
+  "2222779180": {
+    "farmerType": "trader",
+    "okved": "46.90",
+    "checkedAt": "2026-06-04T09:02:33.198Z"
+  },
   "2222789460": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -2088,6 +2203,11 @@
     "inn": "2222838654",
     "checkedAt": "2026-05-18T21:09:53.788Z"
   },
+  "2222845436": {
+    "farmerType": "trader",
+    "okved": "46.90",
+    "checkedAt": "2026-06-03T20:46:12.453Z"
+  },
   "2222847271": {
     "farmerType": "trader",
     "okved": "46.90",
@@ -2099,6 +2219,11 @@
     "okved": "10.61.2",
     "inn": "2222849374",
     "checkedAt": "2026-05-18T21:42:11.597Z"
+  },
+  "2222854208": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:46:04.927Z"
   },
   "2222854399": {
     "farmerType": "unknown",
@@ -2206,6 +2331,11 @@
     "okved": "01.11.1",
     "inn": "2222892884",
     "checkedAt": "2026-05-18T21:42:19.276Z"
+  },
+  "2222893239": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:32.218Z"
   },
   "2222897635": {
     "farmerType": "trader",
@@ -2408,6 +2538,11 @@
     "okved": "01.11",
     "checkedAt": "2026-05-18T21:10:39.574Z"
   },
+  "2225182346": {
+    "farmerType": "trader",
+    "okved": "46.38.24",
+    "checkedAt": "2026-06-03T20:44:31.838Z"
+  },
   "2225196564": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -2525,6 +2660,16 @@
     "okved": "13.10.4",
     "checkedAt": "2026-05-20T20:02:48.520Z"
   },
+  "2231001767": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:04.531Z"
+  },
+  "2231004863": {
+    "farmerType": "farmer",
+    "okved": "01.11.3",
+    "checkedAt": "2026-06-04T09:02:32.755Z"
+  },
   "2231005190": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -2536,6 +2681,16 @@
     "okved": "01.11",
     "inn": "2231005289",
     "checkedAt": "2026-05-18T21:44:06.180Z"
+  },
+  "2232000220": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:21.364Z"
+  },
+  "2232005980": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:45:07.284Z"
   },
   "2234010368": {
     "farmerType": "farmer",
@@ -2620,6 +2775,11 @@
     "inn": "2239004209",
     "checkedAt": "2026-05-18T23:28:35.976Z"
   },
+  "2239004270": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:38.423Z"
+  },
   "2241001692": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -2661,6 +2821,11 @@
     "inn": "2244005776",
     "checkedAt": "2026-05-18T21:25:05.115Z"
   },
+  "2244007830": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:41.952Z"
+  },
   "2245005200": {
     "farmerType": "unknown",
     "okved": "33.12",
@@ -2700,6 +2865,11 @@
     "farmerType": "trader",
     "okved": "46.21.11",
     "checkedAt": "2026-05-28T08:03:37.692Z"
+  },
+  "2250001385": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:32.226Z"
   },
   "2253004440": {
     "farmerType": "unknown",
@@ -2755,15 +2925,30 @@
     "inn": "2255004502",
     "checkedAt": "2026-05-18T23:35:15.735Z"
   },
+  "2256003910": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:29.142Z"
+  },
   "2256004304": {
     "farmerType": "farmer",
     "okved": "01.11",
     "checkedAt": "2026-05-18T21:38:26.998Z"
   },
+  "2256005241": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:46.964Z"
+  },
   "2256008161": {
     "farmerType": "unknown",
     "okved": "10.41.2",
     "checkedAt": "2026-05-18T21:21:54.417Z"
+  },
+  "2257000126": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:12.837Z"
   },
   "2257004191": {
     "farmerType": "trader",
@@ -2792,6 +2977,16 @@
     "okved": "01.11.3",
     "inn": "2260003166",
     "checkedAt": "2026-05-18T21:57:24.813Z"
+  },
+  "2260003504": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:46:11.294Z"
+  },
+  "2261001700": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:16.449Z"
   },
   "2261002207": {
     "farmerType": "farmer",
@@ -2860,6 +3055,11 @@
     "farmerType": "farmer",
     "okved": "01.11",
     "checkedAt": "2026-05-22T07:51:35.112Z"
+  },
+  "2263028754": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:12.076Z"
   },
   "2264012860": {
     "farmerType": "farmer",
@@ -2941,6 +3141,11 @@
     "farmerType": "unknown",
     "okved": "85.14",
     "checkedAt": "2026-05-18T22:05:17.188Z"
+  },
+  "2269002270": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:41.558Z"
   },
   "2269007239": {
     "farmerType": "unknown",
@@ -3202,11 +3407,21 @@
     "inn": "2287003043",
     "checkedAt": "2026-05-18T22:27:13.511Z"
   },
+  "2287004086": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:12.322Z"
+  },
   "2287004174": {
     "farmerType": "unknown",
     "okved": "10.61.3",
     "inn": "2287004174",
     "checkedAt": "2026-05-18T21:14:33.786Z"
+  },
+  "2287005121": {
+    "farmerType": "farmer",
+    "okved": "01.42",
+    "checkedAt": "2026-06-03T20:45:52.879Z"
   },
   "2287005259": {
     "farmerType": "farmer",
@@ -3218,6 +3433,11 @@
     "okved": "01.1",
     "inn": "2287005700",
     "checkedAt": "2026-05-18T21:15:23.202Z"
+  },
+  "2287006510": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:42.336Z"
   },
   "2287006573": {
     "farmerType": "unknown",
@@ -3652,6 +3872,11 @@
     "inn": "2311169050",
     "checkedAt": "2026-05-18T22:27:03.410Z"
   },
+  "2311230522": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:19.028Z"
+  },
   "2311232167": {
     "farmerType": "trader",
     "okved": "46.75.1",
@@ -3669,6 +3894,11 @@
     "okved": "46.21",
     "inn": "2311245600",
     "checkedAt": "2026-05-18T21:46:19.324Z"
+  },
+  "2311260735": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:46:19.059Z"
   },
   "2311265042": {
     "farmerType": "trader",
@@ -3794,6 +4024,11 @@
     "okved": "",
     "inn": "2312298153",
     "checkedAt": "2026-05-18T23:44:34.607Z"
+  },
+  "2312306157": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:28.665Z"
   },
   "2312310795": {
     "farmerType": "trader",
@@ -4120,6 +4355,11 @@
     "okved": "01.11.1",
     "checkedAt": "2026-05-18T21:25:29.433Z"
   },
+  "2329023485": {
+    "farmerType": "unknown",
+    "okved": "72.19.9",
+    "checkedAt": "2026-06-03T20:44:19.420Z"
+  },
   "2329023728": {
     "farmerType": "farmer",
     "okved": "01.41.11",
@@ -4185,6 +4425,26 @@
     "inn": "2331015234",
     "checkedAt": "2026-05-18T21:44:06.523Z"
   },
+  "2332003295": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:14.765Z"
+  },
+  "2332005768": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:15.157Z"
+  },
+  "2332006070": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:21.804Z"
+  },
+  "2332006539": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:18.681Z"
+  },
   "2332011480": {
     "farmerType": "unknown",
     "okved": "",
@@ -4201,6 +4461,11 @@
     "farmerType": "farmer",
     "okved": "01.11.1",
     "checkedAt": "2026-05-18T21:06:36.625Z"
+  },
+  "2332016520": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:26.019Z"
   },
   "2332016738": {
     "farmerType": "unknown",
@@ -4434,6 +4699,11 @@
     "inn": "2339020606",
     "checkedAt": "2026-05-18T21:34:14.588Z"
   },
+  "2340014075": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:07.658Z"
+  },
   "2340014893": {
     "farmerType": "unknown",
     "okved": "",
@@ -4463,6 +4733,11 @@
     "okved": "",
     "inn": "2340131928",
     "checkedAt": "2026-05-18T22:36:36.403Z"
+  },
+  "2341001745": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:29.487Z"
   },
   "2341008282": {
     "farmerType": "unknown",
@@ -4521,6 +4796,11 @@
     "okved": "",
     "inn": "2343011851",
     "checkedAt": "2026-05-18T22:11:41.089Z"
+  },
+  "2343012982": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:38.070Z"
   },
   "2343013168": {
     "farmerType": "farmer",
@@ -4586,6 +4866,11 @@
     "inn": "2346000311",
     "checkedAt": "2026-05-18T22:19:43.079Z"
   },
+  "2346010503": {
+    "farmerType": "farmer",
+    "okved": "01.25.1",
+    "checkedAt": "2026-06-03T20:44:24.071Z"
+  },
   "2346012170": {
     "farmerType": "unknown",
     "okved": "",
@@ -4609,6 +4894,11 @@
     "okved": "01.1",
     "inn": "2346017146",
     "checkedAt": "2026-05-18T21:26:31.257Z"
+  },
+  "2347002103": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:10.523Z"
   },
   "2347015818": {
     "farmerType": "unknown",
@@ -5139,6 +5429,11 @@
     "inn": "2373028926",
     "checkedAt": "2026-05-18T21:47:11.162Z"
   },
+  "2377000230": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:50.535Z"
+  },
   "2377004323": {
     "farmerType": "unknown",
     "okved": "",
@@ -5167,11 +5462,21 @@
     "inn": "2401005391",
     "checkedAt": "2026-05-18T21:30:41.931Z"
   },
+  "2401005698": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:47.376Z"
+  },
   "2403000938": {
     "farmerType": "farmer",
     "okved": "01.50",
     "inn": "2403000938",
     "checkedAt": "2026-05-18T21:18:54.823Z"
+  },
+  "2403005911": {
+    "farmerType": "farmer",
+    "okved": "01.41.11",
+    "checkedAt": "2026-06-03T20:45:03.811Z"
   },
   "2403006305": {
     "farmerType": "farmer",
@@ -5196,6 +5501,11 @@
     "okved": "",
     "inn": "2404007125",
     "checkedAt": "2026-05-18T22:38:53.213Z"
+  },
+  "2410000343": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:05.725Z"
   },
   "2410003168": {
     "farmerType": "farmer",
@@ -5250,6 +5560,16 @@
     "inn": "2414002655",
     "checkedAt": "2026-05-18T21:17:52.400Z"
   },
+  "2415001380": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:22.916Z"
+  },
+  "2418000955": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:18.639Z"
+  },
   "2419005755": {
     "farmerType": "trader",
     "okved": "52.21.22",
@@ -5292,6 +5612,11 @@
     "inn": "2423011920",
     "checkedAt": "2026-05-18T21:09:10.970Z"
   },
+  "2423014061": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:08.827Z"
+  },
   "2427000415": {
     "farmerType": "unknown",
     "okved": "",
@@ -5326,6 +5651,11 @@
     "farmerType": "farmer",
     "okved": "01.11.11",
     "checkedAt": "2026-05-18T21:51:57.547Z"
+  },
+  "2431002510": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:05.764Z"
   },
   "2435005713": {
     "farmerType": "farmer",
@@ -5423,6 +5753,16 @@
     "okved": "01.11",
     "inn": "2444001320",
     "checkedAt": "2026-05-18T21:57:53.435Z"
+  },
+  "2444001553": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:35.327Z"
+  },
+  "2444302977": {
+    "farmerType": "farmer",
+    "okved": "01.13.3",
+    "checkedAt": "2026-06-03T20:44:16.835Z"
   },
   "2446010000": {
     "farmerType": "unknown",
@@ -5638,6 +5978,11 @@
     "farmerType": "farmer",
     "okved": "01.11.1",
     "checkedAt": "2026-05-18T21:36:10.412Z"
+  },
+  "2465306676": {
+    "farmerType": "farmer",
+    "okved": "01.11.11",
+    "checkedAt": "2026-06-03T20:44:13.691Z"
   },
   "2465310231": {
     "farmerType": "trader",
@@ -6094,6 +6439,11 @@
     "inn": "2608010060",
     "checkedAt": "2026-05-18T22:44:29.468Z"
   },
+  "2608012229": {
+    "farmerType": "farmer",
+    "okved": "01.13.1",
+    "checkedAt": "2026-06-03T20:44:53.274Z"
+  },
   "2608012564": {
     "farmerType": "farmer",
     "okved": "01.42.11",
@@ -6179,10 +6529,20 @@
     "okved": "01.13.5",
     "checkedAt": "2026-05-25T23:02:26.102Z"
   },
+  "2610020548": {
+    "farmerType": "farmer",
+    "okved": "01.24",
+    "checkedAt": "2026-06-03T20:45:44.254Z"
+  },
   "2611008590": {
     "farmerType": "farmer",
     "okved": "01.11.1",
     "checkedAt": "2026-05-31T15:31:21.838Z"
+  },
+  "2611700183": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:16.066Z"
   },
   "2612020342": {
     "farmerType": "trader",
@@ -6248,6 +6608,11 @@
     "okved": "",
     "inn": "2615012420",
     "checkedAt": "2026-05-18T23:31:16.731Z"
+  },
+  "2615014717": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:37.584Z"
   },
   "2615016785": {
     "farmerType": "farmer",
@@ -6464,6 +6829,11 @@
     "okved": "01.11.1",
     "inn": "2629801016",
     "checkedAt": "2026-05-18T21:39:44.536Z"
+  },
+  "2630028640": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:14.082Z"
   },
   "2630038896": {
     "farmerType": "farmer",
@@ -6787,6 +7157,11 @@
     "okved": "46.90",
     "checkedAt": "2026-05-18T22:07:11.699Z"
   },
+  "2801093265": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:34.496Z"
+  },
   "2801107920": {
     "farmerType": "unknown",
     "okved": "",
@@ -6815,6 +7190,11 @@
     "okved": "01.11",
     "inn": "2801155786",
     "checkedAt": "2026-05-18T21:29:26.289Z"
+  },
+  "2801164621": {
+    "farmerType": "unknown",
+    "okved": "56.10",
+    "checkedAt": "2026-06-03T20:44:28.360Z"
   },
   "2801168009": {
     "farmerType": "unknown",
@@ -7023,6 +7403,11 @@
     "inn": "2820004542",
     "checkedAt": "2026-05-18T23:20:47.168Z"
   },
+  "2820009879": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:38.850Z"
+  },
   "2822003858": {
     "farmerType": "unknown",
     "okved": "10.41.1",
@@ -7110,11 +7495,26 @@
     "inn": "2908004772",
     "checkedAt": "2026-05-18T21:06:57.193Z"
   },
+  "3000004900": {
+    "farmerType": "trader",
+    "okved": "46.90",
+    "checkedAt": "2026-06-03T20:44:10.920Z"
+  },
+  "3000011618": {
+    "farmerType": "trader",
+    "okved": "46.21.11",
+    "checkedAt": "2026-06-03T20:44:07.768Z"
+  },
   "3000016013": {
     "farmerType": "trader",
     "okved": "52.22",
     "inn": "3000016013",
     "checkedAt": "2026-05-17T22:55:45.607Z"
+  },
+  "3000016020": {
+    "farmerType": "trader",
+    "okved": "52.22",
+    "checkedAt": "2026-06-03T20:44:22.524Z"
   },
   "3015012854": {
     "farmerType": "unknown",
@@ -7591,6 +7991,11 @@
     "inn": "3123301839",
     "checkedAt": "2026-05-18T22:06:21.433Z"
   },
+  "3123316105": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:40.656Z"
+  },
   "3123322719": {
     "farmerType": "unknown",
     "okved": "",
@@ -7691,6 +8096,11 @@
     "inn": "3127007186",
     "checkedAt": "2026-05-18T21:35:48.659Z"
   },
+  "3127011707": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:46.462Z"
+  },
   "3127017064": {
     "farmerType": "trader",
     "okved": "46.21.1",
@@ -7725,6 +8135,11 @@
     "okved": "46.21",
     "inn": "3128112803",
     "checkedAt": "2026-05-18T21:09:22.397Z"
+  },
+  "3128126436": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:31.847Z"
   },
   "3207001020": {
     "farmerType": "unknown",
@@ -7779,6 +8194,11 @@
     "okved": "01.11",
     "inn": "3245006975",
     "checkedAt": "2026-05-18T21:15:53.486Z"
+  },
+  "3245010668": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:46.066Z"
   },
   "3245019815": {
     "farmerType": "farmer",
@@ -7947,6 +8367,11 @@
     "inn": "3325422579",
     "checkedAt": "2026-05-18T23:31:56.312Z"
   },
+  "3326001904": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:08.958Z"
+  },
   "3326006540": {
     "farmerType": "farmer",
     "okved": "01.41.21",
@@ -8095,6 +8520,11 @@
     "inn": "3410062824",
     "checkedAt": "2026-05-18T23:36:52.538Z"
   },
+  "3411001983": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:02.629Z"
+  },
   "3411006491": {
     "farmerType": "unknown",
     "okved": "",
@@ -8171,6 +8601,11 @@
     "inn": "3416033241",
     "checkedAt": "2026-05-18T21:10:59.434Z"
   },
+  "3416090810": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:56.418Z"
+  },
   "3417004691": {
     "farmerType": "unknown",
     "okved": "",
@@ -8188,6 +8623,11 @@
     "okved": "01.11.1",
     "inn": "3419001079",
     "checkedAt": "2026-05-18T21:22:56.270Z"
+  },
+  "3419002322": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:15.939Z"
   },
   "3419002403": {
     "farmerType": "farmer",
@@ -8267,6 +8707,11 @@
     "okved": "85.21",
     "checkedAt": "2026-05-18T21:45:26.045Z"
   },
+  "3420008375": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:06.497Z"
+  },
   "3420009153": {
     "farmerType": "farmer",
     "okved": "01.11.3",
@@ -8282,6 +8727,11 @@
     "farmerType": "farmer",
     "okved": "01.11.1",
     "checkedAt": "2026-05-18T21:24:23.171Z"
+  },
+  "3421002577": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:45.790Z"
   },
   "3422003608": {
     "farmerType": "unknown",
@@ -8483,6 +8933,11 @@
     "okved": "",
     "inn": "3443128421",
     "checkedAt": "2026-05-18T23:23:34.875Z"
+  },
+  "3443141912": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:52.465Z"
   },
   "3443145057": {
     "farmerType": "unknown",
@@ -8838,6 +9293,11 @@
     "inn": "3512005984",
     "checkedAt": "2026-05-18T22:05:09.782Z"
   },
+  "3524008595": {
+    "farmerType": "farmer",
+    "okved": "01.41.12",
+    "checkedAt": "2026-06-03T20:44:58.831Z"
+  },
   "3525205290": {
     "farmerType": "unknown",
     "okved": "",
@@ -9050,6 +9510,11 @@
     "inn": "3604018905",
     "checkedAt": "2026-05-18T22:36:42.774Z"
   },
+  "3604019049": {
+    "farmerType": "farmer",
+    "okved": "01.47.2",
+    "checkedAt": "2026-06-03T20:45:04.987Z"
+  },
   "3604019553": {
     "farmerType": "unknown",
     "okved": "",
@@ -9162,6 +9627,11 @@
     "inn": "3607006136",
     "checkedAt": "2026-05-18T22:06:02.769Z"
   },
+  "3607006224": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:22.768Z"
+  },
   "3607007115": {
     "farmerType": "unknown",
     "okved": "",
@@ -9190,6 +9660,11 @@
     "okved": "46.21",
     "inn": "3610001900",
     "checkedAt": "2026-05-18T21:57:30.146Z"
+  },
+  "3610007845": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:35.989Z"
   },
   "3610008180": {
     "farmerType": "unknown",
@@ -9257,6 +9732,11 @@
     "inn": "3613004970",
     "checkedAt": "2026-05-18T21:11:58.178Z"
   },
+  "3614000449": {
+    "farmerType": "trader",
+    "okved": "52.10.3",
+    "checkedAt": "2026-06-03T20:45:14.737Z"
+  },
   "3614004323": {
     "farmerType": "farmer",
     "okved": "01.41.21",
@@ -9314,6 +9794,11 @@
     "okved": "01.11.1",
     "inn": "3616008556",
     "checkedAt": "2026-05-18T21:49:06.450Z"
+  },
+  "3616012560": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:55.612Z"
   },
   "3616012591": {
     "farmerType": "farmer",
@@ -9460,6 +9945,11 @@
     "inn": "3620007731",
     "checkedAt": "2026-05-18T21:10:06.817Z"
   },
+  "3620007876": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:19.813Z"
+  },
   "3620008171": {
     "farmerType": "unknown",
     "okved": "",
@@ -9471,6 +9961,11 @@
     "okved": "",
     "inn": "3620008823",
     "checkedAt": "2026-05-18T23:45:31.559Z"
+  },
+  "3620013943": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:59.585Z"
   },
   "3620014810": {
     "farmerType": "farmer",
@@ -9721,6 +10216,11 @@
     "okved": "01.64",
     "inn": "3631009392",
     "checkedAt": "2026-05-18T21:27:45.468Z"
+  },
+  "3632000900": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:16.447Z"
   },
   "3632004439": {
     "farmerType": "unknown",
@@ -10197,6 +10697,11 @@
     "inn": "3704011501",
     "checkedAt": "2026-05-18T23:34:33.732Z"
   },
+  "3705008974": {
+    "farmerType": "unknown",
+    "okved": "10.11",
+    "checkedAt": "2026-06-03T20:46:22.979Z"
+  },
   "3709022070": {
     "farmerType": "farmer",
     "okved": "01.11",
@@ -10523,6 +11028,11 @@
     "farmerType": "unknown",
     "okved": "77.11",
     "checkedAt": "2026-05-18T21:47:32.983Z"
+  },
+  "3913501838": {
+    "farmerType": "trader",
+    "okved": "52.24.2",
+    "checkedAt": "2026-06-03T20:46:10.517Z"
   },
   "3914002239": {
     "farmerType": "unknown",
@@ -10991,6 +11501,11 @@
     "okved": "01.50",
     "inn": "4213005280",
     "checkedAt": "2026-05-18T21:08:59.839Z"
+  },
+  "4213008918": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:31.065Z"
   },
   "4213009012": {
     "farmerType": "farmer",
@@ -157871,5 +158386,1427 @@
     "farmerType": "farmer",
     "okved": "01.11",
     "checkedAt": "2026-06-02T02:32:12.652Z"
+  },
+  "9001010696": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:06.586Z"
+  },
+  "9404000595": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:06.978Z"
+  },
+  "120200598383": {
+    "farmerType": "farmer",
+    "okved": "01.13.1",
+    "checkedAt": "2026-06-03T20:44:07.372Z"
+  },
+  "5427102846": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:08.182Z"
+  },
+  "6148011975": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:08.566Z"
+  },
+  "0800018864": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:44:09.369Z"
+  },
+  "234907731646": {
+    "farmerType": "farmer",
+    "okved": "01.13.3",
+    "checkedAt": "2026-06-03T20:44:09.755Z"
+  },
+  "644004014500": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:10.141Z"
+  },
+  "9305006596": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:11.309Z"
+  },
+  "5720002900": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:11.709Z"
+  },
+  "6126002617": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:12.091Z"
+  },
+  "232804949365": {
+    "farmerType": "farmer",
+    "okved": "01.61",
+    "checkedAt": "2026-06-03T20:44:12.509Z"
+  },
+  "900104178106": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:12.904Z"
+  },
+  "711306290752": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:14.866Z"
+  },
+  "9108001775": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:15.259Z"
+  },
+  "5078019895": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:15.649Z"
+  },
+  "231132802832": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:16.067Z"
+  },
+  "5208000665": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:17.826Z"
+  },
+  "613302296955": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:20.195Z"
+  },
+  "6123003820": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:20.576Z"
+  },
+  "4604000882": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:20.971Z"
+  },
+  "344811321486": {
+    "farmerType": "trader",
+    "okved": "46.36",
+    "checkedAt": "2026-06-03T20:44:21.758Z"
+  },
+  "366303745666": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:22.140Z"
+  },
+  "0108003857": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:23.306Z"
+  },
+  "4811001394": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:24.451Z"
+  },
+  "6164270060": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:24.844Z"
+  },
+  "641200319768": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:25.232Z"
+  },
+  "233802319480": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:25.624Z"
+  },
+  "341901038260": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:26.418Z"
+  },
+  "235100031800": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:26.807Z"
+  },
+  "665900274287": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:27.201Z"
+  },
+  "5260348198": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:27.587Z"
+  },
+  "9001010914": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:27.973Z"
+  },
+  "235802640665": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:28.747Z"
+  },
+  "0702003010": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:29.523Z"
+  },
+  "5202009598": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:29.895Z"
+  },
+  "644200215919": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:30.287Z"
+  },
+  "246003837712": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:30.668Z"
+  },
+  "5715003746": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:31.060Z"
+  },
+  "234000269571": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:31.448Z"
+  },
+  "6219007819": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:32.620Z"
+  },
+  "5403057841": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:32.999Z"
+  },
+  "682005690207": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:33.389Z"
+  },
+  "0516008902": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:33.774Z"
+  },
+  "360902620150": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:34.165Z"
+  },
+  "0212003660": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:44:34.552Z"
+  },
+  "235301547270": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:34.940Z"
+  },
+  "9103077932": {
+    "farmerType": "unknown",
+    "okved": "72.19",
+    "checkedAt": "2026-06-03T20:44:35.722Z"
+  },
+  "5224001881": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:36.108Z"
+  },
+  "525711576291": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:36.514Z"
+  },
+  "644802022960": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:36.904Z"
+  },
+  "613202730784": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:37.283Z"
+  },
+  "4620006120": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:38.062Z"
+  },
+  "6111013006": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:38.445Z"
+  },
+  "9500012339": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:38.840Z"
+  },
+  "023800408502": {
+    "farmerType": "farmer",
+    "okved": "01.13.1",
+    "checkedAt": "2026-06-03T20:44:39.918Z"
+  },
+  "235307681635": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:40.294Z"
+  },
+  "5215003106": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:44:40.676Z"
+  },
+  "6417038255": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:41.068Z"
+  },
+  "565000658023": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:41.478Z"
+  },
+  "4334006224": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:41.866Z"
+  },
+  "910618088520": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:42.252Z"
+  },
+  "423901453502": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:42.645Z"
+  },
+  "481502216261": {
+    "farmerType": "farmer",
+    "okved": "01.13.3",
+    "checkedAt": "2026-06-03T20:44:43.035Z"
+  },
+  "4521002607": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:43.417Z"
+  },
+  "5204012860": {
+    "farmerType": "farmer",
+    "okved": "01.41.12",
+    "checkedAt": "2026-06-03T20:44:43.809Z"
+  },
+  "4320003054": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:44.200Z"
+  },
+  "9111010956": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:44.891Z"
+  },
+  "5433163822": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:45.281Z"
+  },
+  "0701015478": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:45.674Z"
+  },
+  "6417002330": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:46.870Z"
+  },
+  "6413034203": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:47.462Z"
+  },
+  "6452940561": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:47.842Z"
+  },
+  "4324007525": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:48.235Z"
+  },
+  "5718000327": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:48.622Z"
+  },
+  "5206002593": {
+    "farmerType": "farmer",
+    "okved": "01.46.11",
+    "checkedAt": "2026-06-03T20:44:49.015Z"
+  },
+  "644200119700": {
+    "farmerType": "farmer",
+    "okved": "01.11.3",
+    "checkedAt": "2026-06-03T20:44:49.404Z"
+  },
+  "5639000740": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:49.786Z"
+  },
+  "6111009426": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:50.176Z"
+  },
+  "730201485593": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:50.562Z"
+  },
+  "6415001098": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:50.942Z"
+  },
+  "5633001064": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:51.321Z"
+  },
+  "641200022206": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:51.708Z"
+  },
+  "243800014880": {
+    "farmerType": "farmer",
+    "okved": "01.11.11",
+    "checkedAt": "2026-06-03T20:44:52.087Z"
+  },
+  "6368003225": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:44:52.856Z"
+  },
+  "6823001804": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:53.660Z"
+  },
+  "235102225776": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:54.071Z"
+  },
+  "5227001463": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:54.868Z"
+  },
+  "4628000088": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:55.259Z"
+  },
+  "026003486431": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:55.648Z"
+  },
+  "4301001502": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:56.038Z"
+  },
+  "643801216601": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:56.426Z"
+  },
+  "6112913112": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:44:56.820Z"
+  },
+  "5248000679": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:44:57.242Z"
+  },
+  "6118003286": {
+    "farmerType": "trader",
+    "okved": "46.21.11",
+    "checkedAt": "2026-06-03T20:44:57.629Z"
+  },
+  "5217000823": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:58.060Z"
+  },
+  "644201217404": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:58.450Z"
+  },
+  "6312191538": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:44:59.207Z"
+  },
+  "5443108235": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:44:59.963Z"
+  },
+  "010200357269": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:00.354Z"
+  },
+  "641502346454": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:00.731Z"
+  },
+  "641501043182": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:01.111Z"
+  },
+  "644802047517": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:01.498Z"
+  },
+  "641500828406": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:01.874Z"
+  },
+  "4519006315": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:02.255Z"
+  },
+  "581100344001": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:03.426Z"
+  },
+  "680301933456": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:04.195Z"
+  },
+  "641302090163": {
+    "farmerType": "farmer",
+    "okved": "01.41",
+    "checkedAt": "2026-06-03T20:45:04.601Z"
+  },
+  "644801346708": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:05.373Z"
+  },
+  "643302404543": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:06.137Z"
+  },
+  "234401380224": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:06.895Z"
+  },
+  "5252049998": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:07.665Z"
+  },
+  "7708405737": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:08.449Z"
+  },
+  "5229014588": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:08.843Z"
+  },
+  "225302268996": {
+    "farmerType": "trader",
+    "okved": "46.21.13",
+    "checkedAt": "2026-06-03T20:45:09.235Z"
+  },
+  "225300282480": {
+    "farmerType": "farmer",
+    "okved": "01.11.3",
+    "checkedAt": "2026-06-03T20:45:09.624Z"
+  },
+  "6412005489": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:10.014Z"
+  },
+  "6146005888": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:10.418Z"
+  },
+  "230302725390": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:10.801Z"
+  },
+  "5203002891": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:11.177Z"
+  },
+  "0701017309": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:11.566Z"
+  },
+  "9105017199": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:11.946Z"
+  },
+  "642600264794": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:13.105Z"
+  },
+  "6314034435": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:45:13.487Z"
+  },
+  "6154149001": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:13.892Z"
+  },
+  "461300127979": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:14.338Z"
+  },
+  "7717788405": {
+    "farmerType": "trader",
+    "okved": "46.21.12",
+    "checkedAt": "2026-06-03T20:45:15.142Z"
+  },
+  "5818002920": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:16.962Z"
+  },
+  "235700747641": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:17.340Z"
+  },
+  "5032221033": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:17.733Z"
+  },
+  "6442000544": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:45:18.115Z"
+  },
+  "235400706281": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:18.511Z"
+  },
+  "6441012392": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:18.904Z"
+  },
+  "6362009238": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:19.284Z"
+  },
+  "4804011803": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:19.678Z"
+  },
+  "682803572292": {
+    "farmerType": "farmer",
+    "okved": "01.11.33",
+    "checkedAt": "2026-06-03T20:45:20.071Z"
+  },
+  "6445006135": {
+    "farmerType": "trader",
+    "okved": "52.21.19",
+    "checkedAt": "2026-06-03T20:45:20.457Z"
+  },
+  "5421110858": {
+    "farmerType": "trader",
+    "okved": "52.10.3",
+    "checkedAt": "2026-06-03T20:45:20.839Z"
+  },
+  "563401415948": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:45:21.609Z"
+  },
+  "6409004703": {
+    "farmerType": "trader",
+    "okved": "52.10",
+    "checkedAt": "2026-06-03T20:45:21.997Z"
+  },
+  "9704170950": {
+    "farmerType": "trader",
+    "okved": "46.90",
+    "checkedAt": "2026-06-03T20:45:22.377Z"
+  },
+  "6809005645": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:23.161Z"
+  },
+  "366607835985": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:23.551Z"
+  },
+  "5407031918": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:23.941Z"
+  },
+  "6165217398": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:24.657Z"
+  },
+  "9403019628": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:25.042Z"
+  },
+  "222403723830": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:25.429Z"
+  },
+  "790500091901": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:25.818Z"
+  },
+  "4811009805": {
+    "farmerType": "farmer",
+    "okved": "01.13.5",
+    "checkedAt": "2026-06-03T20:45:26.202Z"
+  },
+  "523800025119": {
+    "farmerType": "trader",
+    "okved": "47.25.1",
+    "checkedAt": "2026-06-03T20:45:26.583Z"
+  },
+  "7437000318": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:45:27.138Z"
+  },
+  "900200912369": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:27.522Z"
+  },
+  "080100787488": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:27.911Z"
+  },
+  "643000026461": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:28.287Z"
+  },
+  "231101418062": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:29.875Z"
+  },
+  "9404006886": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:30.285Z"
+  },
+  "5232002864": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:30.675Z"
+  },
+  "0201014194": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:45:31.457Z"
+  },
+  "name:INNER MONGOLIA ’S WANDA TRADE CO., LTD": {
+    "farmerType": "unknown",
+    "okved": "",
+    "inn": "",
+    "checkedAt": "2026-06-03T20:45:34.011Z"
+  },
+  "643100833162": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:34.400Z"
+  },
+  "9404008749": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:34.819Z"
+  },
+  "166106254737": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:35.202Z"
+  },
+  "023801346048": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-03T20:45:35.596Z"
+  },
+  "4317005171": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:36.379Z"
+  },
+  "6117000395": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:36.784Z"
+  },
+  "4325000177": {
+    "farmerType": "farmer",
+    "okved": "01.41.21",
+    "checkedAt": "2026-06-03T20:45:37.251Z"
+  },
+  "0259011377": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:37.655Z"
+  },
+  "6128002570": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:38.842Z"
+  },
+  "160302842050": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:45:39.225Z"
+  },
+  "9410007334": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:39.638Z"
+  },
+  "612900596777": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:40.015Z"
+  },
+  "6453124767": {
+    "farmerType": "trader",
+    "okved": "52.10",
+    "checkedAt": "2026-06-03T20:45:40.393Z"
+  },
+  "0239951421": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:40.781Z"
+  },
+  "610902851644": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:41.165Z"
+  },
+  "234701551209": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:45:43.103Z"
+  },
+  "6384009087": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:43.482Z"
+  },
+  "190801668449": {
+    "farmerType": "farmer",
+    "okved": "01.42.11",
+    "checkedAt": "2026-06-03T20:45:43.859Z"
+  },
+  "6809005606": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:44.647Z"
+  },
+  "245901228410": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:45.035Z"
+  },
+  "6439081631": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:45.412Z"
+  },
+  "730200277167": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:45:46.182Z"
+  },
+  "5635009020": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:46.560Z"
+  },
+  "712400307356": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:47.766Z"
+  },
+  "638000172610": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:48.155Z"
+  },
+  "7805766087": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:48.537Z"
+  },
+  "564300116492": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:48.923Z"
+  },
+  "5422113604": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:49.304Z"
+  },
+  "5521001845": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:49.691Z"
+  },
+  "5434103632": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:50.074Z"
+  },
+  "583502638774": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:50.929Z"
+  },
+  "262202060641": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-03T20:45:51.307Z"
+  },
+  "5605004923": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:51.707Z"
+  },
+  "7309006635": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:52.489Z"
+  },
+  "7830002303": {
+    "farmerType": "unknown",
+    "okved": "10.61.2",
+    "checkedAt": "2026-06-03T20:45:53.275Z"
+  },
+  "6121002758": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:53.655Z"
+  },
+  "645317383603": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:54.047Z"
+  },
+  "5824002580": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:54.438Z"
+  },
+  "6412000836": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:54.830Z"
+  },
+  "5637021784": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:55.223Z"
+  },
+  "562700513902": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:56.014Z"
+  },
+  "5639020151": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:56.807Z"
+  },
+  "9305001943": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:57.205Z"
+  },
+  "5611083994": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:57.600Z"
+  },
+  "6449044445": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:57.985Z"
+  },
+  "9001020550": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:58.369Z"
+  },
+  "6815001617": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:58.753Z"
+  },
+  "4805001237": {
+    "farmerType": "farmer",
+    "okved": "01.5",
+    "checkedAt": "2026-06-03T20:45:59.144Z"
+  },
+  "9500004401": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:45:59.534Z"
+  },
+  "742900011250": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:45:59.924Z"
+  },
+  "640201896639": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:00.314Z"
+  },
+  "6821170451": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:00.712Z"
+  },
+  "name:ООО «GLOBAL EXPORT COMPANY» / ООО «ГЛОБАЛ ЭКСПОРТ КОМПАНИ»": {
+    "farmerType": "unknown",
+    "okved": "",
+    "inn": "",
+    "checkedAt": "2026-06-03T20:46:02.596Z"
+  },
+  "631700289522": {
+    "farmerType": "farmer",
+    "okved": "01.42.1",
+    "checkedAt": "2026-06-03T20:46:03.377Z"
+  },
+  "4815003219": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:03.764Z"
+  },
+  "4807056746": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:04.142Z"
+  },
+  "7424030241": {
+    "farmerType": "farmer",
+    "okved": "01.46.11",
+    "checkedAt": "2026-06-03T20:46:06.104Z"
+  },
+  "5245011182": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:06.883Z"
+  },
+  "4625001037": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:07.263Z"
+  },
+  "613300081506": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:08.047Z"
+  },
+  "0212006741": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-03T20:46:08.442Z"
+  },
+  "9105000163": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:09.342Z"
+  },
+  "9402007309": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:09.727Z"
+  },
+  "360600703481": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:10.123Z"
+  },
+  "5529001734": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:10.909Z"
+  },
+  "224701354363": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:46:11.691Z"
+  },
+  "260903236000": {
+    "farmerType": "farmer",
+    "okved": "01.61",
+    "checkedAt": "2026-06-03T20:46:13.228Z"
+  },
+  "4603005479": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:13.618Z"
+  },
+  "5942003277": {
+    "farmerType": "farmer",
+    "okved": "01.41",
+    "checkedAt": "2026-06-03T20:46:14.008Z"
+  },
+  "6803002824": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:46:14.383Z"
+  },
+  "481600444611": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:16.321Z"
+  },
+  "6165227893": {
+    "farmerType": "trader",
+    "okved": "46.90",
+    "checkedAt": "2026-06-03T20:46:16.708Z"
+  },
+  "6830007437": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-03T20:46:17.114Z"
+  },
+  "543410445431": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:46:17.519Z"
+  },
+  "5427102187": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:17.899Z"
+  },
+  "7226003278": {
+    "farmerType": "farmer",
+    "okved": "01.13.3",
+    "checkedAt": "2026-06-03T20:46:18.291Z"
+  },
+  "6384005090": {
+    "farmerType": "farmer",
+    "okved": "01.1",
+    "checkedAt": "2026-06-03T20:46:19.437Z"
+  },
+  "5709000306": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:19.829Z"
+  },
+  "6808000877": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:20.225Z"
+  },
+  "7838053444": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:20.648Z"
+  },
+  "9305006028": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-03T20:46:21.035Z"
+  },
+  "231301772085": {
+    "farmerType": "farmer",
+    "okved": "01.25",
+    "checkedAt": "2026-06-03T20:46:21.410Z"
+  },
+  "7113021131": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:22.201Z"
+  },
+  "6136007565": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-03T20:46:22.589Z"
+  },
+  "341900336898": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:31.904Z"
+  },
+  "312251027969": {
+    "farmerType": "farmer",
+    "okved": "01.41",
+    "checkedAt": "2026-06-04T09:02:32.314Z"
+  },
+  "5601006278": {
+    "farmerType": "farmer",
+    "okved": "01.50",
+    "checkedAt": "2026-06-04T09:02:33.647Z"
+  },
+  "713075750379": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:34.086Z"
+  },
+  "6406000605": {
+    "farmerType": "farmer",
+    "okved": "01.11.1",
+    "checkedAt": "2026-06-04T09:02:34.967Z"
+  },
+  "7313012448": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:35.386Z"
+  },
+  "4825003761": {
+    "farmerType": "unknown",
+    "okved": "10.81.11",
+    "checkedAt": "2026-06-04T09:02:35.805Z"
+  },
+  "321402648490": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:36.266Z"
+  },
+  "5534009986": {
+    "farmerType": "farmer",
+    "okved": "01.41",
+    "checkedAt": "2026-06-04T09:02:36.706Z"
+  },
+  "7729546947": {
+    "farmerType": "trader",
+    "okved": "46.21",
+    "checkedAt": "2026-06-04T09:02:37.150Z"
+  },
+  "0250010107": {
+    "farmerType": "farmer",
+    "okved": "01.11.2",
+    "checkedAt": "2026-06-04T09:02:39.330Z"
+  },
+  "6166097333": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:40.222Z"
+  },
+  "615306462702": {
+    "farmerType": "farmer",
+    "okved": "01.11",
+    "checkedAt": "2026-06-04T09:02:41.114Z"
+  },
+  "5507297968": {
+    "farmerType": "trader",
+    "okved": "46.21.11",
+    "checkedAt": "2026-06-04T09:02:41.590Z"
+  },
+  "name:ЗИНЧЕНКО АЛЕКСЕЙ НИКОЛАЕВИЧ": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:31:33.851Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"КАМЫШИНСКИЙ ЗЕРНОВОЙ ТЕРМИНАЛ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:31:44.176Z"
+  },
+  "name:СЕЛЬСКОХОЗЯЙСТВЕННЫЙ ПРОИЗВОДСТВЕННЫЙ КООПЕРАТИВ \"ИМ. АЛИ ШОГЕНЦУКОВА\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:31:54.501Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"СЕЛЬСКОХОЗЯЙСТВЕННОЕ ПРЕДПРИЯТИЕ \"АГРОИНВЕСТ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:31:55.621Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"МАРА\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:05.936Z"
+  },
+  "name:МАЦАКЯН АЛИК СТЕПАНОВИЧ": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:07.074Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"БЕШПАГИР\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:17.402Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"СМАК-АГРО\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:18.536Z"
+  },
+  "name:БЕЛЫЙ ЕВГЕНИЙ ВИКТОРОВИЧ": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:28.860Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"ХЛЕБНОЕ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:29.983Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"АГРОФИРМА \"ИСТОК\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:40.312Z"
+  },
+  "name:АКЦИОНЕРНОЕ ОБЩЕСТВО \"ПЛЕМЕННОЙ ЗАВОД \"ПРОГРЕСС\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:32:50.639Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"АРИБ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:00.953Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ АГРОПРОМЫШЛЕННАЯ ФИРМА \"КУБАНЬ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:02.087Z"
+  },
+  "name:Цакоев Валерий Борисович": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:12.400Z"
+  },
+  "name:ЛЕБЕДЕВА АНТОНИНА ЕВГЕНЬЕВНА": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:13.524Z"
+  },
+  "name:СЕЛЬСКОХОЗЯЙСТВЕННЫЙ ПРОИЗВОДСТВЕННЫЙ КООПЕРАТИВ \"НИКОЛЬСКОЕ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:23.843Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"АГРОПРОМЫШЛЕННАЯ КОРПОРАЦИЯ АСТ КОМПАНИ М\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:24.968Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"ГАЛ ГРУПП\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:35.296Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"ВОСТОК\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:36.435Z"
+  },
+  "name:АКЦИОНЕРНОЕ ОБЩЕСТВО \"ЩИГРОВСКАЯ МАШИННО-ТЕХНОЛОГИЧЕСКАЯ СТАНЦИЯ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:46.754Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"НАУЧНО-ПРОИЗВОДСТВЕННОГО ОБЪЕДИНЕНИЯ \"АЛЕКСЕЕВСКОЕ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:33:57.075Z"
+  },
+  "name:АКЦИОНЕРНОЕ ОБЩЕСТВО \"НОВАЯ ПЯТИЛЕТКА\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:34:07.394Z"
+  },
+  "name:Хурматуллин Раудат Гадыевич": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:34:08.534Z"
+  },
+  "name:Нор Валерий Петрович": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:34:18.860Z"
+  },
+  "name:СЕЛЬСКОХОЗЯЙСТВЕННЫЙ ПРОИЗВОДСТВЕННЫЙ КООПЕРАТИВ - КОЛХОЗ \"РАССВЕТ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:34:19.984Z"
+  },
+  "name:ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ \"ТОРГОВЫЙ ДОМ \"ОЛЕУМ\"": {
+    "farmerType": "unknown",
+    "okved": "",
+    "checkedAt": "2026-06-04T11:34:30.311Z"
   }
 }

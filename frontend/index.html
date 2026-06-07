@@ -15,21 +15,46 @@
     <div class="login-logo">
       <div class="logo-ic">РЗ</div>
     </div>
-    <h1 class="login-title">Вход в систему</h1>
-    <p class="login-subtitle">FSA Declarations Parser</p>
+    <h1 class="login-title">Реестр производителей</h1>
+    <p class="login-subtitle">ТР ТС 015/2011 — FSA Parser</p>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Вход</button>
+      <button class="auth-tab" id="tabRegister" onclick="switchAuthTab('register')">Регистрация</button>
+    </div>
+
     <form id="loginForm" onsubmit="handleLogin(event)">
       <div class="fg" style="grid-template-columns:1fr">
         <div class="frow">
           <label>Логин</label>
-          <input type="text" id="loginUser" required placeholder="Введите логин">
+          <input type="text" id="loginUser" required placeholder="Введите логин" autocomplete="username">
         </div>
         <div class="frow">
           <label>Пароль</label>
-          <input type="password" id="loginPass" required placeholder="Введите пароль">
+          <input type="password" id="loginPass" required placeholder="Введите пароль" autocomplete="current-password">
         </div>
-        <button type="submit" class="btn btn-p" style="margin-top:10px;justify-content:center;padding:12px;width:100%">Войти</button>
+        <button type="submit" id="loginBtn" class="btn btn-p auth-submit-btn">Войти</button>
       </div>
-      <p id="loginError" style="color:var(--dng);font-size:12px;margin-top:10px;text-align:center;display:none"></p>
+      <p id="loginError" class="auth-error" style="display:none"></p>
+    </form>
+
+    <form id="registerForm" onsubmit="handleRegister(event)" style="display:none">
+      <div class="fg" style="grid-template-columns:1fr">
+        <div class="frow">
+          <label>Логин</label>
+          <input type="text" id="regUser" required placeholder="Придумайте логин" autocomplete="username">
+        </div>
+        <div class="frow">
+          <label>Пароль</label>
+          <input type="password" id="regPass" required placeholder="Придумайте пароль" autocomplete="new-password">
+        </div>
+        <div class="frow">
+          <label>Подтверждение пароля</label>
+          <input type="password" id="regPass2" required placeholder="Повторите пароль" autocomplete="new-password">
+        </div>
+        <button type="submit" id="registerBtn" class="btn btn-p auth-submit-btn">Зарегистрироваться</button>
+      </div>
+      <p id="registerError" class="auth-error" style="display:none"></p>
     </form>
   </div>
 </div>
@@ -47,9 +72,11 @@
       <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта</button>
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
+      <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
     </nav>
     <div class="hdr-r">
       <span id="hdrStatus" style="font-size:12px;color:var(--muted)"></span>
+      <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
       <button class="btn btn-warn btn-sm" onclick="triggerParse()">↺ Обновить</button>
       <button class="btn btn-p btn-sm" onclick="openAdd()">+ Добавить</button>
       <a class="btn btn-sm" href="/api/declarations/export/csv" id="exportBtn">⬇ CSV</a>
@@ -239,6 +266,34 @@
     <div class="item-list" id="favList"></div>
   </div>
 
+  <!-- ADMIN PAGE -->
+  <div class="panel-page" id="pg-admin">
+    <div class="panel-hdr">
+      <h2>🛡 Администрирование</h2>
+    </div>
+    <div class="admin-stats" id="adminStats"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px">
+      <h3 style="font-size:14px;font-weight:700">Пользователи</h3>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr>
+          <th>Логин</th><th>Роль</th><th>Подписка до</th><th>Тариф</th><th>Оплат / сумма</th><th>Регистрация</th><th style="width:180px">Действия</th>
+        </tr></thead>
+        <tbody id="adminUsersTbody"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="font-size:14px;font-weight:700">История платежей</h3>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Пользователь</th><th>Сумма</th><th>Тариф</th><th>Статус</th><th>Дата</th></tr></thead>
+        <tbody id="adminPaymentsTbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- FOLDERS PAGE -->
   <div class="panel-page" id="pg-folders">
     <div class="panel-hdr">
@@ -335,6 +390,30 @@
         <button class="btn btn-sm" id="enrichStopBtn" onclick="stopEnrich()" style="display:none">⏹ Остановить</button>
       </div>
     </div>
+  </div>
+</div>
+</div>
+
+<!-- SUBSCRIPTION MODAL -->
+<div class="ov" id="subscriptionModal">
+<div class="modal" style="max-width:540px">
+  <div class="mh"><h3>💳 Подписка</h3><button class="mcl" onclick="closeModal('subscriptionModal')">✕</button></div>
+  <div class="mb">
+    <div id="subCurrentStatus" style="margin-bottom:20px"></div>
+    <div class="sub-plans" id="subPlans"></div>
+  </div>
+</div>
+</div>
+
+<!-- NO ACCESS MODAL -->
+<div class="ov" id="noAccessModal">
+<div class="modal" style="max-width:460px">
+  <div class="mh" style="background:var(--dngbg)"><h3 style="color:var(--dng)">🔒 Доступ ограничен</h3></div>
+  <div class="mb" style="text-align:center;padding:32px 24px">
+    <div style="font-size:44px;margin-bottom:12px">🔒</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">Требуется активная подписка</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:24px">Для доступа к реестру производителей необходимо оформить подписку.</div>
+    <button class="btn btn-p" style="padding:12px 32px;font-size:14px" onclick="closeModal('noAccessModal');openSubscription()">Оформить подписку</button>
   </div>
 </div>
 </div>

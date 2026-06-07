@@ -34,11 +34,11 @@ function createFsaApiClient(cfg) {
         err.code === 'ETIMEDOUT' ||
         [502, 503, 504].includes(err.response?.status);
       if (!retriable || attempt >= maxAttempts) {
-        log.error('api', `${opName} окончательно: ${err.message}`);
+        log.error(`api: ${opName} окончательно: ${err.message}`);
         throw err;
       }
       const delay = Math.min(maxDelayMs || 8000, baseDelayMs * 2 ** (attempt - 1));
-      log.warn('api', `${opName} повтор ${attempt + 1}/${maxAttempts} через ${delay}ms`);
+      log.warn(`api: ${opName} повтор ${attempt + 1}/${maxAttempts} через ${delay}ms`);
       await sleep(delay);
       return withRetry(operation, opName, attempt + 1, retryCfg);
     }
@@ -141,13 +141,13 @@ function createFsaApiClient(cfg) {
         if (r.status !== 200) {
           const hint = extractXsrfToken(cookies) ? '' : ' (нет cookie XSRF-TOKEN — проверьте сеть/прокси)';
           const body = typeof r.data === 'string' ? r.data.slice(0, 200) : JSON.stringify(r.data || '').slice(0, 200);
-          log.error('api', `POST /login статус ${r.status}${hint}`, body || '');
+          log.error(`api: POST /login статус ${r.status}${hint}: ${body || ''}`);
           return false;
         }
         const auth = r.headers?.authorization || r.headers?.Authorization || '';
         const raw = auth.replace(/^Bearer\s+/i, '').trim();
         if (!isJwtString(raw)) {
-          log.error('api', 'POST /login: нет валидного JWT в Authorization');
+          log.error('api: POST /login: нет валидного JWT в Authorization');
           return false;
         }
         token = raw;
@@ -197,29 +197,29 @@ function createFsaApiClient(cfg) {
     async ensureAuth() {
       if (manualToken) return manualToken;
       if (token && Date.now() < expiresAt) return token;
-      log.info('auth', 'Получение сессии и JWT…');
+      log.info('auth: Получение сессии и JWT…');
       try {
         await bootstrapSession();
       } catch (e) {
-        log.warn('auth', `GET ${cfg.paths.sessionBootstrap}: ${e.message}`);
+        log.warn(`auth: GET ${cfg.paths.sessionBootstrap}: ${e.message}`);
       }
       try {
         if (!extractXsrfToken(cookies)) await ensureXsrfCookie();
       } catch (e) {
-        log.warn('auth', `GET ${cfg.paths.sessionFallback || '/'}: ${e.message}`);
+        log.warn(`auth: GET ${cfg.paths.sessionFallback || '/'}: ${e.message}`);
       }
       if (!extractXsrfToken(cookies)) {
-        log.warn('auth', 'В cookies нет XSRF-TOKEN — POST /login может вернуть 403');
+        log.warn('auth: В cookies нет XSRF-TOKEN — POST /login может вернуть 403');
       }
       let ok = false;
       try {
         ok = await loginAnonymous();
       } catch (e) {
-        log.error('auth', `POST /login: ${e.message}`);
+        log.error(`auth: POST /login: ${e.message}`);
         ok = false;
       }
       if (!ok) return null;
-      log.info('auth', `JWT получен, истекает ${new Date(expiresAt).toLocaleTimeString('ru-RU')}`);
+      log.info(`auth: JWT получен, истекает ${new Date(expiresAt).toLocaleTimeString('ru-RU')}`);
       return token;
     },
 

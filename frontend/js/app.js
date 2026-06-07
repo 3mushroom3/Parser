@@ -116,6 +116,16 @@ async function apiFetch(path, opts = {}) {
     throw new Error('Сессия истекла. Войдите снова.');
   }
 
+  if (response.status === 403) {
+    const error = await response.json().catch(() => ({}));
+    if (error.code === 'SUBSCRIPTION_REQUIRED') {
+      const modal = document.getElementById('noAccessModal');
+      if (modal) modal.classList.add('open');
+      throw new Error('SUBSCRIPTION_REQUIRED');
+    }
+    throw new Error(error.error || 'Доступ запрещён');
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
     throw new Error(error.error || 'Ошибка запроса');
@@ -125,27 +135,88 @@ async function apiFetch(path, opts = {}) {
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────
+function switchAuthTab(tab) {
+  document.getElementById('loginForm').style.display    = tab === 'login'    ? '' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('loginError').style.display    = 'none';
+  document.getElementById('registerError').style.display = 'none';
+}
+
+const AUTH_ERRORS = {
+  'Invalid credentials':            'Неверный логин или пароль',
+  'Username and password are required': 'Заполните все поля',
+  'Username already exists':        'Этот логин уже занят',
+};
+function authMsg(msg) { return AUTH_ERRORS[msg] || msg; }
+
 async function handleLogin(e) {
   e.preventDefault();
-  const username = document.getElementById('loginUser').value;
+  const username = document.getElementById('loginUser').value.trim();
   const password = document.getElementById('loginPass').value;
-  const errorEl = document.getElementById('loginError');
+  const errorEl  = document.getElementById('loginError');
+  const btn      = document.getElementById('loginBtn');
+
+  errorEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Вход…';
 
   try {
     const data = await apiFetch('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
     });
-
     State.token = data.token;
-    State.user = data.user;
+    State.user  = data.user;
     localStorage.setItem('fsa_token', data.token);
     localStorage.setItem('fsa_user', JSON.stringify(data.user));
-
     checkAuth();
   } catch (err) {
-    errorEl.textContent = err.message;
+    errorEl.textContent   = authMsg(err.message);
     errorEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Войти';
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const username  = document.getElementById('regUser').value.trim();
+  const password  = document.getElementById('regPass').value;
+  const password2 = document.getElementById('regPass2').value;
+  const errorEl   = document.getElementById('registerError');
+  const btn       = document.getElementById('registerBtn');
+
+  errorEl.style.display = 'none';
+
+  if (password !== password2) {
+    errorEl.textContent   = 'Пароли не совпадают';
+    errorEl.style.display = 'block';
+    return;
+  }
+  if (password.length < 4) {
+    errorEl.textContent   = 'Пароль должен содержать минимум 4 символа';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Регистрация…';
+
+  try {
+    await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) });
+    const data = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+    State.token = data.token;
+    State.user  = data.user;
+    localStorage.setItem('fsa_token', data.token);
+    localStorage.setItem('fsa_user', JSON.stringify(data.user));
+    checkAuth();
+  } catch (err) {
+    errorEl.textContent   = authMsg(err.message);
+    errorEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Зарегистрироваться';
   }
 }
 
@@ -173,10 +244,11 @@ function checkAuth() {
 
 // ── Navigation ────────────────────────────────────────────────────────────
 function showPage(name) {
-  document.getElementById('pg-registry').style.display = name === 'registry' ? '' : 'none';
-  document.getElementById('pg-map').style.display = name === 'map' ? 'block' : 'none';
-  document.getElementById('pg-favorites').className = 'panel-page' + (name === 'favorites' ? ' active' : '');
-  document.getElementById('pg-folders').className   = 'panel-page' + (name === 'folders'   ? ' active' : '');
+  document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
+  document.getElementById('pg-map').style.display       = name === 'map'       ? 'block' : 'none';
+  document.getElementById('pg-favorites').className     = 'panel-page' + (name === 'favorites' ? ' active' : '');
+  document.getElementById('pg-folders').className       = 'panel-page' + (name === 'folders'   ? ' active' : '');
+  document.getElementById('pg-admin').className         = 'panel-page' + (name === 'admin'     ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
@@ -191,6 +263,7 @@ function showPage(name) {
 
   if (name === 'favorites') loadFavorites();
   if (name === 'folders') loadFolders();
+  if (name === 'admin') loadAdminData();
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
@@ -200,7 +273,7 @@ async function loadTable() {
 
   try {
     const filters = getFilters();
-    const data = await apiFetch('/api/producers' + buildQS(filters));
+    const data = await apiFetch('/api/declarations/producers' + buildQS(filters));
     renderTable(data);
   } catch (err) {
     showAlert(err.message, 'err');
@@ -356,27 +429,36 @@ async function loadStats() {
   } catch(_) {}
 }
 
+let _statusPollTimer = null;
+
 async function pollStatus() {
   try {
     const s = await apiFetch('/api/system/status');
+    const running = s.state === 'running';
     document.getElementById('stDot').className =
-      'dot ' + (s.isRunning ? 'dot-run' : s.state==='error' ? 'dot-err' : 'dot-live');
+      'dot ' + (running ? 'dot-run' : s.state === 'error' ? 'dot-err' : 'dot-live');
     document.getElementById('stText').textContent = s.message || '—';
     const bar = document.getElementById('stBar');
-    bar.style.width = '100%';
-    bar.style.background = s.isRunning ? 'var(--acm)' : s.state==='error' ? 'var(--dng)' : 'var(--succ)';
+    bar.style.width = running ? '60%' : '100%';
+    bar.style.background = running ? 'var(--acm)' : s.state === 'error' ? 'var(--dng)' : 'var(--succ)';
     if (s.lastUpdated) {
       const d = new Date(s.lastUpdated);
       document.getElementById('stTime').textContent = 'Обновлено: ' + d.toLocaleString('ru-RU');
       document.getElementById('sideLastUpd').textContent = d.toLocaleTimeString('ru-RU');
       document.getElementById('hdrStatus').textContent = d.toLocaleTimeString('ru-RU');
     }
-    if (!s.isRunning && s.lastUpdated !== State.lastUpdatedAt) {
+    if (!running && s.lastUpdated !== State.lastUpdatedAt) {
       State.lastUpdatedAt = s.lastUpdated;
       await loadStats();
       await loadTable();
     }
-  } catch(_) {}
+    // Auto-poll faster while running, slower when idle
+    clearTimeout(_statusPollTimer);
+    _statusPollTimer = setTimeout(pollStatus, running ? 2000 : 15000);
+  } catch(_) {
+    clearTimeout(_statusPollTimer);
+    _statusPollTimer = setTimeout(pollStatus, 10000);
+  }
 }
 
 async function triggerParse() {
@@ -974,6 +1056,12 @@ async function stopEnrich() {
   refreshEnrichStatus();
 }
 
+// ── Modal helpers ─────────────────────────────────────────────────────────
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
 // ── Add Record ────────────────────────────────────────────────────────────
 function openAdd() {
   State.editingId = null;
@@ -1005,13 +1093,191 @@ function showAlert(msg, type = 'ok') {
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
 
+// ── Subscription ──────────────────────────────────────────────────────────
+async function loadSubscriptionStatus() {
+  try {
+    const s = await apiFetch('/api/payment/subscription');
+    const badge = document.getElementById('subBadge');
+    const adminTab = document.getElementById('adminTab');
+
+    if (s.isAdmin) {
+      badge.style.display = 'none';
+      if (adminTab) adminTab.style.display = '';
+      return;
+    }
+
+    if (adminTab) adminTab.style.display = 'none';
+
+    if (s.active) {
+      const d = new Date(s.subscriptionUntil);
+      const daysLeft = Math.ceil((d - new Date()) / 86400000);
+      badge.textContent = daysLeft <= 7 ? `⚠ Подписка: ${daysLeft} д.` : `✓ Подписка до ${d.toLocaleDateString('ru-RU')}`;
+      badge.className = 'sub-badge ' + (daysLeft <= 7 ? 'sub-badge-warn' : 'sub-badge-ok');
+      badge.style.display = '';
+    } else {
+      badge.textContent = '🔒 Нет подписки';
+      badge.className = 'sub-badge sub-badge-err';
+      badge.style.display = '';
+    }
+
+    // Проверяем параметр payment_id в URL (редирект после оплаты)
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentId = urlParams.get('payment_id');
+    if (paymentId) {
+      window.history.replaceState({}, '', '/');
+      await checkPaymentResult(paymentId);
+    }
+  } catch(_) {}
+}
+
+async function checkPaymentResult(paymentId) {
+  try {
+    const r = await apiFetch(`/api/payment/check/${paymentId}`);
+    if (r.status === 'succeeded') {
+      showAlert('✅ Оплата прошла! Подписка активирована.', 'ok');
+      await loadSubscriptionStatus();
+    } else if (r.status === 'canceled') {
+      showAlert('Платёж отменён.', 'err');
+    } else {
+      showAlert('Платёж обрабатывается...', 'ok');
+    }
+  } catch(_) {}
+}
+
+async function openSubscription() {
+  const [sub, plansData] = await Promise.all([
+    apiFetch('/api/payment/subscription'),
+    apiFetch('/api/payment/plans'),
+  ]);
+
+  const statusEl = document.getElementById('subCurrentStatus');
+  if (sub.active) {
+    const d = new Date(sub.subscriptionUntil);
+    statusEl.innerHTML = `<div class="sub-status-ok">✓ Подписка активна до <b>${d.toLocaleDateString('ru-RU')}</b></div>`;
+  } else {
+    statusEl.innerHTML = `<div class="sub-status-err">Подписка не активна. Выберите тариф для оформления.</div>`;
+  }
+
+  document.getElementById('subPlans').innerHTML = plansData.map(p => `
+    <div class="sub-plan-card">
+      <div class="sub-plan-name">${p.label}</div>
+      <div class="sub-plan-price">${p.price.toLocaleString('ru-RU')} ₽</div>
+      <div class="sub-plan-per">${Math.round(p.price / (p.days / 30))} ₽/мес</div>
+      <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="buyPlan('${p.id}')">Оплатить</button>
+    </div>`).join('');
+
+  document.getElementById('subscriptionModal').classList.add('open');
+}
+
+async function buyPlan(planId) {
+  try {
+    const r = await apiFetch('/api/payment/create', { method: 'POST', body: JSON.stringify({ planId }) });
+    window.location.href = r.paymentUrl;
+  } catch(e) {
+    showAlert(e.message, 'err');
+  }
+}
+
+// ── Admin Panel ───────────────────────────────────────────────────────────
+async function loadAdminData() {
+  try {
+    const [stats, users, payments] = await Promise.all([
+      apiFetch('/api/admin/stats'),
+      apiFetch('/api/admin/users'),
+      apiFetch('/api/admin/payments'),
+    ]);
+
+    document.getElementById('adminStats').innerHTML = `
+      <div class="admin-stats-grid">
+        <div class="admin-stat-card"><div class="admin-stat-val">${stats.totalUsers}</div><div class="admin-stat-l">Пользователей</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-val" style="color:var(--succ)">${stats.activeUsers}</div><div class="admin-stat-l">Активных подписок</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-val">${stats.monthRevenue.toLocaleString('ru-RU')} ₽</div><div class="admin-stat-l">Выручка за 30 дней</div></div>
+        <div class="admin-stat-card"><div class="admin-stat-val">${stats.totalRevenue.toLocaleString('ru-RU')} ₽</div><div class="admin-stat-l">Выручка всего</div></div>
+      </div>`;
+
+    const planLabel = { month1: '1 мес', month3: '3 мес', month12: '12 мес', manual: 'Вручную' };
+
+    document.getElementById('adminUsersTbody').innerHTML = users.map(u => {
+      const until = u.subscriptionUntil ? new Date(u.subscriptionUntil) : null;
+      const active = until && until > new Date();
+      const subStr = until ? `<span class="${active ? 'sub-ok' : 'sub-exp'}">${until.toLocaleDateString('ru-RU')}</span>` : '<span style="color:var(--muted)">—</span>';
+      return `<tr>
+        <td><b>${u.username}</b></td>
+        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+        <td>${subStr}</td>
+        <td style="font-size:12px;color:var(--muted)">${planLabel[u.subscriptionPlan] || u.subscriptionPlan || '—'}</td>
+        <td style="font-size:12px">${u.paymentCount || 0} / ${(u.totalPaid || 0).toLocaleString('ru-RU')} ₽</td>
+        <td style="font-size:12px;color:var(--muted)">${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
+        <td class="admin-actions">
+          <button class="btn btn-sm" onclick="adminAddDays(${u.id},'${u.username}')" title="Продлить подписку">+Дни</button>
+          <button class="btn btn-sm btn-warn" onclick="adminRevokeSub(${u.id},'${u.username}')" title="Отозвать подписку">✕</button>
+          <button class="btn btn-sm" onclick="adminChangeRole(${u.id},'${u.username}','${u.role}')" title="Роль">👤</button>
+          <button class="btn btn-sm btn-dng" onclick="adminDeleteUser(${u.id},'${u.username}')" title="Удалить">🗑</button>
+        </td>
+      </tr>`;
+    }).join('');
+
+    const statusLabel = { succeeded: '✅ Успешно', pending: '⏳ Ожидание', canceled: '❌ Отменён' };
+    document.getElementById('adminPaymentsTbody').innerHTML = payments.map(p => `
+      <tr>
+        <td>${p.username}</td>
+        <td>${p.amount.toLocaleString('ru-RU')} ₽</td>
+        <td style="font-size:12px">${planLabel[p.plan] || p.plan}</td>
+        <td style="font-size:12px">${statusLabel[p.status] || p.status}</td>
+        <td style="font-size:12px;color:var(--muted)">${new Date(p.createdAt).toLocaleString('ru-RU')}</td>
+      </tr>`).join('');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function adminAddDays(userId, username) {
+  const days = parseInt(prompt(`Добавить дней подписки для "${username}":`));
+  if (!days || days < 1) return;
+  try {
+    await apiFetch(`/api/admin/users/${userId}/subscription`, { method: 'PUT', body: JSON.stringify({ days }) });
+    showAlert(`Подписка продлена на ${days} дн.`);
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function adminRevokeSub(userId, username) {
+  if (!confirm(`Отозвать подписку у "${username}"?`)) return;
+  try {
+    await apiFetch(`/api/admin/users/${userId}/subscription`, { method: 'DELETE' });
+    showAlert('Подписка отозвана');
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function adminChangeRole(userId, username, currentRole) {
+  const newRole = currentRole === 'admin' ? 'user' : 'admin';
+  if (!confirm(`Изменить роль "${username}" с "${currentRole}" на "${newRole}"?`)) return;
+  try {
+    await apiFetch(`/api/admin/users/${userId}/role`, { method: 'PUT', body: JSON.stringify({ role: newRole }) });
+    showAlert('Роль изменена');
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function adminDeleteUser(userId, username) {
+  if (!confirm(`Удалить пользователя "${username}"? Это действие необратимо.`)) return;
+  try {
+    await apiFetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    showAlert('Пользователь удалён');
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 // ── Initialization ────────────────────────────────────────────────────────
 function initApp() {
   loadFavsCache();
   loadStats();
-  loadTable();
+  loadSubscriptionStatus();
+  loadTable().catch(err => {
+    if (err.message && err.message.includes('SUBSCRIPTION_REQUIRED')) {
+      document.getElementById('noAccessModal').classList.add('open');
+    }
+  });
   pollStatus();
-  // Don't auto-poll too often
 }
 
 document.addEventListener('DOMContentLoaded', () => {

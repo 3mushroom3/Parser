@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
+const requireSubscription = require('../middleware/subscription');
 const exportFromJSON = require('json-to-csv-export');
 
 function extractCity(address) {
@@ -11,7 +12,7 @@ function extractCity(address) {
   return null;
 }
 
-router.get('/producers', (req, res) => {
+router.get('/producers', auth, requireSubscription, (req, res) => {
   const {
     page = 0,
     size = 50,
@@ -90,7 +91,7 @@ router.get('/producers', (req, res) => {
   res.json({ items, total, page: p, size: s, pages: Math.ceil(total / s) });
 });
 
-router.get('/map-data', (req, res) => {
+router.get('/map-data', auth, requireSubscription, (req, res) => {
   const records = db.prepare('SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ""').all();
 
   const cityMap = {};
@@ -132,7 +133,7 @@ router.get('/map-data', (req, res) => {
   res.json({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
 });
 
-router.get('/', (req, res) => {
+router.get('/', auth, requireSubscription, (req, res) => {
   const {
     page = 0,
     size = 20,
@@ -202,7 +203,7 @@ router.get('/', (req, res) => {
   });
 });
 
-router.get('/:id', (req, res) => {
+router.get('/:id', auth, requireSubscription, (req, res) => {
   const item = db.prepare('SELECT * FROM declarations WHERE id = ? OR fsaId = ?').get(req.params.id, req.params.id);
   if (!item) return res.status(404).json({ error: 'Не найдено' });
 
@@ -276,7 +277,7 @@ router.delete('/:id', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/export/csv', auth, (req, res) => {
+router.get('/export/csv', auth, requireSubscription, (req, res) => {
   const records = db.prepare('SELECT * FROM declarations ORDER BY regDate DESC').all();
   const data = records.map(r => ({
     ID: r.id,

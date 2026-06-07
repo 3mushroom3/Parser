@@ -29,6 +29,8 @@ const businessRoutes = require('./routes/business');
 const folderRoutes = require('./routes/folders');
 const systemRoutes = require('./routes/system');
 const enrichRoutes = require('./routes/enrich');
+const paymentRoutes = require('./routes/payment');
+const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -65,6 +67,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/declarations', declarationRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/folders', folderRoutes);

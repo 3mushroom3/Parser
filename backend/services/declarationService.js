@@ -17,7 +17,7 @@ function createDeclarationService(apiClient, cfg) {
   async function getDeclarationData(declarationId, options = {}) {
     const id = String(declarationId).trim();
     if (!id) {
-      log.warn('declaration', 'getDeclarationData: пустой id');
+      log.warn('declaration: getDeclarationData: пустой id');
       return { ...parser.EMPTY_DECL };
     }
     try {
@@ -25,7 +25,7 @@ function createDeclarationService(apiClient, cfg) {
       const detail = await apiClient.getDeclarationById(id);
       return parser.mapToGetDeclarationData(detail, options.listItem || null);
     } catch (e) {
-      log.error('declaration', `getDeclarationData(${id}): ${e.message}`);
+      log.error(`declaration: getDeclarationData(${id}): ${e.message}`);
       if (options.strict) throw e;
       if (options.listItem) return parser.mapToGetDeclarationData({}, options.listItem);
       return { ...parser.EMPTY_DECL };

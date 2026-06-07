@@ -80,6 +80,8 @@ async function runParser(apiClient, declarationService, config) {
     let hitApiLimit = false;
 
     while (page < maxPages) {
+      const windowInfo = windowLabel ? ` [${windowLabel}]` : '';
+      logger.info(`Parser: страница ${page + 1}${windowInfo}`);
       const payload = declarationsListPayload(page, dateFrom, dateTo);
       let pageData;
       try {
@@ -89,11 +91,13 @@ async function runParser(apiClient, declarationService, config) {
         const code = e.response?.status;
         const apiCode = e.response?.data?.code;
         if (code === 400 && apiCode === 'RDS-APP-9995') {
+          logger.warn(`Parser: достигнут лимит страниц FSA API (стр. ${page + 1})${windowInfo} — уменьшите FSA_DATE_CHUNK`);
           hitApiLimit = true;
           break;
         }
         errors++;
         listFetchFailures++;
+        logger.warn(`Parser: ошибка страницы ${page + 1}${windowInfo} (${listFetchFailures}/10): ${e.message}`);
         if (listFetchFailures >= 10) break;
 
         if (code === 401 || code === 403) {
@@ -111,7 +115,9 @@ async function runParser(apiClient, declarationService, config) {
       }
 
       const items = pageData?.items || pageData?.content || pageData?.data || [];
+      logger.info(`Parser: стр. ${page + 1}${windowInfo} — получено ${items.length} позиций`);
       if (!items.length) break;
+      setStatus('running', `Стр. ${page + 1}${windowInfo}: ${items.length} позиций, новых: ${parsed}`, parsed, errors);
 
       for (const item of items) {
         const declId = String(item.id || item.declId || item.declarationId || '');

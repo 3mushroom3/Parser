@@ -28,7 +28,15 @@
       "Bash(node -e \"const d=require\\('../../data/declarations.json'\\); console.log\\(typeof d, Array.isArray\\(d\\), Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
       "Bash(node -e \"const fs=require\\('fs'\\); const raw=fs.readFileSync\\('/d/Project/fsa-parser/data/declarations.json','utf8'\\); const d=JSON.parse\\(raw\\); console.log\\(typeof d, Array.isArray\\(d\\), Array.isArray\\(d\\)?d.length:Object.keys\\(d\\).slice\\(0,5\\)\\)\")",
       "Bash(node -e \"const fs=require\\('fs'\\); const raw=fs.readFileSync\\('d:/Project/fsa-parser/data/declarations.json','utf8'\\); const d=JSON.parse\\(raw\\); console.log\\(typeof d, Array.isArray\\(d\\), Array.isArray\\(d\\) ? 'length:'+d.length : 'keys:'+JSON.stringify\\(Object.keys\\(d\\).slice\\(0,5\\)\\)\\)\")",
-      "Bash(node scripts/apply-name-classify.js)"
+      "Bash(node scripts/apply-name-classify.js)",
+      "Bash(cd /d \"d:\\\\Project\\\\fsa-parser-jules\")",
+      "Bash(Get-ChildItem -Recurse -Force)",
+      "Bash(Select-Object FullName)",
+      "Bash(Sort-Object FullName)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d \"{\\\\\"query\\\\\":\\\\\"Иванов\\\\\",\\\\\"count\\\\\":1}\")",
+      "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d \"{\\\\\"query\\\\\":\\\\\"Иванов\\\\\",\\\\\"count\\\\\":1}\")",
+      "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json; charset=utf-8\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" --data-binary \"{\\\\\"query\\\\\":\\\\\"ООО\\\\\",\\\\\"count\\\\\":1}\")",
+      "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d '{\"query\":\"agro\",\"count\":1}')"
     ]
   }
 }
