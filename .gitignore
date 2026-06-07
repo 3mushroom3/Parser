@@ -1,5 +1,7 @@
 node_modules/
 data/declarations.json
 data/status.json
+data/*.db
+backend/data/
 .env
 *.log
