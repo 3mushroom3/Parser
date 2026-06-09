@@ -43,6 +43,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
       imgSrc: ["'self'", 'data:', '*.tile.openstreetmap.org', '*.openstreetmap.org'],
       connectSrc: ["'self'"],
