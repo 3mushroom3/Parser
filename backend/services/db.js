@@ -107,6 +107,19 @@ db.exec(`
     errors INTEGER,
     time TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT DEFAULT '',
+    links TEXT DEFAULT '[]',
+    notifyTime TEXT,
+    notifySentDate TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 // Migrations for existing databases

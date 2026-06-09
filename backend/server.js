@@ -31,6 +31,8 @@ const systemRoutes = require('./routes/system');
 const enrichRoutes = require('./routes/enrich');
 const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
+const notesRoutes = require('./routes/notes');
+const { sendMessageTo } = require('./services/telegramBot');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -98,6 +100,7 @@ app.use('/api/business', businessRoutes);
 app.use('/api/folders', folderRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/enrich', enrichRoutes);
+app.use('/api/notes', notesRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);
@@ -176,6 +179,37 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Start cron
     cron.schedule(process.env.FSA_CRON_SCHEDULE || '*/30 * * * *', safeRunParser);
+
+    // Notes Telegram notifications — every minute
+    cron.schedule('* * * * *', async () => {
+      const now = new Date();
+      const hh = now.getHours().toString().padStart(2, '0');
+      const mm = now.getMinutes().toString().padStart(2, '0');
+      const timeStr = `${hh}:${mm}`;
+      const today = now.toISOString().split('T')[0];
+
+      const due = db.prepare(`
+        SELECT n.*, u.tgChatId FROM notes n
+        JOIN users u ON n.userId = u.id
+        WHERE n.notifyTime = ?
+          AND u.tgChatId IS NOT NULL AND u.tgChatId != ''
+          AND (n.notifySentDate IS NULL OR n.notifySentDate != ?)
+      `).all(timeStr, today);
+
+      for (const note of due) {
+        const links = JSON.parse(note.links || '[]');
+        const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        let text = `📝 <b>${esc(note.title)}</b>`;
+        if (note.content) text += `\n\n${esc(note.content.slice(0, 1000))}`;
+        if (links.length > 0) {
+          text += '\n\n<b>Ссылки:</b>';
+          links.forEach(l => { text += `\n• <a href="${esc(l.url)}">${esc(l.label || l.url)}</a>`; });
+        }
+        const ok = await sendMessageTo(note.tgChatId, text);
+        if (ok) db.prepare('UPDATE notes SET notifySentDate = ? WHERE id = ?').run(today, note.id);
+        else logger.warn('Notes TG notification failed for note %d', note.id);
+      }
+    });
 
     // Run parser after 5 seconds
     setTimeout(safeRunParser, 5000);

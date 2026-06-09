@@ -257,6 +257,7 @@ function showPage(name) {
   document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
   document.getElementById('pg-map').style.display       = name === 'map'       ? 'block' : 'none';
   document.getElementById('pg-favorites').className     = 'panel-page' + (name === 'favorites' ? ' active' : '');
+  document.getElementById('pg-notes').className         = 'panel-page' + (name === 'notes'     ? ' active' : '');
   document.getElementById('pg-folders').className       = 'panel-page' + (name === 'folders'   ? ' active' : '');
   document.getElementById('pg-admin').className         = 'panel-page' + (name === 'admin'     ? ' active' : '');
   document.getElementById('pg-profile').className       = 'panel-page' + (name === 'profile'   ? ' active' : '');
@@ -273,6 +274,7 @@ function showPage(name) {
   }
 
   if (name === 'favorites') loadFavorites();
+  if (name === 'notes') loadNotes();
   if (name === 'folders') loadFolders();
   if (name === 'admin') loadAdminData();
   if (name === 'profile') loadProfile();
@@ -1039,7 +1041,7 @@ function updateCropTabs() {
       <td>${(d.declNumber||'').slice(0,28)||'—'}</td>
       <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
       <td style="color:var(--muted)">${parseTon(d.batchSize) > 0 ? fmtTon(parseTon(d.batchSize)) : (d.batchSize||'—')}</td>
-      <td>${sbadge[d.status] || d.status || '—'}</td>
+      <td>${sbadge[effectiveStatus(d)] || d.status || '—'}</td>
       <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
     </tr>`).join('')
     : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
@@ -1284,6 +1286,11 @@ function openTos() {
   document.getElementById('tosModal').classList.add('open');
 }
 
+function effectiveStatus(r) {
+  if (r.endDate && r.endDate < new Date().toISOString().split('T')[0]) return 'expired';
+  return r.status || 'active';
+}
+
 function togglePw(inputId, btn) {
   const inp = document.getElementById(inputId);
   const show = inp.type === 'password';
@@ -1497,3 +1504,130 @@ function initApp() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 });
+
+// ── Notes ─────────────────────────────────────────────────────────────────
+let _notes = [];
+let _editingNoteId = null;
+
+async function loadNotes() {
+  try {
+    _notes = await apiFetch('/api/notes');
+    renderNotes();
+  } catch(e) {
+    if (e.message !== 'SUBSCRIPTION_REQUIRED') showAlert('Ошибка загрузки заметок: ' + e.message, 'err');
+  }
+}
+
+function renderNotes() {
+  const grid = document.getElementById('notesGrid');
+  const empty = document.getElementById('notesEmpty');
+  if (!grid) return;
+  if (!_notes.length) {
+    grid.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  grid.innerHTML = _notes.map(n => {
+    const linksHtml = n.links.length
+      ? `<span class="note-chip">🔗 ${n.links.length} ссыл.</span>`
+      : '';
+    const notifyHtml = n.notifyTime
+      ? `<span class="note-chip notify">🔔 ${n.notifyTime} UTC</span>`
+      : '';
+    return `
+      <div class="note-card" onclick="openNoteModal(${n.id})">
+        <div class="note-card-title">${escHtml(n.title)}</div>
+        ${n.content ? `<div class="note-card-body">${escHtml(n.content)}</div>` : ''}
+        <div class="note-card-footer">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${linksHtml}${notifyHtml}</div>
+          <span style="font-size:10px;color:var(--muted)">${new Date(n.updatedAt).toLocaleDateString('ru-RU')}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function openNoteModal(noteId) {
+  _editingNoteId = noteId;
+  const note = noteId ? _notes.find(n => n.id === noteId) : null;
+  document.getElementById('noteModalTitle').textContent = note ? 'Редактировать заметку' : 'Новая заметка';
+  document.getElementById('noteTitle').value = note ? note.title : '';
+  document.getElementById('noteContent').value = note ? (note.content || '') : '';
+  document.getElementById('noteDeleteBtn').style.display = note ? '' : 'none';
+
+  const hasNotify = !!(note && note.notifyTime);
+  document.getElementById('noteNotifyToggle').checked = hasNotify;
+  document.getElementById('noteNotifyTime').value = hasNotify ? note.notifyTime : '';
+  document.getElementById('noteNotifyRow').style.display = hasNotify ? 'block' : 'none';
+
+  const linksContainer = document.getElementById('noteLinks');
+  linksContainer.innerHTML = '';
+  (note ? note.links : []).forEach(l => addNoteLinkRow(l.label || '', l.url || ''));
+
+  document.getElementById('noteModal').classList.add('open');
+}
+
+function addNoteLink(label, url) {
+  addNoteLinkRow(label || '', url || '');
+}
+
+function addNoteLinkRow(label, url) {
+  const container = document.getElementById('noteLinks');
+  const row = document.createElement('div');
+  row.className = 'note-link-row';
+  row.innerHTML = `
+    <input type="text" class="fi note-link-label" placeholder="Название" value="${escHtml(label)}" style="width:35%">
+    <input type="url" class="fi note-link-url" placeholder="https://..." value="${escHtml(url)}" style="flex:1">
+    <button type="button" class="note-rm" onclick="this.closest('.note-link-row').remove()">✕</button>`;
+  container.appendChild(row);
+}
+
+function toggleNoteNotify(checked) {
+  document.getElementById('noteNotifyRow').style.display = checked ? 'block' : 'none';
+}
+
+async function saveNote() {
+  const title = document.getElementById('noteTitle').value.trim();
+  if (!title) { showAlert('Введите заголовок заметки', 'err'); return; }
+
+  const content = document.getElementById('noteContent').value;
+  const hasNotify = document.getElementById('noteNotifyToggle').checked;
+  const notifyTime = hasNotify ? document.getElementById('noteNotifyTime').value : null;
+
+  const linkRows = document.querySelectorAll('#noteLinks .note-link-row');
+  const links = [];
+  linkRows.forEach(row => {
+    const url = row.querySelector('.note-link-url').value.trim();
+    const label = row.querySelector('.note-link-label').value.trim();
+    if (url) links.push({ label: label || url, url });
+  });
+
+  try {
+    const body = { title, content, links, notifyTime: notifyTime || null };
+    if (_editingNoteId) {
+      const updated = await apiFetch(`/api/notes/${_editingNoteId}`, { method: 'PUT', body: JSON.stringify(body) });
+      const idx = _notes.findIndex(n => n.id === _editingNoteId);
+      if (idx !== -1) _notes[idx] = updated;
+    } else {
+      const created = await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify(body) });
+      _notes.unshift(created);
+    }
+    renderNotes();
+    closeModal('noteModal');
+  } catch(e) { showAlert('Ошибка сохранения: ' + e.message, 'err'); }
+}
+
+async function deleteNote() {
+  if (!_editingNoteId) return;
+  if (!confirm('Удалить заметку?')) return;
+  try {
+    await apiFetch(`/api/notes/${_editingNoteId}`, { method: 'DELETE' });
+    _notes = _notes.filter(n => n.id !== _editingNoteId);
+    renderNotes();
+    closeModal('noteModal');
+  } catch(e) { showAlert('Ошибка удаления: ' + e.message, 'err'); }
+}

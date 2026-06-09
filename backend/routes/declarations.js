@@ -70,7 +70,7 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
   const producers = allProducers.map(p => {
     const ids = p.declIds.split(',');
     // Fetch limited decl details for these IDs
-    const decls = db.prepare(`SELECT id, regDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
+    const decls = db.prepare(`SELECT id, regDate, endDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, CASE WHEN endDate IS NOT NULL AND endDate != '' AND endDate < date('now') THEN 'expired' ELSE COALESCE(status,'active') END as status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
 
     return {
       inn: p.inn || '',
@@ -292,7 +292,7 @@ router.get('/export/csv', auth, requireSubscription, (req, res) => {
     'Номер декларации': r.declNumber || '',
     Заявитель: r.applicantName || '',
     Источник: r.source,
-    Статус: r.status,
+    Статус: (r.endDate && r.endDate < new Date().toISOString().split('T')[0]) ? 'expired' : (r.status || 'active'),
     'Группа продукции': r.productGroup || '',
     'Тех.регламент': r.technicalReglament || '',
     'Дата регистрации': r.regDate,

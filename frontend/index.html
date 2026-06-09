@@ -84,6 +84,7 @@
       <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта</button>
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
+      <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
       <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
     </nav>
@@ -280,6 +281,19 @@
     </div>
     <div id="favEmpty" class="empty" style="display:none"><div class="ico">⭐</div><p>Нет избранных компаний.<br>Нажмите ⭐ рядом с компанией в реестре, чтобы добавить.</p></div>
     <div class="item-list" id="favList"></div>
+  </div>
+
+  <!-- NOTES PAGE -->
+  <div class="panel-page" id="pg-notes">
+    <div class="panel-hdr">
+      <h2>📝 Заметки</h2>
+      <button class="btn btn-p btn-sm" onclick="openNoteModal(null)">+ Новая заметка</button>
+    </div>
+    <div id="notesEmpty" class="empty" style="display:none">
+      <div class="ico">📝</div>
+      <p>Нет заметок.<br>Создайте заметку с ссылками на декларации и настройте Telegram-уведомление.</p>
+    </div>
+    <div class="notes-grid" id="notesGrid"></div>
   </div>
 
   <!-- PROFILE PAGE -->
@@ -558,6 +572,51 @@
   </div>
   <div class="mf">
     <button class="btn btn-p" onclick="closeModal('tosModal')">Понятно</button>
+  </div>
+</div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="ov" id="noteModal">
+<div class="modal" style="max-width:560px">
+  <div class="mh">
+    <h3 id="noteModalTitle">Новая заметка</h3>
+    <button class="mcl" onclick="closeModal('noteModal')">✕</button>
+  </div>
+  <div class="mb">
+    <div class="fg" style="grid-template-columns:1fr">
+      <div class="frow">
+        <label>Заголовок <span style="color:var(--dng)">*</span></label>
+        <input type="text" id="noteTitle" class="fi" placeholder="Название заметки" maxlength="200">
+      </div>
+      <div class="frow">
+        <label>Текст заметки</label>
+        <textarea id="noteContent" class="fi" style="min-height:100px;resize:vertical" placeholder="Описание, наблюдения, контакты..."></textarea>
+      </div>
+      <div class="frow">
+        <label>Ссылки</label>
+        <div id="noteLinks" style="display:flex;flex-direction:column;gap:6px"></div>
+        <button type="button" class="btn btn-sm" style="margin-top:6px;width:fit-content" onclick="addNoteLink()">+ Добавить ссылку</button>
+      </div>
+      <div class="frow">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="noteNotifyToggle" onchange="toggleNoteNotify(this.checked)" style="width:auto">
+          Telegram-уведомление в выбранное время
+        </label>
+        <div id="noteNotifyRow" style="display:none;margin-top:8px;display:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <input type="time" id="noteNotifyTime" class="fi" style="width:auto">
+            <span style="font-size:12px;color:var(--muted)">ежедневно (UTC)</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Требуется настроенный Telegram Chat ID в профиле</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('noteModal')">Отмена</button>
+    <button class="btn btn-sm" id="noteDeleteBtn" style="color:var(--dng);border-color:#F09595;display:none" onclick="deleteNote()">Удалить</button>
+    <button class="btn btn-p" onclick="saveNote()">Сохранить</button>
   </div>
 </div>
 </div>

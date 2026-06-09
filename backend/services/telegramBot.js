@@ -36,6 +36,22 @@ async function sendMessage(text) {
   }
 }
 
+async function sendMessageTo(chatId, text) {
+  const { botToken } = loadConfig();
+  if (!botToken || !chatId) return false;
+  try {
+    await axios.post(
+      `https://api.telegram.org/bot${botToken}/sendMessage`,
+      { chat_id: chatId, text, parse_mode: 'HTML' },
+      { timeout: 10000 }
+    );
+    return true;
+  } catch (e) {
+    console.warn('[TELEGRAM] sendMessageTo', chatId, ':', e.response?.data?.description || e.message);
+    return false;
+  }
+}
+
 /**
  * Уведомление об избранных компаниях с новыми декларациями.
  * favorites — массив { inn, name } из data/favorites.json
@@ -69,4 +85,4 @@ async function notifyFavorites(newRecords) {
   await sendMessage(`⭐ <b>Новые декларации — избранные компании</b>\n\n${lines}`);
 }
 
-module.exports = { sendMessage, notifyFavorites, loadConfig, saveConfig };
+module.exports = { sendMessage, sendMessageTo, notifyFavorites, loadConfig, saveConfig };
