@@ -2,16 +2,17 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
+const requireAdmin = require('../middleware/requireAdmin');
 const { enrichExisting } = require('../services/innEnricher');
 
 let enrichJob = { running: false, done: 0, total: 0, errors: 0, startedAt: null };
 
-router.get('/enrich-status', auth, (req, res) => {
+router.get('/enrich-status', auth, requireAdmin, (req, res) => {
   const { pending } = db.prepare("SELECT COUNT(*) as pending FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown'").get();
   res.json({ ...enrichJob, pending });
 });
 
-router.post('/enrich', auth, (req, res) => {
+router.post('/enrich', auth, requireAdmin, (req, res) => {
   if (enrichJob.running) return res.json({ ok: false, message: 'Уже запущено' });
 
   enrichJob.running = true;
@@ -39,7 +40,7 @@ router.post('/enrich', auth, (req, res) => {
   res.json({ ok: true, message: 'Обогащение запущено' });
 });
 
-router.post('/enrich/stop', auth, (req, res) => {
+router.post('/enrich/stop', auth, requireAdmin, (req, res) => {
   enrichJob.running = false;
   res.json({ ok: true });
 });

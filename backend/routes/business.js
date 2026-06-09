@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
+const requireSubscription = require('../middleware/subscription');
 
-router.get('/company', (req, res) => {
+router.get('/company', auth, requireSubscription, (req, res) => {
   const { inn, name } = req.query;
   if (!inn && !name) return res.status(400).json({ error: 'inn or name required' });
 

@@ -1,20 +1,17 @@
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'your-very-secure-secret-change-it';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me';
 
 module.exports = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+    return res.status(401).json({ error: 'Требуется авторизация' });
   }
 
-  const token = authHeader.split(' ')[1];
-
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
+    req.user = jwt.verify(authHeader.slice(7), JWT_SECRET);
     next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch {
+    return res.status(401).json({ error: 'Токен недействителен или истёк' });
   }
 };

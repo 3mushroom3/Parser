@@ -4,7 +4,30 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-very-secure-secret-change-it';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('[SECURITY] JWT_SECRET не задан в .env — сервер не запустится в production!');
+  if (process.env.NODE_ENV === 'production') process.exit(1);
+}
+const _secret = JWT_SECRET || 'dev-only-insecure-secret-change-me';
+
+const MIN_PASSWORD_LEN = 8;
+
+// Simple in-memory rate limiter for auth endpoints
+const loginAttempts = new Map();
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip) || { count: 0, resetAt: now + 15 * 60 * 1000 };
+  if (now > entry.resetAt) { entry.count = 0; entry.resetAt = now + 15 * 60 * 1000; }
+  entry.count++;
+  loginAttempts.set(ip, entry);
+  return entry.count > 10; // block after 10 attempts per 15 min
+}
+// Clean up old entries every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, e] of loginAttempts) if (now > e.resetAt) loginAttempts.delete(ip);
+}, 3600000);
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -12,7 +35,7 @@ function authMiddleware(req, res, next) {
     return res.status(401).json({ error: 'No token provided' });
   }
   try {
-    req.user = jwt.verify(authHeader.slice(7), JWT_SECRET);
+    req.user = jwt.verify(authHeader.slice(7), _secret);
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });
@@ -20,21 +43,32 @@ function authMiddleware(req, res, next) {
 }
 
 router.post('/login', (req, res) => {
-  const { username, password } = req.body;
+  const ip = req.ip || req.connection.remoteAddress;
+  if (checkRateLimit(ip)) {
+    return res.status(429).json({ error: 'Слишком много попыток. Подождите 15 минут.' });
+  }
 
+  const { username, password } = req.body || {};
   if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+    return res.status(400).json({ error: 'Логин и пароль обязательны' });
+  }
+  if (typeof username !== 'string' || username.length > 64) {
+    return res.status(400).json({ error: 'Некорректный логин' });
   }
 
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+  // Always run bcrypt to prevent timing attacks (even if user not found)
+  const hash = user ? user.password : '$2a$10$invalidhashtopreventtimingattack000000000000000';
+  const valid = bcrypt.compareSync(password, hash);
+
+  if (!user || !valid) {
+    return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
 
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
-    JWT_SECRET,
+    _secret,
     { expiresIn: '24h' }
   );
 
@@ -42,51 +76,65 @@ router.post('/login', (req, res) => {
 });
 
 router.post('/register', (req, res) => {
-  // Simple registration for demo, should be protected or removed in production
-  const { username, password } = req.body;
-
-  if (!username || !password) {
-    return res.status(400).json({ error: 'Username and password are required' });
+  const ip = req.ip || req.connection.remoteAddress;
+  if (checkRateLimit(ip)) {
+    return res.status(429).json({ error: 'Слишком много попыток. Подождите 15 минут.' });
   }
 
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    return res.status(400).json({ error: 'Логин и пароль обязательны' });
+  }
+  if (typeof username !== 'string' || username.length < 3 || username.length > 32) {
+    return res.status(400).json({ error: 'Логин: от 3 до 32 символов' });
+  }
+  if (!/^[a-zA-Z0-9_.-]+$/.test(username)) {
+    return res.status(400).json({ error: 'Логин: только латинские буквы, цифры, _, -, .' });
+  }
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LEN) {
+    return res.status(400).json({ error: `Пароль должен быть не короче ${MIN_PASSWORD_LEN} символов` });
+  }
 
   try {
-    const info = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(username, hashedPassword);
+    const info = db.prepare('INSERT INTO users (username, password) VALUES (?, ?)').run(
+      username, bcrypt.hashSync(password, 12)
+    );
     res.status(201).json({ id: info.lastInsertRowid, username });
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT') {
-      return res.status(400).json({ error: 'Username already exists' });
+      // Generic message to prevent username enumeration
+      return res.status(400).json({ error: 'Не удалось зарегистрироваться. Попробуйте другой логин.' });
     }
-    res.status(500).json({ error: 'Database error' });
+    res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
 
 router.get('/me', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT id, username, role, subscriptionUntil, subscriptionPlan, tgChatId, created_at FROM users WHERE id = ?').get(req.user.id);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   res.json(user);
 });
 
 router.put('/password', authMiddleware, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'currentPassword и newPassword обязательны' });
+    return res.status(400).json({ error: 'Текущий и новый пароль обязательны' });
   }
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Новый пароль должен быть не короче 6 символов' });
+  if (typeof newPassword !== 'string' || newPassword.length < MIN_PASSWORD_LEN) {
+    return res.status(400).json({ error: `Новый пароль: не короче ${MIN_PASSWORD_LEN} символов` });
   }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
     return res.status(401).json({ error: 'Неверный текущий пароль' });
   }
-  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(bcrypt.hashSync(newPassword, 10), req.user.id);
+  db.prepare('UPDATE users SET password = ? WHERE id = ?').run(bcrypt.hashSync(newPassword, 12), req.user.id);
   res.json({ ok: true });
 });
 
 router.put('/telegram', authMiddleware, (req, res) => {
   const { tgChatId } = req.body || {};
-  db.prepare('UPDATE users SET tgChatId = ? WHERE id = ?').run(tgChatId ? String(tgChatId).trim() : null, req.user.id);
+  const sanitized = tgChatId ? String(tgChatId).trim().replace(/[^\d-]/g, '') : null;
+  db.prepare('UPDATE users SET tgChatId = ? WHERE id = ?').run(sanitized || null, req.user.id);
   res.json({ ok: true });
 });
 

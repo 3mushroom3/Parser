@@ -73,8 +73,10 @@ router.delete('/users/:id', auth, requireAdmin, (req, res) => {
 // POST /api/admin/users/:id/password — сменить пароль пользователю
 router.post('/users/:id/password', auth, requireAdmin, (req, res) => {
   const { password } = req.body;
-  if (!password || password.length < 4) return res.status(400).json({ error: 'Минимум 4 символа' });
-  const hashed = bcrypt.hashSync(password, 10);
+  if (!password || typeof password !== 'string' || password.length < 8) {
+    return res.status(400).json({ error: 'Минимум 8 символов' });
+  }
+  const hashed = bcrypt.hashSync(password, 12);
   db.prepare('UPDATE users SET password=? WHERE id=?').run(hashed, req.params.id);
   res.json({ ok: true });
 });

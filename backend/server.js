@@ -36,16 +36,37 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+const isProd = process.env.NODE_ENV === 'production';
+
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for development or if needed for Leaflet/External resources
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
+      styleSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
+      imgSrc: ["'self'", 'data:', '*.tile.openstreetmap.org', '*.openstreetmap.org'],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'", 'data:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false,
 }));
 app.use(compression());
-app.use(cors());
-app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
-app.use(express.json({ limit: '5mb' }));
+
+// CORS: allow only same origin (or APP_URL in production)
+const allowedOrigin = process.env.APP_URL || (isProd ? null : 'http://localhost:3001');
+app.use(cors({
+  origin: allowedOrigin ? (o, cb) => cb(null, !o || o === allowedOrigin) : false,
+  credentials: true,
+}));
+
+app.use(morgan('short', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 
-// Swagger Setup
+// Swagger Setup (only in development)
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -63,7 +84,9 @@ const swaggerOptions = {
   apis: ['./routes/*.js'],
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+if (!isProd) {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -145,9 +168,9 @@ if (process.env.NODE_ENV !== 'test') {
     // Create default admin if none exists
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
     if (userCount === 0) {
-      const hashed = bcrypt.hashSync('admin', 10);
+      const hashed = bcrypt.hashSync('admin', 12);
       db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hashed, 'admin');
-      logger.info('Default admin user created (admin/admin)');
+      logger.warn('⚠️  Создан дефолтный аккаунт admin/admin — НЕМЕДЛЕННО СМЕНИТЕ ПАРОЛЬ через /профиль!');
     }
 
     // Start cron
@@ -157,5 +180,11 @@ if (process.env.NODE_ENV !== 'test') {
     setTimeout(safeRunParser, 5000);
   });
 }
+
+// Global error handler — never leak stack traces to client
+app.use((err, req, res, _next) => {
+  logger.error('Unhandled error: %s', err.message);
+  res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+});
 
 module.exports = { app, safeRunParser };
