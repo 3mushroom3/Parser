@@ -92,45 +92,53 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
 });
 
 router.get('/map-data', auth, requireSubscription, (req, res) => {
-  const records = db.prepare('SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ""').all();
+  try {
+    const stmt = db.prepare('SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ""');
 
-  const cityMap = {};
-  for (const rec of records) {
-    const city = extractCity(rec.address);
-    if (!city) continue;
+    const cityMap = {};
+    for (const rec of stmt.iterate()) {
+      const city = extractCity(rec.address);
+      if (!city) continue;
 
-    if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
-    cityMap[city].count++;
+      if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
+      cityMap[city].count++;
 
-    if (rec.farmerType === 'farmer') cityMap[city].farmers++;
-    else if (rec.farmerType === 'trader') cityMap[city].traders++;
+      if (rec.farmerType === 'farmer') cityMap[city].farmers++;
+      else if (rec.farmerType === 'trader') cityMap[city].traders++;
 
-    const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
-    if (!cityMap[city].orgs[key]) {
-      cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
+      const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
+      if (!cityMap[city].orgs[key]) {
+        cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
+      }
+      if (cityMap[city].orgs[key].decls.length < 20) {
+        cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 60) });
+      }
     }
-    cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 80) });
+
+    const cities = Object.values(cityMap)
+      .map(c => ({
+        city: c.city,
+        count: c.count,
+        farmers: c.farmers,
+        traders: c.traders,
+        orgs: Object.values(c.orgs)
+          .sort((a, b) => b.decls.length - a.decls.length)
+          .slice(0, 30)
+          .map(o => ({
+            name: o.name,
+            inn: o.inn,
+            farmerType: o.farmerType,
+            count: o.decls.length,
+            decls: o.decls
+          })),
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    res.json({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
+  } catch (err) {
+    console.error('[map-data]', err.message);
+    res.status(500).json({ error: 'Ошибка формирования данных карты: ' + err.message });
   }
-
-  const cities = Object.values(cityMap)
-    .map(c => ({
-      city: c.city,
-      count: c.count,
-      farmers: c.farmers,
-      traders: c.traders,
-      orgs: Object.values(c.orgs)
-        .sort((a, b) => b.decls.length - a.decls.length)
-        .map(o => ({
-          name: o.name,
-          inn: o.inn,
-          farmerType: o.farmerType,
-          count: o.decls.length,
-          decls: o.decls
-        })),
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  res.json({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
 });
 
 router.get('/', auth, requireSubscription, (req, res) => {

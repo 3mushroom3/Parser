@@ -522,15 +522,16 @@ async function loadMapData(retry = 0) {
     renderMarkers(State.mapAllCities, data.total);
     loaderEl.style.display = 'none';
   } catch(e) {
+    console.error('[map-data]', e.message);
     if (State.mapAllCities.length > 0) {
       loaderEl.style.display = 'none';
       return;
     }
     if (retry < 2) {
-      loaderEl.innerHTML = `Загрузка... (попытка ${retry + 2}/3)`;
-      setTimeout(() => loadMapData(retry + 1), 3000);
+      loaderEl.innerHTML = `Загрузка данных... (${retry + 2}/3)`;
+      setTimeout(() => loadMapData(retry + 1), 4000);
     } else {
-      loaderEl.innerHTML = `Ошибка загрузки. <button class="btn btn-sm" onclick="loadMapData()" style="margin-left:8px">Повторить</button>`;
+      loaderEl.innerHTML = `Ошибка загрузки: ${e.message || 'нет ответа от сервера'} <button class="btn btn-sm" onclick="loadMapData()" style="margin-left:8px">Повторить</button>`;
     }
   }
 }
