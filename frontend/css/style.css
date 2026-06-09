@@ -44,9 +44,9 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 /* ── Layout ──────────────────────────────────────────────── */
 .page-h{display:flex;height:calc(100vh - 56px);overflow:hidden}
-.body{display:flex;align-items:flex-start}
-.sidebar{width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:14px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
-.main{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:13px;min-width:0}
+.body{display:flex;flex:1;height:100%;overflow:hidden}
+.sidebar{width:220px;min-width:220px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);padding:14px;display:flex;flex-direction:column;gap:14px;height:100%;overflow-y:auto}
+.main{flex:1;padding:16px 20px;display:flex;flex-direction:column;gap:13px;min-width:0;overflow-y:auto}
 
 /* ── Sidebar ─────────────────────────────────────────────── */
 .fs-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px}

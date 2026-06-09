@@ -16,7 +16,8 @@ const State = {
   favsCache: [],
   folderBreadcrumb: [],
   curCompDecls: [],
-  curCropTab: 'all'
+  curCropTab: 'all',
+  detailRecord: null,
 };
 
 const CITY_COORDS = {
@@ -974,6 +975,8 @@ function selectCropTab(key) {
 async function openDetail(id) {
   try {
     const r = await apiFetch('/api/declarations/' + id);
+    State.detailRecord = r;
+
     document.getElementById('detBody').innerHTML = `
       <div class="dsec"><h4>Основные сведения</h4>
         <div class="dg">
@@ -986,7 +989,9 @@ async function openDetail(id) {
       <div class="dsec"><h4>Изготовитель</h4>
         <div class="dg">
           <div class="df full"><div class="df-l">Наименование</div><div class="df-v">${r.shortName||'—'}</div></div>
-          <div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn||'—'}</div></div>
+          ${r.inn ? `<div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn}</div></div>` : ''}
+          ${r.okved ? `<div class="df"><div class="df-l">ОКВЭД</div><div class="df-v">${r.okved}</div></div>` : ''}
+          ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${r.farmerType === 'farmer' ? '<span class="ft ft-farmer">Фермер</span>' : '<span class="ft ft-trader">Трейдер</span>'}</div></div>` : ''}
           <div class="df"><div class="df-l">Телефон</div><div class="df-v">${r.phone||'—'}</div></div>
           <div class="df full"><div class="df-l">Адрес</div><div class="df-v">${r.address||'—'}</div></div>
         </div>
@@ -998,12 +1003,39 @@ async function openDetail(id) {
         </div>
       </div>`;
 
+    const isFav = isFavorite(r.inn, r.shortName);
     document.getElementById('detFoot').innerHTML = `
-      <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${r.declNumber}')">📁 В папку</button>
+      <button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>
+      <button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>
+      <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
+      <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
       <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
 
     document.getElementById('detModal').classList.add('open');
   } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function deleteCurrentDetail() {
+  const r = State.detailRecord;
+  if (!r || !confirm('Удалить эту запись?')) return;
+  try {
+    await apiFetch('/api/declarations/' + r.id, { method: 'DELETE' });
+    showAlert('Запись удалена', 'ok');
+    closeModal('detModal');
+    loadTable();
+    loadStats();
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
+
+async function toggleFavCurrentDetail() {
+  const r = State.detailRecord;
+  if (!r) return;
+  const inn = r.inn || '';
+  const name = r.shortName || r.applicantName || '';
+  await toggleFavorite(inn, name, null);
+  const isFav = isFavorite(inn, name);
+  const btn = document.getElementById('detFavBtn');
+  if (btn) btn.textContent = isFav ? '★ В избранном' : '☆ В избранное';
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
@@ -1062,9 +1094,14 @@ function closeModal(id) {
   if (el) el.classList.remove('open');
 }
 
-// ── Add Record ────────────────────────────────────────────────────────────
-function openAdd() {
-  State.editingId = null;
+// ── Add / Edit Record ─────────────────────────────────────────────────────
+function openAdd(id, record) {
+  State.editingId = id || null;
+  document.getElementById('modalTitle').textContent = id ? 'Редактировать запись' : 'Добавить запись вручную';
+  ['group','regDate','endDate','applicantName','lastName','firstName','middleName','shortName','address','phone','productName','batchSize','otherInfo'].forEach(f => {
+    const el = document.getElementById('f_' + f);
+    if (el) el.value = (record && record[f] != null) ? record[f] : '';
+  });
   document.getElementById('addModal').classList.add('open');
 }
 
@@ -1073,9 +1110,16 @@ async function saveRecord() {
   const data = {};
   fields.forEach(f => { data[f] = document.getElementById('f_' + f).value; });
   try {
-    await apiFetch('/api/declarations', { method: 'POST', body: JSON.stringify(data) });
+    if (State.editingId) {
+      await apiFetch('/api/declarations/' + State.editingId, { method: 'PUT', body: JSON.stringify(data) });
+      showAlert('Запись обновлена', 'ok');
+    } else {
+      await apiFetch('/api/declarations', { method: 'POST', body: JSON.stringify(data) });
+      showAlert('Запись добавлена', 'ok');
+    }
     closeModal('addModal');
     loadTable();
+    loadStats();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -1088,7 +1132,7 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
