@@ -44,7 +44,6 @@ async function runParser(apiClient, declarationService, config) {
       columnsSort: [{ column: 'declDate', sort: 'DESC' }],
       filter: {
         idTechReg: CONFIG.TECH_REG_IDS,
-        status: [1],
         regDate: { minDate: dateFrom || null, maxDate: dateTo || null },
         ...config.FILTERS,
       },

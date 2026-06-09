@@ -1041,7 +1041,7 @@ function updateCropTabs() {
       <td>${(d.declNumber||'').slice(0,28)||'—'}</td>
       <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
       <td style="color:var(--muted)">${parseTon(d.batchSize) > 0 ? fmtTon(parseTon(d.batchSize)) : (d.batchSize||'—')}</td>
-      <td>${sbadge[effectiveStatus(d)] || d.status || '—'}</td>
+      <td>${sbadge[d.status] || d.status || '—'}</td>
       <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
     </tr>`).join('')
     : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
@@ -1284,11 +1284,6 @@ function showAlert(msg, type = 'ok') {
 
 function openTos() {
   document.getElementById('tosModal').classList.add('open');
-}
-
-function effectiveStatus(r) {
-  if (r.endDate && r.endDate < new Date().toISOString().split('T')[0]) return 'expired';
-  return r.status || 'active';
 }
 
 function togglePw(inputId, btn) {

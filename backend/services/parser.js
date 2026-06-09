@@ -202,10 +202,17 @@ function fmtDate(raw) {
 }
 
 function mapStatus(raw) {
-  if (!raw) return 'active';
+  if (raw === null || raw === undefined || raw === '') return 'active';
+  // Numeric status codes from FSA API: 1=active, 2=suspended, 3=terminated, 4=annulled
+  if (typeof raw === 'number' || (typeof raw === 'string' && /^\d+$/.test(raw.trim()))) {
+    const code = Number(raw);
+    if (code === 2) return 'suspended';
+    if (code === 3 || code === 4) return 'expired';
+    return 'active';
+  }
   const s = (typeof raw === 'object' ? raw.name || raw.shortName || '' : String(raw)).toLowerCase();
-  if (s.includes('РїСЂРёРѕСЃС‚Р°РЅ') || s.includes('suspend')) return 'suspended';
-  if (s.includes('РїСЂРµРєСЂР°С‰') || s.includes('Р°РЅРЅСѓР»') || s.includes('expir')) return 'expired';
+  if (s.includes('приостан') || s.includes('suspend')) return 'suspended';
+  if (s.includes('прекращ') || s.includes('аннул') || s.includes('expir')) return 'expired';
   return 'active';
 }
 
