@@ -117,5 +117,8 @@ if (!userCols.includes('subscriptionUntil')) {
 if (!userCols.includes('subscriptionPlan')) {
   db.exec('ALTER TABLE users ADD COLUMN subscriptionPlan TEXT');
 }
+if (!userCols.includes('tgChatId')) {
+  db.exec('ALTER TABLE users ADD COLUMN tgChatId TEXT');
+}
 
 module.exports = db;

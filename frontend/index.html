@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Реестр производителей — ТР ТС 015/2011</title>
+  <title>Реестр производителей зерна</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -16,7 +16,7 @@
       <div class="logo-ic">РЗ</div>
     </div>
     <h1 class="login-title">Реестр производителей</h1>
-    <p class="login-subtitle">ТР ТС 015/2011 — FSA Parser</p>
+    <p class="login-subtitle">Декларации по безопасности зерна</p>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Вход</button>
@@ -56,6 +56,9 @@
       </div>
       <p id="registerError" class="auth-error" style="display:none"></p>
     </form>
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
+      Регистрируясь, вы соглашаетесь с <a href="#" onclick="openTos();return false" style="color:var(--accent)">пользовательским соглашением</a>
+    </div>
   </div>
 </div>
 
@@ -72,15 +75,16 @@
       <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта</button>
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
+      <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
     </nav>
     <div class="hdr-r">
-      <span id="hdrStatus" style="font-size:12px;color:var(--muted)"></span>
+      <span id="hdrStatus" class="admin-only" style="font-size:12px;color:var(--muted)"></span>
       <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
-      <button class="btn btn-warn btn-sm" onclick="triggerParse()">↺ Обновить</button>
+      <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()">↺ Обновить</button>
       <button class="btn btn-p btn-sm" onclick="openAdd()">+ Добавить</button>
       <a class="btn btn-sm" href="/api/declarations/export/csv" id="exportBtn">⬇ CSV</a>
-      <button class="btn btn-sm" onclick="openSettings()" title="Настройки">⚙</button>
+      <button class="btn btn-sm admin-only" onclick="openSettings()" title="Настройки">⚙</button>
       <button class="btn btn-sm" onclick="handleLogout()" title="Выйти">🚪</button>
     </div>
   </div>
@@ -89,8 +93,9 @@
   <div id="pg-registry" class="page-h">
     <div class="body">
       <!-- SIDEBAR -->
-      <div class="sidebar">
-        <div>
+      <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Свернуть/развернуть фильтры">‹</button>
+      <div class="sidebar" id="mainSidebar">
+        <div class="admin-only">
           <div class="fs-title">Статус парсера</div>
           <div class="pstatus">
             <div class="pst-row">
@@ -125,8 +130,10 @@
         <button class="btn" style="width:100%" onclick="resetFilters()">✕ Сбросить фильтры</button>
 
         <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border)">
+          <div class="admin-only" style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:4px">
+            <b>Авто-парсинг:</b> каждые 30 мин.
+          </div>
           <div style="font-size:11px;color:var(--muted);line-height:1.7">
-            <b>Авто-парсинг:</b> каждые 30 мин.<br>
             Записей: <b id="sideTotalRec">—</b><br>
             Обновлено: <span id="sideLastUpd">—</span>
           </div>
@@ -264,6 +271,105 @@
     </div>
     <div id="favEmpty" class="empty" style="display:none"><div class="ico">⭐</div><p>Нет избранных компаний.<br>Нажмите ⭐ рядом с компанией в реестре, чтобы добавить.</p></div>
     <div class="item-list" id="favList"></div>
+  </div>
+
+  <!-- PROFILE PAGE -->
+  <div class="panel-page" id="pg-profile">
+    <div class="panel-hdr">
+      <h2>👤 Личный кабинет</h2>
+    </div>
+    <div class="profile-grid">
+      <!-- Subscription card -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-icon" style="background:#EBF5FF">💳</div>
+          <h3>Подписка</h3>
+        </div>
+        <div id="profileSubStatus" style="margin-bottom:16px;font-size:14px"></div>
+        <button class="btn btn-p" onclick="openSubscription()">Управление подпиской</button>
+      </div>
+
+      <!-- Change password card -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-icon" style="background:#F0FFF4">🔑</div>
+          <h3>Смена пароля</h3>
+        </div>
+        <div class="fg" style="grid-template-columns:1fr">
+          <div class="frow">
+            <label>Текущий пароль</label>
+            <input type="password" id="profCurPass" class="fi" placeholder="Введите текущий пароль">
+          </div>
+          <div class="frow">
+            <label>Новый пароль</label>
+            <input type="password" id="profNewPass" class="fi" placeholder="Не менее 6 символов">
+          </div>
+          <div class="frow">
+            <label>Подтверждение</label>
+            <input type="password" id="profNewPass2" class="fi" placeholder="Повторите новый пароль">
+          </div>
+        </div>
+        <button class="btn btn-p" style="margin-top:12px" onclick="changePassword()">Сменить пароль</button>
+      </div>
+
+      <!-- Telegram card -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-icon" style="background:#EFF6FF">✈️</div>
+          <h3>Telegram уведомления</h3>
+        </div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
+          Получайте уведомления о новых декларациях от избранных компаний прямо в Telegram.
+        </div>
+        <div class="tg-steps">
+          <div class="tg-step">
+            <div class="tg-step-num">1</div>
+            <div>Откройте <b>@zernovik_bot</b> в Telegram и нажмите <b>Старт</b></div>
+          </div>
+          <div class="tg-step">
+            <div class="tg-step-num">2</div>
+            <div>Бот ответит вашим <b>Chat ID</b> — скопируйте это число</div>
+          </div>
+          <div class="tg-step">
+            <div class="tg-step-num">3</div>
+            <div>Вставьте Chat ID ниже и нажмите <b>Сохранить</b></div>
+          </div>
+        </div>
+        <div class="fg" style="grid-template-columns:1fr auto;align-items:end;margin-top:14px">
+          <div class="frow" style="margin-bottom:0">
+            <label>Ваш Chat ID</label>
+            <input type="text" id="profTgChatId" class="fi" placeholder="Например: 123456789">
+          </div>
+          <button class="btn btn-p btn-sm" style="margin-bottom:1px" onclick="saveTgChatId()">Сохранить</button>
+        </div>
+        <div style="margin-top:8px">
+          <button class="btn btn-sm" onclick="testTgNotification()">📨 Отправить тестовое сообщение</button>
+        </div>
+      </div>
+
+      <!-- Account info card -->
+      <div class="profile-card">
+        <div class="profile-card-header">
+          <div class="profile-card-icon" style="background:#FFF7ED">👤</div>
+          <h3>Аккаунт</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--muted);font-size:13px">Логин</span>
+            <span id="profUsername" style="font-weight:600"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span style="color:var(--muted);font-size:13px">Роль</span>
+            <span id="profRole" style="font-weight:600"></span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0">
+            <span style="color:var(--muted);font-size:13px">Зарегистрирован</span>
+            <span id="profCreatedAt" style="font-size:13px"></span>
+          </div>
+        </div>
+        <button class="btn btn-sm" style="margin-top:16px;color:var(--dng);border-color:#F09595" onclick="handleLogout()">🚪 Выйти из аккаунта</button>
+      </div>
+    </div>
   </div>
 
   <!-- ADMIN PAGE -->
@@ -419,6 +525,30 @@
 </div>
 
 <div class="alert" id="alertBox"><span id="alertTxt"></span></div>
+
+<!-- TERMS OF SERVICE MODAL -->
+<div class="ov" id="tosModal">
+<div class="modal" style="max-width:600px">
+  <div class="mh"><h3>📄 Пользовательское соглашение</h3><button class="mcl" onclick="closeModal('tosModal')">✕</button></div>
+  <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
+    <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
+    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования сервиса «Реестр производителей зерна» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения.</p>
+    <p style="margin-bottom:12px"><b>2. Описание Сервиса</b></p>
+    <p style="margin-bottom:12px">Сервис предоставляет доступ к агрегированным данным о декларациях соответствия, полученным из открытых источников (реестр ФСА — pub.fsa.gov.ru). Сервис не является официальным источником данных.</p>
+    <p style="margin-bottom:12px"><b>3. Условия использования</b></p>
+    <p style="margin-bottom:12px">Пользователь обязуется использовать Сервис исключительно в законных целях. Запрещается: автоматизированный сбор данных (парсинг), попытки получить несанкционированный доступ, распространение данных без согласия правообладателя.</p>
+    <p style="margin-bottom:12px"><b>4. Подписка и оплата</b></p>
+    <p style="margin-bottom:12px">Доступ к данным предоставляется на платной основе. Подписка активируется после успешной оплаты. Возврат средств за неиспользованный период не предусмотрен.</p>
+    <p style="margin-bottom:12px"><b>5. Ограничение ответственности</b></p>
+    <p style="margin-bottom:12px">Сервис предоставляется «как есть». Администрация не несёт ответственности за достоверность данных из внешних источников и возможные перебои в работе.</p>
+    <p style="margin-bottom:12px"><b>6. Персональные данные</b></p>
+    <p>При регистрации сохраняется только логин и хеш пароля. Сервис не собирает и не передаёт персональные данные третьим лицам.</p>
+  </div>
+  <div class="mf">
+    <button class="btn btn-p" onclick="closeModal('tosModal')">Понятно</button>
+  </div>
+</div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/js/app.js"></script>

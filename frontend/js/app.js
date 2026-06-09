@@ -244,12 +244,22 @@ function checkAuth() {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────
+function toggleSidebar() {
+  const body = document.querySelector('.body');
+  const btn  = document.getElementById('sidebarToggle');
+  const collapsed = body.classList.toggle('sidebar-collapsed');
+  document.getElementById('mainSidebar').classList.toggle('collapsed', collapsed);
+  btn.textContent = collapsed ? '›' : '‹';
+  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch(_) {}
+}
+
 function showPage(name) {
   document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
   document.getElementById('pg-map').style.display       = name === 'map'       ? 'block' : 'none';
   document.getElementById('pg-favorites').className     = 'panel-page' + (name === 'favorites' ? ' active' : '');
   document.getElementById('pg-folders').className       = 'panel-page' + (name === 'folders'   ? ' active' : '');
   document.getElementById('pg-admin').className         = 'panel-page' + (name === 'admin'     ? ' active' : '');
+  document.getElementById('pg-profile').className       = 'panel-page' + (name === 'profile'   ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
@@ -265,6 +275,7 @@ function showPage(name) {
   if (name === 'favorites') loadFavorites();
   if (name === 'folders') loadFolders();
   if (name === 'admin') loadAdminData();
+  if (name === 'profile') loadProfile();
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
@@ -498,16 +509,29 @@ async function initMap() {
   }).addTo(State.mapInstance);
 
   setTimeout(() => State.mapInstance.invalidateSize(), 100);
+  await loadMapData();
+}
 
-  document.getElementById('mapLoader').style.display = 'block';
+async function loadMapData(retry = 0) {
+  const loaderEl = document.getElementById('mapLoader');
+  loaderEl.innerHTML = 'Загрузка данных...';
+  loaderEl.style.display = 'block';
   try {
     const data = await apiFetch('/api/declarations/map-data');
     State.mapAllCities = data.cities || [];
     renderMarkers(State.mapAllCities, data.total);
+    loaderEl.style.display = 'none';
   } catch(e) {
-    document.getElementById('mapLoader').textContent = 'Ошибка загрузки данных';
-  } finally {
-    document.getElementById('mapLoader').style.display = 'none';
+    if (State.mapAllCities.length > 0) {
+      loaderEl.style.display = 'none';
+      return;
+    }
+    if (retry < 2) {
+      loaderEl.innerHTML = `Загрузка... (попытка ${retry + 2}/3)`;
+      setTimeout(() => loadMapData(retry + 1), 3000);
+    } else {
+      loaderEl.innerHTML = `Ошибка загрузки. <button class="btn btn-sm" onclick="loadMapData()" style="margin-left:8px">Повторить</button>`;
+    }
   }
 }
 
@@ -807,24 +831,25 @@ async function addDeclToFolder(id, declNumber) {
 async function openCompany(inn, name) {
   const key = inn || name;
   document.getElementById('compModalName').textContent = name || inn || 'Загрузка...';
-  document.getElementById('compModalSub').textContent = 'Загрузка...';
-  document.getElementById('compModalBody').innerHTML = '<div class="empty"><p>Загрузка данных...</p></div>';
+  document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
+  document.getElementById('compModalBody').innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">Загрузка данных...</div>';
+  document.getElementById('compModalFoot').innerHTML = '';
   document.getElementById('compModal').classList.add('open');
 
+  let p;
   try {
     const qs = inn ? '?inn=' + encodeURIComponent(inn) : '?name=' + encodeURIComponent(name);
-    const p = await apiFetch('/api/business/company' + qs);
-    renderCompanyModal(p, inn, name);
+    p = await apiFetch('/api/business/company' + qs);
   } catch(e) {
-    showAlert(e.message, 'err');
+    p = State.producerDataCache.get(key) || null;
+    if (!p) { document.getElementById('compModalBody').innerHTML = '<div class="empty"><p>Не удалось загрузить данные</p></div>'; return; }
+    p = { found: true, inn: p.inn||'', name: p.name||name, address: p.address||'', phone: p.phone||'',
+           farmerType: p.farmerType||'unknown', okved: p.okved||'', notes: '', description: '', decls: p.decls||[] };
   }
-}
 
-function renderCompanyModal(p, inn, name) {
-  const ftBadge = { farmer: '<span class="ft ft-farmer">Фермер</span>', trader: '<span class="ft ft-trader">Трейдер</span>' }[p.farmerType] || '<span class="ft ft-unknown">Не определён</span>';
   document.getElementById('compModalName').textContent = p.name || name || '—';
   document.getElementById('compModalSub').innerHTML = [
-    p.inn ? 'ИНН: <b>' + p.inn + '</b>' : '',
+    p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
     p.okved ? 'ОКВЭД: <b>' + p.okved + '</b>' : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
@@ -832,50 +857,53 @@ function renderCompanyModal(p, inn, name) {
   State.curCropTab = 'all';
 
   const fioStr = [p.lastName, p.firstName, p.middleName].filter(Boolean).join(' ');
-  const safeDesc = (p.description||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-  const safeInn = (p.inn||'').replace(/'/g,"\\'");
-  const safeName = (p.name||name||'').replace(/'/g,"\\'");
+  const applicantHtml = (p.applicantName && p.applicantName !== p.name)
+    ? `<div class="df full"><div class="df-l">Заявитель</div><div class="df-v" style="font-size:12px">${p.applicantName}</div></div>` : '';
+  const safeDesc  = (p.description||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const safeInn   = (p.inn||'').replace(/'/g,"\\'");
+  const safeName  = (p.name||name||'').replace(/'/g,"\\'");
 
   document.getElementById('compModalBody').innerHTML = `
     <div id="compDescArea" style="margin-bottom:14px">
-      <div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px" onclick="editCompDesc()">${p.description ? safeDesc : '+ Добавить описание...'}</div>
+      <div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:${p.description?'var(--text)':'var(--muted)'}" onclick="editCompDesc()" title="Нажмите для редактирования">${p.description ? safeDesc : '+ Добавить описание компании...'}</div>
       <div id="compDescEdit" style="display:none">
-        <input id="compDescInput" type="text" class="fi" value="${safeDesc}">
+        <input id="compDescInput" type="text" class="fi" placeholder="Краткое описание компании..." value="${safeDesc}">
         <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="btn btn-sm btn-p" onclick="saveCompanyDesc('${safeInn}','${safeName}')">Сохранить</button>
+          <button class="btn btn-sm btn-p" onclick="saveCompanyDesc('${safeInn}','${safeName}')">💾 Сохранить</button>
           <button class="btn btn-sm" onclick="cancelCompDesc()">Отмена</button>
         </div>
       </div>
     </div>
-    <div class="dg" style="margin-bottom:18px">
-      <div class="df"><div class="df-l">Тип</div><div class="df-v">${ftBadge}</div></div>
+    <div class="dg" style="margin-bottom:18px;gap:10px 20px">
       <div class="df"><div class="df-l">Телефон</div><div class="df-v">${p.phone||'—'}</div></div>
-      <div class="df full"><div class="df-l">ФИО</div><div class="df-v">${fioStr||'—'}</div></div>
-      <div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address||'—'}</div></div>
+      ${fioStr ? `<div class="df full"><div class="df-l">ФИО</div><div class="df-v">${fioStr}</div></div>` : ''}
+      ${applicantHtml}
+      ${p.address ? `<div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address}</div></div>` : ''}
     </div>
     <div class="dsec">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <h4 style="margin:0">Декларации (${(p.decls||[]).length})</h4>
-        <select id="compPeriodSel" onchange="updateCropTabs()" class="btn btn-sm">
-          <option value="all" selected>Всё время</option>
+        <select id="compPeriodSel" onchange="updateCropTabs()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);cursor:pointer">
           <option value="0">Текущий год</option>
           <option value="1">Прошлый год</option>
+          <option value="2">2 года назад</option>
+          <option value="all" selected>Всё время</option>
         </select>
       </div>
       <div class="tab-strip" id="cropTabStrip"></div>
       <div id="cropTabContent"></div>
     </div>
-    <div class="dsec">
+    <div class="dsec" style="margin-top:16px">
       <h4>Заметки</h4>
-      <textarea id="compNotes" class="fi" style="width:100%;height:60px">${p.notes||''}</textarea>
-      <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить</button>
+      <textarea id="compNotes" class="fi" style="width:100%;min-height:70px;resize:vertical" placeholder="Заметки о компании...">${(p.notes||'').replace(/</g,'&lt;')}</textarea>
+      <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить заметку</button>
     </div>`;
 
   updateCropTabs();
 
-  const isFav = isFavorite(p.inn, p.name||name);
+  const isFav = isFavorite(p.inn, p.name || name);
   document.getElementById('compModalFoot').innerHTML = `
-    <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null)">${isFav?'★ В избранном':'☆ В избранное'}</button>
+    <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
     <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
     <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>`;
 }
@@ -917,53 +945,109 @@ async function saveCompanyNotes(inn, name) {
 
 // ── Crop Classification ───────────────────────────────────────────────────
 const CROPS = [
-  { key:'пшеница', label:'Пшеница', re:/пшениц/i, ys:{m:5,d:25} },
-  { key:'ячмень', label:'Ячмень', re:/ячмен/i, ys:{m:5,d:25} },
-  { key:'кукуруза', label:'Кукуруза', re:/кукуруз/i, ys:{m:10,d:1} },
-  { key:'подсолнечник', label:'Подсолнечник', re:/подсолнеч/i, ys:{m:9,d:1} },
-  { key:'соя', label:'Соя', re:/\bсо[яи]\b|соев/i, ys:{m:9,d:1} },
-  { key:'рапс', label:'Рапс', re:/рапс/i, ys:{m:7,d:1} },
-  { key:'горох', label:'Горох', re:/горох|нут\b|чечевиц/i, ys:{m:7,d:1} },
+  { key:'пшеница-мягкая',  label:'Пшеница мягкая',  re:/пшениц[а-я\s]*мягк|мягк[а-я\s]*пшениц/i,           ys:{m:5,d:25} },
+  { key:'пшеница-твердая', label:'Пшеница твёрдая',  re:/пшениц[а-я\s]*тв[её]рд|тв[её]рд[а-я\s]*пшениц/i,  ys:{m:5,d:25} },
+  { key:'пшеница',         label:'Пшеница',          re:/пшениц/i,                     ys:{m:5,d:25} },
+  { key:'ячмень',          label:'Ячмень',           re:/ячмен/i,                      ys:{m:5,d:25} },
+  { key:'рожь',            label:'Рожь',             re:/рожь|ржи|ржан/i,              ys:{m:5,d:25} },
+  { key:'тритикале',       label:'Тритикале',        re:/тритикал/i,                   ys:{m:5,d:25} },
+  { key:'кукуруза',        label:'Кукуруза',         re:/кукуруз/i,                    ys:{m:10,d:1} },
+  { key:'подсолнечник',    label:'Подсолнечник',     re:/подсолнеч/i,                  ys:{m:9,d:1}  },
+  { key:'соя',             label:'Соя',              re:/\bсо[яи]\b|соев/i,            ys:{m:9,d:1}  },
+  { key:'рапс',            label:'Рапс',             re:/рапс/i,                       ys:{m:7,d:1}  },
+  { key:'овёс',            label:'Овёс',             re:/овёс|овса|овсян/i,            ys:{m:7,d:1}  },
+  { key:'гречиха',         label:'Гречиха',          re:/гречих/i,                     ys:{m:8,d:1}  },
+  { key:'просо',           label:'Просо/Сорго',      re:/просо|сорго/i,                ys:{m:9,d:1}  },
+  { key:'горох',           label:'Горох/Бобовые',    re:/горох|нут\b|чечевиц/i,        ys:{m:7,d:1}  },
+  { key:'лён',             label:'Лён',              re:/лён|льна/i,                   ys:{m:8,d:1}  },
 ];
+const CROP_OTHER = { key:'прочее', label:'Прочее', ys:{m:1,d:1} };
 
 function classifyProd(name) {
   for (const c of CROPS) if (c.re.test(name||'')) return c;
-  return { key:'other', label:'Прочее', ys:{m:1,d:1} };
+  return CROP_OTHER;
+}
+
+function parseTon(s) {
+  if (!s) return 0;
+  const str = String(s).replace(/\s/g,'').toLowerCase();
+  const n = parseFloat(str.replace(',','.'));
+  if (isNaN(n) || n <= 0) return 0;
+  if (/цент|^\d+ц[^и]/.test(str)) return n / 10;
+  if (/кг|кило/.test(str)) return n / 1000;
+  return n;
+}
+
+function fmtTon(t) {
+  if (!t) return '—';
+  if (t >= 1000000) return (t / 1000000).toFixed(2) + ' млн т';
+  if (t >= 1000)    return (t / 1000).toFixed(1) + ' тыс.т';
+  return Math.round(t).toLocaleString('ru') + ' т';
+}
+
+function getCropYearRange(ys, yearsAgo = 0) {
+  const now = new Date();
+  const cut = new Date(now.getFullYear(), ys.m - 1, ys.d);
+  const base = now >= cut ? now.getFullYear() : now.getFullYear() - 1;
+  const y = base - yearsAgo;
+  const p2 = n => String(n).padStart(2, '0');
+  return { from: `${y}-${p2(ys.m)}-${p2(ys.d)}`, to: `${y+1}-${p2(ys.m)}-${p2(ys.d)}` };
 }
 
 function updateCropTabs() {
-  const period = document.getElementById('compPeriodSel')?.value || 'all';
-  const groups = new Map();
-  groups.set('all', { key:'all', label:'Все', decls:[...State.curCompDecls] });
+  const periodEl = document.getElementById('compPeriodSel');
+  if (!periodEl) return;
+  const period = periodEl.value;
 
-  State.curCompDecls.forEach(d => {
+  const groups = new Map();
+  groups.set('all', { crop: { key:'all', label:'Все', ys:{m:1,d:1} }, decls: [...State.curCompDecls] });
+  for (const d of State.curCompDecls) {
     const c = classifyProd(d.productName);
-    if (!groups.has(c.key)) groups.set(c.key, { key:c.key, label:c.label, decls:[] });
+    if (!groups.has(c.key)) groups.set(c.key, { crop: c, decls: [] });
     groups.get(c.key).decls.push(d);
-  });
+  }
+
+  function filterPeriod(decls, ys) {
+    if (period === 'all') return decls;
+    const r = getCropYearRange(ys, parseInt(period) || 0);
+    return decls.filter(d => d.regDate >= r.from && d.regDate < r.to);
+  }
 
   const strip = document.getElementById('cropTabStrip');
   if (!strip) return;
-
-  strip.innerHTML = [...groups.values()].map(g => `
-    <button class="tab-btn ${State.curCropTab === g.key ? 'active' : ''}" onclick="selectCropTab('${g.key}')">
-      ${g.label} <span class="tab-badge">${g.decls.length}</span>
-    </button>`).join('');
+  const tabs = [];
+  for (const [key, g] of groups) {
+    const fd = filterPeriod(g.decls, g.crop.ys);
+    const ton = fd.reduce((s, d) => s + parseTon(d.batchSize), 0);
+    const badge = ton > 0 ? fmtTon(ton) : String(fd.length);
+    tabs.push({ key, label: g.crop.label, badge, hasData: g.decls.length > 0 });
+  }
+  const showAll = groups.size > 2;
+  strip.innerHTML = tabs
+    .filter(t => t.key === 'all' ? showAll : t.hasData)
+    .map(t => `<button class="tab-btn${State.curCropTab === t.key ? ' active' : ''}" onclick="selectCropTab('${t.key}')">${t.label}<span class="tab-badge">${t.badge}</span></button>`)
+    .join('');
 
   const g = groups.get(State.curCropTab) || groups.get('all');
-  const rows = (g.decls || []).map(d => `
+  if (!g) return;
+  const fd = filterPeriod(g.decls, g.crop.ys);
+  const sbadge = { active: '<span style="color:var(--succ)">● Действует</span>', suspended: '<span style="color:var(--warn)">● Приостановлена</span>', expired: '<span style="color:var(--muted)">● Истекла</span>' };
+  const rows = fd.length ? fd.map(d => `
     <tr>
-      <td>${d.regDate||'—'}</td>
-      <td>${d.declNumber||'—'}</td>
-      <td>${(d.productName||'—').slice(0, 40)}</td>
-      <td><button class="btn btn-sm" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
-    </tr>`).join('');
+      <td style="color:var(--muted);white-space:nowrap">${d.regDate||'—'}</td>
+      <td>${(d.declNumber||'').slice(0,28)||'—'}</td>
+      <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
+      <td style="color:var(--muted)">${parseTon(d.batchSize) > 0 ? fmtTon(parseTon(d.batchSize)) : (d.batchSize||'—')}</td>
+      <td>${sbadge[d.status] || d.status || '—'}</td>
+      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
+    </tr>`).join('')
+    : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
 
   document.getElementById('cropTabContent').innerHTML = `
-    <div class="comp-decls tab-content">
-      <table><thead><tr><th>Дата</th><th>Номер</th><th>Продукт</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="4">Нет данных</td></tr>'}</tbody></table>
-    </div>`;
+    <div class="comp-decls tab-content"><table>
+      <thead><tr><th>Дата рег.</th><th>Номер</th><th>Продукция</th><th>Объём</th><th>Статус</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
 }
 
 function selectCropTab(key) {
@@ -1036,6 +1120,64 @@ async function toggleFavCurrentDetail() {
   const isFav = isFavorite(inn, name);
   const btn = document.getElementById('detFavBtn');
   if (btn) btn.textContent = isFav ? '★ В избранном' : '☆ В избранное';
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────
+async function loadProfile() {
+  try {
+    const [me, sub] = await Promise.all([
+      apiFetch('/api/auth/me'),
+      apiFetch('/api/payment/subscription').catch(() => ({ active: false })),
+    ]);
+    document.getElementById('profUsername').textContent = me.username || '—';
+    document.getElementById('profRole').textContent = me.role === 'admin' ? 'Администратор' : 'Пользователь';
+    document.getElementById('profCreatedAt').textContent = me.created_at
+      ? new Date(me.created_at).toLocaleDateString('ru-RU') : '—';
+    document.getElementById('profTgChatId').value = me.tgChatId || '';
+
+    const subEl = document.getElementById('profileSubStatus');
+    if (sub.isAdmin) {
+      subEl.innerHTML = '<span style="color:var(--accent);font-weight:600">👑 Администратор — полный доступ</span>';
+    } else if (sub.active) {
+      const d = new Date(sub.subscriptionUntil);
+      const days = Math.ceil((d - new Date()) / 86400000);
+      subEl.innerHTML = `<span style="color:var(--succ);font-weight:600">✓ Активна до ${d.toLocaleDateString('ru-RU')}</span><br><span style="color:var(--muted);font-size:12px">Осталось ${days} дн. · Тариф: ${sub.plan || '—'}</span>`;
+    } else {
+      subEl.innerHTML = '<span style="color:var(--dng);font-weight:600">🔒 Нет активной подписки</span>';
+    }
+  } catch(e) {
+    showAlert(e.message, 'err');
+  }
+}
+
+async function changePassword() {
+  const cur = document.getElementById('profCurPass').value;
+  const nw  = document.getElementById('profNewPass').value;
+  const nw2 = document.getElementById('profNewPass2').value;
+  if (!cur || !nw) return showAlert('Заполните все поля', 'err');
+  if (nw !== nw2) return showAlert('Пароли не совпадают', 'err');
+  try {
+    await apiFetch('/api/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword: cur, newPassword: nw }) });
+    document.getElementById('profCurPass').value = '';
+    document.getElementById('profNewPass').value = '';
+    document.getElementById('profNewPass2').value = '';
+    showAlert('Пароль успешно изменён', 'ok');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function saveTgChatId() {
+  const tgChatId = document.getElementById('profTgChatId').value.trim();
+  try {
+    await apiFetch('/api/auth/telegram', { method: 'PUT', body: JSON.stringify({ tgChatId }) });
+    showAlert('Chat ID сохранён', 'ok');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function testTgNotification() {
+  try {
+    await apiFetch('/api/system/telegram-test', { method: 'POST' });
+    showAlert('Тестовое сообщение отправлено', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
@@ -1132,25 +1274,35 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
 
+function openTos() {
+  document.getElementById('tosModal').classList.add('open');
+}
+
 // ── Subscription ──────────────────────────────────────────────────────────
+function applyAdminVisibility(isAdmin) {
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+  const adminTab = document.getElementById('adminTab');
+  if (adminTab) adminTab.style.display = isAdmin ? '' : 'none';
+}
+
 async function loadSubscriptionStatus() {
   try {
     const s = await apiFetch('/api/payment/subscription');
     const badge = document.getElementById('subBadge');
-    const adminTab = document.getElementById('adminTab');
+
+    applyAdminVisibility(!!s.isAdmin);
 
     if (s.isAdmin) {
       badge.style.display = 'none';
-      if (adminTab) adminTab.style.display = '';
       return;
     }
-
-    if (adminTab) adminTab.style.display = 'none';
 
     if (s.active) {
       const d = new Date(s.subscriptionUntil);
@@ -1313,6 +1465,15 @@ async function adminDeleteUser(userId, username) {
 
 // ── Initialization ────────────────────────────────────────────────────────
 function initApp() {
+  try {
+    if (localStorage.getItem('sidebarCollapsed') === '1') {
+      const body = document.querySelector('.body');
+      document.getElementById('mainSidebar').classList.add('collapsed');
+      body.classList.add('sidebar-collapsed');
+      const btn = document.getElementById('sidebarToggle');
+      if (btn) btn.textContent = '›';
+    }
+  } catch(_) {}
   loadFavsCache();
   loadStats();
   loadSubscriptionStatus();
