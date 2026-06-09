@@ -93,7 +93,7 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
 
 router.get('/map-data', auth, requireSubscription, (req, res) => {
   try {
-    const stmt = db.prepare('SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ""');
+    const stmt = db.prepare("SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ''");
 
     const cityMap = {};
     for (const rec of stmt.iterate()) {
