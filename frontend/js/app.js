@@ -120,8 +120,7 @@ async function apiFetch(path, opts = {}) {
   if (response.status === 403) {
     const error = await response.json().catch(() => ({}));
     if (error.code === 'SUBSCRIPTION_REQUIRED') {
-      const modal = document.getElementById('noAccessModal');
-      if (modal) modal.classList.add('open');
+      openModal('noAccessModal');
       throw new Error('SUBSCRIPTION_REQUIRED');
     }
     throw new Error(error.error || 'Доступ запрещён');
@@ -837,7 +836,7 @@ async function openCompany(inn, name) {
   document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
   document.getElementById('compModalBody').innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">Загрузка данных...</div>';
   document.getElementById('compModalFoot').innerHTML = '';
-  document.getElementById('compModal').classList.add('open');
+  openModal('compModal');
 
   let p;
   try {
@@ -1104,7 +1103,7 @@ async function openDetail(id) {
       <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
       <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
 
-    document.getElementById('detModal').classList.add('open');
+    openModal('detModal');
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -1195,7 +1194,7 @@ async function openSettings() {
     const cfg = await apiFetch('/api/system/telegram-config');
     document.getElementById('tgBotToken').value = cfg.botToken || '';
     document.getElementById('tgChatId').value = cfg.chatId || '';
-    document.getElementById('settingsModal').classList.add('open');
+    openModal('settingsModal');
     refreshEnrichStatus();
   } catch(e) { showAlert(e.message, 'err'); }
 }
@@ -1240,9 +1239,13 @@ async function stopEnrich() {
 }
 
 // ── Modal helpers ─────────────────────────────────────────────────────────
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) { el.style.display = 'flex'; el.classList.add('open'); }
+}
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
+  if (el) { el.classList.remove('open'); el.style.display = 'none'; }
 }
 
 // ── Add / Edit Record ─────────────────────────────────────────────────────
@@ -1253,7 +1256,7 @@ function openAdd(id, record) {
     const el = document.getElementById('f_' + f);
     if (el) el.value = (record && record[f] != null) ? record[f] : '';
   });
-  document.getElementById('addModal').classList.add('open');
+  openModal('addModal');
 }
 
 async function saveRecord() {
@@ -1289,7 +1292,7 @@ function showAlert(msg, type = 'ok') {
 });
 
 function openTos() {
-  document.getElementById('tosModal').classList.add('open');
+  openModal('tosModal');
 }
 
 function togglePw(inputId, btn) {
@@ -1379,7 +1382,7 @@ async function openSubscription() {
       <button class="btn btn-p" style="width:100%;margin-top:12px" onclick="buyPlan('${p.id}')">Оплатить</button>
     </div>`).join('');
 
-  document.getElementById('subscriptionModal').classList.add('open');
+  openModal('subscriptionModal');
 }
 
 async function buyPlan(planId) {
@@ -1496,7 +1499,7 @@ function initApp() {
   loadSubscriptionStatus();
   loadTable().catch(err => {
     if (err.message && err.message.includes('SUBSCRIPTION_REQUIRED')) {
-      document.getElementById('noAccessModal').classList.add('open');
+      openModal('noAccessModal');
     }
   });
   pollStatus();
@@ -1530,7 +1533,7 @@ async function openAddToNoteModal(label, url) {
   });
   select.value = 'new';
   document.getElementById('atnNewTitleRow').style.display = '';
-  document.getElementById('addToNoteModal').classList.add('open');
+  openModal('addToNoteModal');
 }
 
 function toggleAtnNew(val) {
@@ -1622,7 +1625,7 @@ function openNoteModal(noteId) {
   linksContainer.innerHTML = '';
   (note ? note.links : []).forEach(l => addNoteLinkRow(l.label || '', l.url || ''));
 
-  document.getElementById('noteModal').classList.add('open');
+  openModal('noteModal');
 }
 
 function addNoteLink(label, url) {
