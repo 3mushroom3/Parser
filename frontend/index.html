@@ -31,7 +31,10 @@
         </div>
         <div class="frow">
           <label>Пароль</label>
-          <input type="password" id="loginPass" required placeholder="Введите пароль" autocomplete="current-password">
+          <div class="pw-wrap">
+            <input type="password" id="loginPass" required placeholder="Введите пароль" autocomplete="current-password">
+            <button type="button" class="pw-eye" onclick="togglePw('loginPass',this)" tabindex="-1">👁</button>
+          </div>
         </div>
         <button type="submit" id="loginBtn" class="btn btn-p auth-submit-btn">Войти</button>
       </div>
@@ -46,11 +49,17 @@
         </div>
         <div class="frow">
           <label>Пароль</label>
-          <input type="password" id="regPass" required placeholder="Придумайте пароль" autocomplete="new-password">
+          <div class="pw-wrap">
+            <input type="password" id="regPass" required placeholder="Придумайте пароль" autocomplete="new-password">
+            <button type="button" class="pw-eye" onclick="togglePw('regPass',this)" tabindex="-1">👁</button>
+          </div>
         </div>
         <div class="frow">
           <label>Подтверждение пароля</label>
-          <input type="password" id="regPass2" required placeholder="Повторите пароль" autocomplete="new-password">
+          <div class="pw-wrap">
+            <input type="password" id="regPass2" required placeholder="Повторите пароль" autocomplete="new-password">
+            <button type="button" class="pw-eye" onclick="togglePw('regPass2',this)" tabindex="-1">👁</button>
+          </div>
         </div>
         <button type="submit" id="registerBtn" class="btn btn-p auth-submit-btn">Зарегистрироваться</button>
       </div>

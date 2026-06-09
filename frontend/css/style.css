@@ -161,6 +161,11 @@ tbody td.muted{color:var(--muted);font-size:12px}
 .auth-tab{flex:1;padding:8px;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer;background:none;color:var(--muted);transition:all .16s}
 .auth-tab.active{background:var(--surface);color:var(--accent);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
 .auth-submit-btn{width:100%;margin-top:8px;justify-content:center;padding:12px;font-size:14px;font-weight:600;letter-spacing:.01em}
+.pw-wrap{position:relative;display:flex;align-items:center}
+.pw-wrap input{flex:1;padding-right:38px}
+.pw-eye{position:absolute;right:0;top:0;bottom:0;width:36px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--muted);display:flex;align-items:center;justify-content:center;border-radius:0 var(--r) var(--r) 0;transition:color .12s}
+.pw-eye:hover{color:var(--accent)}
+.pw-eye.visible{color:var(--accent)}
 .auth-error{color:var(--dng);font-size:12px;margin-top:12px;text-align:center;background:var(--dngbg);border-radius:6px;padding:8px 12px;border:1px solid #f0aaaa;line-height:1.5}
 
 /* ... (including rest of CSS from index.html) ... */

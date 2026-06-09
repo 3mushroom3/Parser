@@ -1284,6 +1284,14 @@ function openTos() {
   document.getElementById('tosModal').classList.add('open');
 }
 
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.classList.toggle('visible', show);
+}
+
 // ── Subscription ──────────────────────────────────────────────────────────
 function applyAdminVisibility(isAdmin) {
   document.querySelectorAll('.admin-only').forEach(el => {
