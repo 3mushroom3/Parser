@@ -39,6 +39,22 @@ router.put('/:id', auth, (req, res) => {
   res.json({ ...updated, links: JSON.parse(updated.links || '[]') });
 });
 
+router.post('/:id/link', auth, (req, res) => {
+  const note = db.prepare('SELECT * FROM notes WHERE id = ? AND userId = ?').get(req.params.id, req.user.id);
+  if (!note) return res.status(404).json({ error: 'Не найдено' });
+
+  const { label, url } = req.body || {};
+  if (!label && !url) return res.status(400).json({ error: 'label или url обязательны' });
+
+  const links = JSON.parse(note.links || '[]');
+  links.push({ label: (label || url).slice(0, 200), url: (url || '').slice(0, 500) });
+
+  db.prepare('UPDATE notes SET links=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?')
+    .run(JSON.stringify(links.slice(0, 20)), note.id);
+  const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(note.id);
+  res.json({ ...updated, links: JSON.parse(updated.links || '[]') });
+});
+
 router.delete('/:id', auth, (req, res) => {
   const info = db.prepare('DELETE FROM notes WHERE id = ? AND userId = ?').run(req.params.id, req.user.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Не найдено' });

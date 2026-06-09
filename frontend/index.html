@@ -576,6 +576,41 @@
 </div>
 </div>
 
+<!-- ADD TO NOTE MODAL -->
+<div class="ov" id="addToNoteModal">
+<div class="modal" style="max-width:420px">
+  <div class="mh">
+    <h3>📝 В заметку</h3>
+    <button class="mcl" onclick="closeModal('addToNoteModal')">✕</button>
+  </div>
+  <div class="mb">
+    <div class="fg" style="grid-template-columns:1fr">
+      <div class="frow">
+        <label>Что добавляем</label>
+        <div style="padding:9px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);font-size:13px">
+          <div id="atnLabel" style="font-weight:600;margin-bottom:2px"></div>
+          <div id="atnUrl" style="color:var(--muted);font-size:11px;word-break:break-all"></div>
+        </div>
+      </div>
+      <div class="frow">
+        <label>Добавить в заметку</label>
+        <select id="atnNoteSelect" class="fi" onchange="toggleAtnNew(this.value)">
+          <option value="new">➕ Создать новую заметку</option>
+        </select>
+      </div>
+      <div id="atnNewTitleRow" class="frow">
+        <label>Название новой заметки</label>
+        <input type="text" id="atnNewTitle" class="fi" placeholder="Введите название">
+      </div>
+    </div>
+  </div>
+  <div class="mf">
+    <button class="btn" onclick="closeModal('addToNoteModal')">Отмена</button>
+    <button class="btn btn-p" onclick="saveAddToNote()">Сохранить</button>
+  </div>
+</div>
+</div>
+
 <!-- NOTE MODAL -->
 <div class="ov" id="noteModal">
 <div class="modal" style="max-width:560px">

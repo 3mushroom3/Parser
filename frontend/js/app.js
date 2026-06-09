@@ -905,9 +905,12 @@ async function openCompany(inn, name) {
   updateCropTabs();
 
   const isFav = isFavorite(p.inn, p.name || name);
+  const compLabel = (p.name || name || inn || '').replace(/'/g,"\\'");
+  const compInnHint = p.inn ? ` (ИНН ${p.inn})` : '';
   document.getElementById('compModalFoot').innerHTML = `
     <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
     <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
+    <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
     <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>`;
 }
 
@@ -1091,11 +1094,14 @@ async function openDetail(id) {
       </div>`;
 
     const isFav = isFavorite(r.inn, r.shortName);
+    const declLabel = (r.declNumber || r.id).replace(/'/g,"\\'");
+    const declUrl = (r.fsaUrl || '').replace(/'/g,"\\'");
     document.getElementById('detFoot').innerHTML = `
       <button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>
       <button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>
       <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
       <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
+      <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
       <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
 
     document.getElementById('detModal').classList.add('open');
@@ -1499,6 +1505,59 @@ function initApp() {
 document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 });
+
+// ── Add to Note ───────────────────────────────────────────────────────────
+let _atnLink = null;
+
+async function openAddToNoteModal(label, url) {
+  _atnLink = { label, url };
+  document.getElementById('atnLabel').textContent = label;
+  document.getElementById('atnUrl').textContent = url || '';
+  document.getElementById('atnUrl').style.display = url ? '' : 'none';
+  document.getElementById('atnNewTitle').value = label;
+
+  // Always fetch fresh notes list
+  let notes = [];
+  try { notes = await apiFetch('/api/notes'); } catch(_) {}
+
+  const select = document.getElementById('atnNoteSelect');
+  select.innerHTML = '<option value="new">➕ Создать новую заметку</option>';
+  notes.forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n.id;
+    opt.textContent = n.title.length > 55 ? n.title.slice(0, 55) + '…' : n.title;
+    select.appendChild(opt);
+  });
+  select.value = 'new';
+  document.getElementById('atnNewTitleRow').style.display = '';
+  document.getElementById('addToNoteModal').classList.add('open');
+}
+
+function toggleAtnNew(val) {
+  document.getElementById('atnNewTitleRow').style.display = val === 'new' ? '' : 'none';
+}
+
+async function saveAddToNote() {
+  if (!_atnLink) return;
+  const select = document.getElementById('atnNoteSelect');
+  const val = select.value;
+  try {
+    if (val === 'new') {
+      const title = document.getElementById('atnNewTitle').value.trim() || _atnLink.label;
+      await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify({
+        title, content: '', links: [_atnLink], notifyTime: null
+      })});
+    } else {
+      // Add link to existing note
+      const existing = await apiFetch('/api/notes/' + val + '/link', {
+        method: 'POST', body: JSON.stringify(_atnLink)
+      });
+    }
+    if (_notes.length) await loadNotes(); // refresh if notes page was opened
+    closeModal('addToNoteModal');
+    showAlert('Добавлено в заметку ✓', 'ok');
+  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+}
 
 // ── Notes ─────────────────────────────────────────────────────────────────
 let _notes = [];
