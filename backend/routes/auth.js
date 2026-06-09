@@ -4,12 +4,16 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('[SECURITY] JWT_SECRET не задан в .env — сервер не запустится в production!');
-  if (process.env.NODE_ENV === 'production') process.exit(1);
-}
-const _secret = JWT_SECRET || 'dev-only-insecure-secret-change-me';
+const _secret = (() => {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[SECURITY] КРИТИЧНО: JWT_SECRET не задан! Добавьте в .env: JWT_SECRET=<random-64-chars>');
+    }
+    return 'dev-only-insecure-secret-change-me';
+  }
+  return s;
+})();
 
 const MIN_PASSWORD_LEN = 8;
 
