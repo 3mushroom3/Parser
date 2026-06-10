@@ -362,10 +362,18 @@ function renderTable(data) {
   document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
 
   const q = (document.getElementById('globalQ').value || '').trim();
-  const hl = t => q
-    ? (t||'').replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),
-        '<mark style="background:#FEF3C7;border-radius:2px;padding:0 1px">$1</mark>')
-    : (t||'');
+  const _csManuf = (document.getElementById('csManuf').value || '').trim();
+  const _csAddr  = (document.getElementById('csAddress').value || '').trim();
+  const _csProd  = (document.getElementById('csProduct').value || '').trim();
+  function hl(t, extra) {
+    let s = t || '';
+    const terms = [q, extra].filter(Boolean);
+    terms.forEach(term => {
+      s = s.replace(new RegExp('(' + term.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + ')','gi'),
+        '<mark style="background:#FEF3C7;border-radius:2px;padding:0 1px">$1</mark>');
+    });
+    return s;
+  }
 
   const ftLabel = { farmer: '<span class="ft ft-farmer">Фермер</span>', trader: '<span class="ft ft-trader">Трейдер</span>', unknown: '' };
 
@@ -382,7 +390,7 @@ function renderTable(data) {
       <tr class="decl-sub-row" id="sub_${page}_${idx}_${d.id}" style="display:none">
         <td></td>
         <td style="padding-left:20px;font-size:12px;color:var(--muted);white-space:nowrap">${d.regDate||'—'}</td>
-        <td style="font-size:12px" title="${(d.productName||'').replace(/"/g,'&quot;')}">${hl(d.productName||'—')}</td>
+        <td style="font-size:12px" title="${(d.productName||'').replace(/"/g,'&quot;')}">${hl(d.productName||'—', _csProd)}</td>
         <td style="font-size:12px;color:var(--muted)">${d.batchSize||'—'}</td>
         <td style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
           <button class="btn btn-sm" style="padding:2px 5px;font-size:11px" onclick="event.stopPropagation();addDeclToFolder('${d.id}','${(d.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')" title="В папку">📁</button>
@@ -394,10 +402,10 @@ function renderTable(data) {
       <tr class="producer-row" id="prod_${page}_${idx}" onclick="toggleProducer(${page},${idx},${p.decls.length})" style="cursor:${hasMany?'pointer':'default'}">
         <td style="text-align:center;color:var(--muted);font-size:11px;user-select:none" id="arr_${page}_${idx}">${hasMany?'▶':''}</td>
         <td title="${(p.name).replace(/"/g,'&quot;')}" style="font-weight:500">
-          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name)}${badge}</span>${innHint}
+          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name, _csManuf)}${badge}</span>${innHint}
         </td>
-        <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—')}</td>
-        <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
+        <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—', _csAddr)}</td>
+        <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
         <td class="actions" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
           <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="${isFav?'Убрать из избранного':'Добавить в избранное'}">★</button>
           <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'")}',this)" title="В папку">📁</button>

@@ -29,17 +29,17 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
   let params = [];
 
   if (search) {
-    baseQuery += ' AND (applicantName LIKE ? OR shortName LIKE ? OR lastName LIKE ? OR productName LIKE ? OR address LIKE ? OR inn LIKE ?)';
-    const s = `%${search}%`;
-    params.push(s, s, s, s, s, s);
+    baseQuery += ' AND (LOWER(applicantName) LIKE ? OR LOWER(shortName) LIKE ? OR LOWER(lastName) LIKE ? OR LOWER(productName) LIKE ? OR LOWER(address) LIKE ? OR inn LIKE ?)';
+    const s = `%${search.toLowerCase()}%`;
+    params.push(s, s, s, s, s, `%${search}%`);
   }
   if (manufacturer) {
-    baseQuery += ' AND (shortName LIKE ? OR applicantName LIKE ? OR lastName LIKE ?)';
-    const m = `%${manufacturer}%`;
+    baseQuery += ' AND (LOWER(shortName) LIKE ? OR LOWER(applicantName) LIKE ? OR LOWER(lastName) LIKE ?)';
+    const m = `%${manufacturer.toLowerCase()}%`;
     params.push(m, m, m);
   }
-  if (address) { baseQuery += ' AND address LIKE ?'; params.push(`%${address}%`); }
-  if (product) { baseQuery += ' AND productName LIKE ?'; params.push(`%${product}%`); }
+  if (address) { baseQuery += ' AND LOWER(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
+  if (product) { baseQuery += ' AND LOWER(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
   if (dateFrom) { baseQuery += ' AND regDate >= ?'; params.push(dateFrom); }
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
   if (farmerType) { baseQuery += ' AND farmerType = ?'; params.push(farmerType); }
