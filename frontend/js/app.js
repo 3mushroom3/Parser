@@ -318,6 +318,11 @@ function applyFilters() {
   loadTable();
 }
 
+function clearColSearch() {
+  ['csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
+  applyFilters();
+}
+
 function resetFilters() {
   ['flDateF','flDateT','globalQ'].forEach(id => document.getElementById(id).value = '');
   ['csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');

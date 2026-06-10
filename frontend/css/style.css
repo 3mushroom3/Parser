@@ -91,6 +91,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 table{width:100%;border-collapse:collapse;table-layout:fixed}
 thead th{text-align:left;padding:9px 14px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;background:var(--surf2);border-bottom:1px solid var(--border);user-select:none;white-space:nowrap;overflow:hidden}
 .col-search td{padding:5px 8px;background:#f1f5f9;border-bottom:2px solid var(--border)}
+.cs-clear{background:none;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:11px;color:var(--muted);padding:3px 7px;line-height:1;transition:color .14s,border-color .14s}
+.cs-clear:hover{color:var(--dng);border-color:#F09595}
 .cs-inp{width:100%;padding:5px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--surface);color:var(--text);outline:none;font-family:inherit;transition:border-color .14s}
 .cs-inp:focus{border-color:var(--acm)}
 tbody tr{border-bottom:1px solid var(--border);transition:background .15s;cursor:pointer}
