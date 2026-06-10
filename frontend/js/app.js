@@ -865,7 +865,6 @@ async function openCompany(inn, name) {
   document.getElementById('compModalName').textContent = p.name || name || '—';
   document.getElementById('compModalSub').innerHTML = [
     p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
-    p.okved ? 'ОКВЭД: <b>' + p.okved + '</b>' : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
   State.curCompDecls = p.decls || [];
@@ -1092,7 +1091,6 @@ async function openDetail(id) {
         <div class="dg">
           <div class="df full"><div class="df-l">Наименование</div><div class="df-v">${r.shortName||'—'}</div></div>
           ${r.inn ? `<div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn}</div></div>` : ''}
-          ${r.okved ? `<div class="df"><div class="df-l">ОКВЭД</div><div class="df-v">${r.okved}</div></div>` : ''}
           ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${r.farmerType === 'farmer' ? '<span class="ft ft-farmer">Фермер</span>' : '<span class="ft ft-trader">Трейдер</span>'}</div></div>` : ''}
           <div class="df"><div class="df-l">Телефон</div><div class="df-v">${r.phone||'—'}</div></div>
           <div class="df full"><div class="df-l">Адрес</div><div class="df-v">${r.address||'—'}</div></div>
@@ -1519,6 +1517,7 @@ function initApp() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  ['csManuf','csAddress','csProduct'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   checkAuth();
 });
 
