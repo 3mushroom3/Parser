@@ -3,17 +3,18 @@ const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
-const { enrichExisting } = require('../services/innEnricher');
+const { enrichExisting, autoEnrichJob } = require('../services/innEnricher');
 
-let enrichJob = { running: false, done: 0, total: 0, errors: 0, startedAt: null };
+let enrichJob = { running: false, done: 0, total: 0, errors: 0, apiCalls: 0, startedAt: null };
 
 router.get('/enrich-status', auth, requireAdmin, (req, res) => {
   const { pending } = db.prepare("SELECT COUNT(*) as pending FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown'").get();
-  res.json({ ...enrichJob, pending });
+  const active = enrichJob.running ? enrichJob : autoEnrichJob.running ? { ...autoEnrichJob, auto: true } : enrichJob;
+  res.json({ ...active, pending });
 });
 
 router.post('/enrich', auth, requireAdmin, (req, res) => {
-  if (enrichJob.running) return res.json({ ok: false, message: 'Уже запущено' });
+  if (enrichJob.running || autoEnrichJob.running) return res.json({ ok: false, message: 'Уже запущено' });
 
   enrichJob.running = true;
   enrichJob.startedAt = new Date().toISOString();

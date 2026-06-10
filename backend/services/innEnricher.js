@@ -132,12 +132,15 @@ function applyCache(records) {
  * saveDb — функция сохранения БД.
  * Обрабатывает записи пачками по batchSize, сохраняет каждые savePer записей.
  */
-async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 200 } = {}) {
+let autoEnrichJob = { running: false, done: 0, total: 0, errors: 0, apiCalls: 0, startedAt: null };
+
+async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 200, maxApiCalls = 0 } = {}) {
   const cache = loadCache();
   const toProcess = records.filter(r => !r.farmerType || r.farmerType === 'unknown');
   job.total = toProcess.length;
   job.done = 0;
   job.errors = 0;
+  if (!job.apiCalls) job.apiCalls = 0;
 
   console.log(`[INN] Запуск массового обогащения: ${job.total} записей`);
 
@@ -164,8 +167,13 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
     }
 
     // Запрос к ФНС
+    if (maxApiCalls > 0 && (job.apiCalls || 0) >= maxApiCalls) {
+      console.log(`[INN] Достигнут дневной лимит ${maxApiCalls} запросов к API`);
+      break;
+    }
     try {
       await new Promise(r => setTimeout(r, DELAY_MS));
+      job.apiCalls = (job.apiCalls || 0) + 1;
       const data = inn ? await lookupInn(inn) : await lookupByName(nameKey);
 
       // 429 — rate limit, НЕ кэшируем, применяем name-fallback
@@ -225,4 +233,4 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
   console.log(`[INN] Массовое обогащение завершено: ${job.done}/${job.total}, ошибок: ${job.errors}`);
 }
 
-module.exports = { enrichRecords, enrichExisting, applyCache };
+module.exports = { enrichRecords, enrichExisting, applyCache, autoEnrichJob };

@@ -33,6 +33,7 @@ const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const notesRoutes = require('./routes/notes');
 const { sendMessageTo } = require('./services/telegramBot');
+const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -209,6 +210,29 @@ if (process.env.NODE_ENV !== 'test') {
         if (ok) db.prepare('UPDATE notes SET notifySentDate = ? WHERE id = ?').run(today, note.id);
         else logger.warn('Notes TG notification failed for note %d', note.id);
       }
+    });
+
+    // Daily auto-enrichment at 00:05 UTC (limit 9500 API calls/day)
+    cron.schedule('5 0 * * *', () => {
+      if (autoEnrichJob.running || parserRunning) {
+        logger.info('[AUTO-ENRICH] Пропуск: уже запущено обогащение или парсер');
+        return;
+      }
+      const MAX_DAILY = parseInt(process.env.ENRICH_DAILY_LIMIT || '9500');
+      const records = db.prepare("SELECT * FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown'").all();
+      if (!records.length) {
+        logger.info('[AUTO-ENRICH] Нет записей для обогащения');
+        return;
+      }
+      Object.assign(autoEnrichJob, { running: true, done: 0, total: 0, errors: 0, apiCalls: 0, startedAt: new Date().toISOString() });
+      const updateStmt = db.prepare('UPDATE declarations SET farmerType = ?, okved = ?, inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
+      const saveDb = () => db.transaction(recs => recs.forEach(r => updateStmt.run(r.farmerType, r.okved, r.inn, r.id)))(records);
+      setImmediate(() =>
+        enrichExisting(records, autoEnrichJob, saveDb, { maxApiCalls: MAX_DAILY })
+          .then(() => logger.info(`[AUTO-ENRICH] Завершено: ${autoEnrichJob.apiCalls} запросов API, обработано ${autoEnrichJob.done}/${autoEnrichJob.total}`))
+          .catch(e => { logger.error('[AUTO-ENRICH] Ошибка: %s', e.message); autoEnrichJob.running = false; })
+      );
+      logger.info(`[AUTO-ENRICH] Запущено: ${records.length} записей без типа, лимит ${MAX_DAILY} запросов/день`);
     });
 
     // Run parser after 5 seconds
