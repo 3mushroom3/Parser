@@ -32,6 +32,7 @@ const enrichRoutes = require('./routes/enrich');
 const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const notesRoutes = require('./routes/notes');
+const externalRoutes = require('./routes/external');
 const { sendMessageTo } = require('./services/telegramBot');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 

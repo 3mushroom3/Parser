@@ -135,6 +135,15 @@ db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  CREATE TABLE IF NOT EXISTS api_keys (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    label TEXT,
+    active INTEGER DEFAULT 1,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    lastUsedAt DATETIME
+  );
+
   CREATE INDEX IF NOT EXISTS idx_contacts_companyId ON contacts(companyId);
   CREATE INDEX IF NOT EXISTS idx_decl_regDate ON declarations(regDate);
   CREATE INDEX IF NOT EXISTS idx_decl_status ON declarations(status);

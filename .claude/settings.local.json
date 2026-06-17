@@ -36,7 +36,26 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d \"{\\\\\"query\\\\\":\\\\\"Иванов\\\\\",\\\\\"count\\\\\":1}\")",
       "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d \"{\\\\\"query\\\\\":\\\\\"Иванов\\\\\",\\\\\"count\\\\\":1}\")",
       "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json; charset=utf-8\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" --data-binary \"{\\\\\"query\\\\\":\\\\\"ООО\\\\\",\\\\\"count\\\\\":1}\")",
-      "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d '{\"query\":\"agro\",\"count\":1}')"
+      "Bash(curl -s -X POST \"https://suggestions.dadata.ru/suggestions/api/4_1/rs/suggest/party\" -H \"Content-Type: application/json\" -H \"Accept: application/json\" -H \"Authorization: Token f2ffe0e5102a973aab6d4447ce92a3583b50f734\" -d '{\"query\":\"agro\",\"count\":1}')",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(ssh root@5.42.99.78 \"cd /var/www/fsa-parser && git pull origin main && npm install --prefix backend && pm2 reload fsa-parser && pm2 status\")",
+      "Bash(git commit -m 'Fix SQLite: use single quotes in map-data query \\(double quotes = identifiers in SQLite\\) *)",
+      "Bash(git commit -m 'Add password visibility toggle to login/register forms *)",
+      "Bash(grep -v \"//\\\\|api\\\\|url\\\\|URL\")",
+      "Bash(node --check frontend/js/app.js)",
+      "Bash(node --check backend/routes/notes.js)",
+      "Bash(node --check backend/server.js)",
+      "Bash(node --check backend/services/parser.js)",
+      "Bash(node --check backend/services/parserService.js)",
+      "Bash(node --check \"d:/Project/fsa-parser-jules/frontend/js/app.js\")",
+      "Bash(git restore *)",
+      "Bash(node -c routes/declarations.js)",
+      "Bash(node -c routes/business.js)",
+      "Bash(node -c services/db.js)",
+      "Bash(node -c frontend/js/app.js)",
+      "Bash(timeout 5 node -e ' *)"
     ]
   }
 }
