@@ -483,16 +483,16 @@
 </div>
 
 <div class="ov" id="compModal" style="display:none">
-<div class="modal" style="max-width:760px">
-  <div class="mh" style="padding-bottom:12px">
+<div class="modal" style="max-width:760px;display:flex;flex-direction:column;overflow:hidden">
+  <div class="mh" style="padding-bottom:12px;flex:0 0 auto">
     <div style="min-width:0;flex:1">
       <h3 id="compModalName" style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></h3>
       <div id="compModalSub" style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4"></div>
     </div>
     <button class="mcl" onclick="closeModal('compModal')">✕</button>
   </div>
-  <div class="mb" id="compModalBody" style="padding-top:16px"></div>
-  <div class="mf" id="compModalFoot"></div>
+  <div class="mb" id="compModalBody" style="padding-top:16px;flex:1;min-height:0;overflow-y:auto"></div>
+  <div class="mf" id="compModalFoot" style="flex:0 0 auto"></div>
 </div>
 </div>
 

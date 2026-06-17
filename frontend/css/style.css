@@ -212,7 +212,9 @@ tbody td.muted{color:var(--muted);font-size:12px}
 .sites-list li:last-child{border-bottom:none}
 .settings-section{margin-bottom:20px}
 .settings-section h4{font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--acl)}
+.comp-decls{max-height:260px;overflow-y:auto}
 .comp-decls table{width:100%;border-collapse:collapse;font-size:12px}
+.comp-decls thead th{position:sticky;top:0;z-index:1}
 .comp-decls th{text-align:left;padding:5px 10px;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;border-bottom:1px solid var(--border);background:var(--surf2)}
 .comp-decls td{padding:7px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
 .comp-decls tr:last-child td{border-bottom:none}
