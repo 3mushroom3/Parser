@@ -318,6 +318,12 @@ function applyFilters() {
   loadTable();
 }
 
+let _applyFiltersDebounceTimer = null;
+function applyFiltersDebounced() {
+  clearTimeout(_applyFiltersDebounceTimer);
+  _applyFiltersDebounceTimer = setTimeout(applyFilters, 400);
+}
+
 function clearColSearch() {
   ['csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
   applyFilters();
@@ -859,7 +865,7 @@ async function openCompany(inn, name) {
     p = State.producerDataCache.get(key) || null;
     if (!p) { document.getElementById('compModalBody').innerHTML = '<div class="empty"><p>Не удалось загрузить данные</p></div>'; return; }
     p = { found: true, inn: p.inn||'', name: p.name||name, address: p.address||'', phone: p.phone||'',
-           farmerType: p.farmerType||'unknown', okved: p.okved||'', notes: '', description: '', decls: p.decls||[] };
+           farmerType: p.farmerType||'unknown', okved: p.okved||'', notes: '', description: '', contacts: [], decls: p.decls||[] };
   }
 
   document.getElementById('compModalName').textContent = p.name || name || '—';
@@ -868,6 +874,7 @@ async function openCompany(inn, name) {
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
   State.curCompDecls = p.decls || [];
+  State.curCompContacts = p.contacts || [];
   State.curCropTab = 'all';
 
   const fioStr = [p.lastName, p.firstName, p.middleName].filter(Boolean).join(' ');
@@ -908,11 +915,23 @@ async function openCompany(inn, name) {
       <div id="cropTabContent"></div>
     </div>
     <div class="dsec" style="margin-top:16px">
+      <h4>Контакты</h4>
+      <div id="compContactsList"></div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <input id="ccName" class="fi" style="flex:1;min-width:110px" placeholder="Имя">
+        <input id="ccRole" class="fi" style="flex:1;min-width:110px" placeholder="Должность/отдел">
+        <input id="ccPhone" class="fi" style="flex:1;min-width:130px" placeholder="Телефон">
+        <input id="ccComment" class="fi" style="flex:1;min-width:130px" placeholder="Комментарий">
+        <button class="btn btn-sm btn-p" onclick="addCompContact('${safeInn}','${safeName}')">+ Добавить</button>
+      </div>
+    </div>
+    <div class="dsec" style="margin-top:16px">
       <h4>Заметки</h4>
       <textarea id="compNotes" class="fi" style="width:100%;min-height:70px;resize:vertical" placeholder="Заметки о компании...">${(p.notes||'').replace(/</g,'&lt;')}</textarea>
       <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить заметку</button>
     </div>`;
 
+  renderCompContacts();
   updateCropTabs();
 
   const isFav = isFavorite(p.inn, p.name || name);
@@ -949,6 +968,50 @@ async function saveCompanyDesc(inn, name) {
     await apiFetch('/api/business/company/notes', { method: 'PUT', body: JSON.stringify({ inn, name, description: desc }) });
     closeModal('compModal');
     showAlert('Сохранено');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+function renderCompContacts() {
+  const el = document.getElementById('compContactsList');
+  if (!el) return;
+  const contacts = State.curCompContacts || [];
+  if (!contacts.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:12px">Контактов пока нет</div>';
+    return;
+  }
+  el.innerHTML = contacts.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div style="flex:1;min-width:0">
+        <b>${(c.name||'—')}</b>${c.role ? ' · ' + c.role : ''}
+        ${c.phone ? `<div style="color:var(--text)">${c.phone}</div>` : ''}
+        ${c.comment ? `<div style="color:var(--muted);font-size:12px">${c.comment}</div>` : ''}
+      </div>
+      <button class="btn btn-sm" onclick="deleteCompContact(${c.id})" title="Удалить">✕</button>
+    </div>`).join('');
+}
+
+async function addCompContact(inn, name) {
+  const contactName = document.getElementById('ccName').value.trim();
+  const role = document.getElementById('ccRole').value.trim();
+  const phone = document.getElementById('ccPhone').value.trim();
+  const comment = document.getElementById('ccComment').value.trim();
+  if (!contactName && !phone) { showAlert('Укажите имя или телефон', 'err'); return; }
+  try {
+    const created = await apiFetch('/api/business/company/contacts', {
+      method: 'POST',
+      body: JSON.stringify({ inn, name, contactName, role, phone, comment })
+    });
+    State.curCompContacts.unshift(created);
+    renderCompContacts();
+    ['ccName','ccRole','ccPhone','ccComment'].forEach(id => document.getElementById(id).value = '');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function deleteCompContact(id) {
+  try {
+    await apiFetch('/api/business/company/contacts/' + id, { method: 'DELETE' });
+    State.curCompContacts = (State.curCompContacts || []).filter(c => c.id !== id);
+    renderCompContacts();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 

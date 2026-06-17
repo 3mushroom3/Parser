@@ -20,6 +20,7 @@ router.get('/company', auth, requireSubscription, (req, res) => {
   const first = records[0];
   const key = inn || name;
   const companyInfo = db.prepare('SELECT * FROM companies WHERE id = ?').get(key);
+  const contacts = db.prepare('SELECT * FROM contacts WHERE companyId = ? ORDER BY id DESC').all(key);
 
   res.json({
     found: true,
@@ -35,6 +36,7 @@ router.get('/company', auth, requireSubscription, (req, res) => {
     applicantName: first.applicantName || '',
     description: companyInfo?.description || '',
     notes: companyInfo?.notes || '',
+    contacts,
     decls: records
       .map(r => ({
         id: r.id,
@@ -72,6 +74,28 @@ router.put('/company/notes', auth, (req, res) => {
     );
   }
 
+  res.json({ ok: true });
+});
+
+router.post('/company/contacts', auth, (req, res) => {
+  const { inn, name, contactName, role, phone, comment } = req.body || {};
+  const key = inn || name;
+  if (!key) return res.status(400).json({ error: 'inn or name required' });
+  if (!contactName && !phone) return res.status(400).json({ error: 'contactName or phone required' });
+
+  if (!db.prepare('SELECT id FROM companies WHERE id = ?').get(key)) {
+    db.prepare('INSERT INTO companies (id, inn, name) VALUES (?, ?, ?)').run(key, inn || null, name || null);
+  }
+
+  const info = db.prepare('INSERT INTO contacts (companyId, name, role, phone, comment) VALUES (?, ?, ?, ?, ?)')
+    .run(key, contactName || '', role || '', phone || '', comment || '');
+
+  res.status(201).json({ id: info.lastInsertRowid, companyId: key, name: contactName || '', role: role || '', phone: phone || '', comment: comment || '' });
+});
+
+router.delete('/company/contacts/:id', auth, (req, res) => {
+  const info = db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id);
+  if (info.changes === 0) return res.status(404).json({ error: 'Не найдено' });
   res.json({ ok: true });
 });
 

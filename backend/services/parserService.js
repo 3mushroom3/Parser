@@ -134,8 +134,6 @@ async function runParser(apiClient, declarationService, config) {
           continue;
         }
 
-        if (parser.mapStatus(item.docStatus || item.idStatus || item.status) !== 'active') continue;
-
         let detail = null;
         try {
           detail = await apiClient.getDeclarationById(declId);

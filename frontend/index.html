@@ -182,7 +182,7 @@
         <div class="tb">
           <div class="sw">
             <span class="sw-ic">🔍</span>
-            <input type="text" id="globalQ" placeholder="Поиск по всем полям..." oninput="applyFilters()">
+            <input type="text" id="globalQ" placeholder="Поиск по всем полям..." oninput="applyFiltersDebounced()">
           </div>
           <select class="btn" id="sortF" onchange="applyFilters()">
             <option value="regDate">По дате рег.</option>
@@ -221,9 +221,9 @@
                 </tr>
                 <tr class="col-search">
                   <td style="text-align:center"><button class="cs-clear" onclick="clearColSearch()" title="Очистить фильтры колонок">✕</button></td>
-                  <td><input class="cs-inp" placeholder="Производитель…" id="csManuf" autocomplete="off" oninput="applyFilters()"></td>
-                  <td><input class="cs-inp" placeholder="Адрес…" id="csAddress" autocomplete="off" oninput="applyFilters()"></td>
-                  <td><input class="cs-inp" placeholder="Продукция…" id="csProduct" autocomplete="off" oninput="applyFilters()"></td>
+                  <td><input class="cs-inp" placeholder="Производитель…" id="csManuf" autocomplete="off" oninput="applyFiltersDebounced()"></td>
+                  <td><input class="cs-inp" placeholder="Адрес…" id="csAddress" autocomplete="off" oninput="applyFiltersDebounced()"></td>
+                  <td><input class="cs-inp" placeholder="Продукция…" id="csProduct" autocomplete="off" oninput="applyFiltersDebounced()"></td>
                   <td></td>
                 </tr>
                 <tr style="display:none">

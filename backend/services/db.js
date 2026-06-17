@@ -120,6 +120,23 @@ db.exec(`
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    companyId TEXT NOT NULL,
+    name TEXT,
+    role TEXT,
+    phone TEXT,
+    comment TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_contacts_companyId ON contacts(companyId);
+  CREATE INDEX IF NOT EXISTS idx_decl_regDate ON declarations(regDate);
+  CREATE INDEX IF NOT EXISTS idx_decl_status ON declarations(status);
+  CREATE INDEX IF NOT EXISTS idx_decl_farmerType ON declarations(farmerType);
+  CREATE INDEX IF NOT EXISTS idx_decl_inn ON declarations(inn);
+  CREATE INDEX IF NOT EXISTS idx_decl_fsaId ON declarations(fsaId);
 `);
 
 // Migrations for existing databases
