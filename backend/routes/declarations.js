@@ -29,17 +29,17 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
   let params = [];
 
   if (search) {
-    baseQuery += ' AND (LOWER(applicantName) LIKE ? OR LOWER(shortName) LIKE ? OR LOWER(lastName) LIKE ? OR LOWER(productName) LIKE ? OR LOWER(address) LIKE ? OR inn LIKE ?)';
+    baseQuery += ' AND (lower_u(applicantName) LIKE ? OR lower_u(shortName) LIKE ? OR lower_u(lastName) LIKE ? OR lower_u(productName) LIKE ? OR lower_u(address) LIKE ? OR inn LIKE ?)';
     const s = `%${search.toLowerCase()}%`;
     params.push(s, s, s, s, s, `%${search}%`);
   }
   if (manufacturer) {
-    baseQuery += ' AND (LOWER(shortName) LIKE ? OR LOWER(applicantName) LIKE ? OR LOWER(lastName) LIKE ?)';
+    baseQuery += ' AND (lower_u(shortName) LIKE ? OR lower_u(applicantName) LIKE ? OR lower_u(lastName) LIKE ?)';
     const m = `%${manufacturer.toLowerCase()}%`;
     params.push(m, m, m);
   }
-  if (address) { baseQuery += ' AND LOWER(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
-  if (product) { baseQuery += ' AND LOWER(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
+  if (address) { baseQuery += ' AND lower_u(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
+  if (product) { baseQuery += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
   if (dateFrom) { baseQuery += ' AND regDate >= ?'; params.push(dateFrom); }
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
   if (farmerType) { baseQuery += ' AND farmerType = ?'; params.push(farmerType); }

@@ -11,6 +11,10 @@ if (!fs.existsSync(path.dirname(dbPath))) {
 
 const db = new Database(dbPath);
 
+// SQLite's built-in LOWER() only handles ASCII and leaves Cyrillic unchanged —
+// register a JS-backed lowercasing function so case-insensitive search works for Cyrillic text.
+db.function('lower_u', (s) => (s == null ? s : String(s).toLowerCase()));
+
 // Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (

@@ -12,7 +12,7 @@ router.get('/company', auth, requireSubscription, (req, res) => {
   if (inn) {
     records = db.prepare('SELECT * FROM declarations WHERE inn = ?').all(inn);
   } else {
-    records = db.prepare('SELECT * FROM declarations WHERE (LOWER(shortName) = LOWER(?) OR LOWER(applicantName) = LOWER(?) OR LOWER(lastName) = LOWER(?))').all(name, name, name);
+    records = db.prepare('SELECT * FROM declarations WHERE (lower_u(shortName) = lower_u(?) OR lower_u(applicantName) = lower_u(?) OR lower_u(lastName) = lower_u(?))').all(name, name, name);
   }
 
   if (!records.length) return res.json({ found: false, decls: [] });

@@ -280,16 +280,19 @@ function showPage(name) {
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
+let _tableLoadSeq = 0;
 async function loadTable() {
+  const seq = ++_tableLoadSeq;
   const tbody = document.getElementById('tblBody');
   if (!tbody.childElementCount) showSkeleton();
 
   try {
     const filters = getFilters();
     const data = await apiFetch('/api/declarations/producers' + buildQS(filters));
+    if (seq !== _tableLoadSeq) return; // ответ устарел — пришёл более новый запрос
     renderTable(data);
   } catch (err) {
-    showAlert(err.message, 'err');
+    if (seq === _tableLoadSeq) showAlert(err.message, 'err');
   }
 }
 
