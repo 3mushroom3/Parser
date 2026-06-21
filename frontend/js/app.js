@@ -1830,9 +1830,13 @@ function toggleNoteNotify(checked) {
   document.getElementById('noteNotifyRow').style.display = checked ? 'block' : 'none';
 }
 
+let _savingNote = false;
 async function saveNote() {
+  if (_savingNote) return;
   const title = document.getElementById('noteTitle').value.trim();
   if (!title) { showAlert('Введите заголовок заметки', 'err'); return; }
+
+  _savingNote = true;
 
   const content = document.getElementById('noteContent').value;
   const hasNotify = document.getElementById('noteNotifyToggle').checked;
@@ -1859,6 +1863,7 @@ async function saveNote() {
     renderNotes();
     closeModal('noteModal');
   } catch(e) { showAlert('Ошибка сохранения: ' + e.message, 'err'); }
+  finally { _savingNote = false; }
 }
 
 async function deleteNote() {

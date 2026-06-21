@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 
-router.get('/folders', auth, (req, res) => {
+router.get('/', auth, (req, res) => {
   const folders = db.prepare('SELECT * FROM folders').all();
   const folderItems = db.prepare('SELECT * FROM folder_items').all();
 
@@ -15,7 +15,7 @@ router.get('/folders', auth, (req, res) => {
   res.json(foldersWithItems);
 });
 
-router.post('/folders', auth, (req, res) => {
+router.post('/', auth, (req, res) => {
   const { name, parentId } = req.body || {};
   if (!name) return res.status(400).json({ error: 'name обязателен' });
 
@@ -26,12 +26,12 @@ router.post('/folders', auth, (req, res) => {
   res.status(201).json({ ...folder, items: [] });
 });
 
-router.delete('/folders/:id', auth, (req, res) => {
+router.delete('/:id', auth, (req, res) => {
   db.prepare('DELETE FROM folders WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 
-router.post('/folders/:id/items', auth, (req, res) => {
+router.post('/:id/items', auth, (req, res) => {
   const { type, value, label } = req.body || {};
   if (!type || !value) return res.status(400).json({ error: 'type и value обязательны' });
 
@@ -46,7 +46,7 @@ router.post('/folders/:id/items', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-router.delete('/folders/:id/items', auth, (req, res) => {
+router.delete('/:id/items', auth, (req, res) => {
   const { type, value } = req.body || {};
   db.prepare('DELETE FROM folder_items WHERE folderId = ? AND type = ? AND value = ?').run(req.params.id, type, value);
   res.json({ ok: true });
