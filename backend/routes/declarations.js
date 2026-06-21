@@ -44,6 +44,22 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
   if (farmerType) { baseQuery += ' AND farmerType = ?'; params.push(farmerType); }
 
+  // When searching by manufacturer, rank exact/prefix name matches above
+  // companies that merely contain the term somewhere, regardless of decl count.
+  let orderClause = 'ORDER BY COUNT(id) DESC';
+  const orderParams = [];
+  if (manufacturer) {
+    const mLower = manufacturer.toLowerCase();
+    orderClause = `ORDER BY
+      CASE
+        WHEN lower_u(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) = ? THEN 0
+        WHEN lower_u(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) LIKE ? THEN 1
+        ELSE 2
+      END,
+      COUNT(id) DESC`;
+    orderParams.push(mLower, `${mLower}%`);
+  }
+
   // We need to group by manufacturer (inn or names)
   // Simplified logic: group by inn if present, otherwise by name
   const dataQuery = `
@@ -60,12 +76,12 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
       GROUP_CONCAT(id) as declIds
     ${baseQuery}
     GROUP BY producerKey
-    ORDER BY COUNT(id) DESC
+    ${orderClause}
   `;
 
   // Get all matching to perform secondary logic (like grouping)
   // For large DBs this should be optimized, but for now we follow old logic
-  const allProducers = db.prepare(dataQuery).all(...params);
+  const allProducers = db.prepare(dataQuery).all(...params, ...orderParams);
 
   const producers = allProducers.map(p => {
     const ids = p.declIds.split(',');
