@@ -1072,6 +1072,26 @@ function fmtTon(t) {
   return Math.round(t).toLocaleString('ru') + ' т';
 }
 
+function harvestYearOf(regDate, ys) {
+  const date = new Date(regDate);
+  const cut = new Date(date.getFullYear(), ys.m - 1, ys.d);
+  return date >= cut ? date.getFullYear() : date.getFullYear() - 1;
+}
+
+// Среднее за год урожая: сумма объёма за каждый год / кол-во лет, в которых
+// реально есть декларации (года без деклараций не размывают среднее вниз).
+function computeYearlyAverage(decls, ys) {
+  const yearTotals = new Map();
+  for (const d of decls) {
+    if (!d.regDate) continue;
+    const year = harvestYearOf(d.regDate, ys);
+    yearTotals.set(year, (yearTotals.get(year) || 0) + parseTon(d.batchSize));
+  }
+  const years = [...yearTotals.keys()].sort((a, b) => b - a);
+  const totalSum = [...yearTotals.values()].reduce((a, b) => a + b, 0);
+  return { avg: years.length ? totalSum / years.length : 0, years };
+}
+
 function getCropYearRange(ys, yearsAgo = 0) {
   const now = new Date();
   const cut = new Date(now.getFullYear(), ys.m - 1, ys.d);
@@ -1126,6 +1146,10 @@ function updateCropTabs() {
   });
 
   const fd = filterPeriod(g.decls, g.crop.ys);
+  const { avg, years } = computeYearlyAverage(g.decls, g.crop.ys);
+  const avgHtml = avg > 0
+    ? `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">Среднее за год урожая: <b style="color:var(--text)">${fmtTon(avg)}</b> (за ${years.length} ${years.length === 1 ? 'год' : 'года'}: ${years.join(', ')})</div>`
+    : '';
   const sbadge = { active: '<span style="color:var(--succ)">● Действует</span>', suspended: '<span style="color:var(--warn)">● Приостановлена</span>', expired: '<span style="color:var(--muted)">● Истекла</span>', archived: '<span style="color:var(--muted)">● В архиве</span>' };
   const rows = fd.length ? fd.map(d => `
     <tr>
@@ -1139,6 +1163,7 @@ function updateCropTabs() {
     : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
 
   document.getElementById('cropTabContent').innerHTML = `
+    ${avgHtml}
     <div class="comp-decls tab-content"><table>
       <thead><tr><th>Дата рег.</th><th>Номер</th><th>Продукция</th><th>Объём</th><th>Статус</th><th></th></tr></thead>
       <tbody>${rows}</tbody>
