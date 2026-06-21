@@ -1533,6 +1533,14 @@ async function loadAdminData() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function runDedupeInn() {
+  try {
+    const r = await apiFetch('/api/admin/dedupe-inn', { method: 'POST' });
+    showAlert(`Объединено: ${r.updated} деклараций получили ИНН от совпадающей карточки`);
+    loadTable();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function createApiKey() {
   const label = document.getElementById('apiKeyLabel').value.trim();
   try {

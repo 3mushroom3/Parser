@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
+const { backfillMissingInn } = require('../services/dedupe');
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
@@ -119,6 +120,13 @@ router.post('/api-keys', auth, requireAdmin, (req, res) => {
 router.delete('/api-keys/:id', auth, requireAdmin, (req, res) => {
   db.prepare('UPDATE api_keys SET active = 0 WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
+});
+
+// POST /api/admin/dedupe-inn — проставить ИНН записям без него, если у того же
+// имя+адрес есть ровно один известный ИНН (объединяет "размножившиеся" карточки)
+router.post('/dedupe-inn', auth, requireAdmin, (req, res) => {
+  const updated = backfillMissingInn();
+  res.json({ ok: true, updated });
 });
 
 module.exports = router;

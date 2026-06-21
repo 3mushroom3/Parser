@@ -2,6 +2,7 @@ const db = require('./db');
 const logger = require('./logger');
 const parser = require('./parser');
 const { enrichRecords } = require('./innEnricher');
+const { backfillMissingInn } = require('./dedupe');
 const telegramBot = require('./telegramBot');
 
 function sleep(ms) {
@@ -214,6 +215,8 @@ async function runParser(apiClient, declarationService, config) {
           }
         });
         transaction(newRecords);
+        const dedupeCount = backfillMissingInn();
+        if (dedupeCount > 0) logger.info('[DEDUPE] Проставлен ИНН по совпадению имя+адрес: %d записей', dedupeCount);
         await telegramBot.notifyFavorites(newRecords);
       } catch (e) {
         logger.error('Enrichment error: %s', e.message);
