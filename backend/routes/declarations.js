@@ -34,9 +34,9 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
     params.push(s, s, s, s, s, `%${search}%`);
   }
   if (manufacturer) {
-    baseQuery += ' AND (lower_u(shortName) LIKE ? OR lower_u(applicantName) LIKE ? OR lower_u(lastName) LIKE ?)';
+    baseQuery += ' AND (lower_u(shortName) LIKE ? OR lower_u(applicantName) LIKE ? OR lower_u(lastName) LIKE ? OR inn LIKE ?)';
     const m = `%${manufacturer.toLowerCase()}%`;
-    params.push(m, m, m);
+    params.push(m, m, m, `%${manufacturer}%`);
   }
   if (address) { baseQuery += ' AND lower_u(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
   if (product) { baseQuery += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
@@ -165,24 +165,24 @@ router.get('/', auth, requireSubscription, (req, res) => {
   let params = [];
 
   if (search) {
-    query += ' AND (applicantName LIKE ? OR shortName LIKE ? OR lastName LIKE ? OR productName LIKE ? OR productGroup LIKE ? OR id LIKE ?)';
-    const s = `%${search}%`;
-    params.push(s, s, s, s, s, s);
+    query += ' AND (lower_u(applicantName) LIKE ? OR lower_u(shortName) LIKE ? OR lower_u(lastName) LIKE ? OR lower_u(productName) LIKE ? OR lower_u(productGroup) LIKE ? OR id LIKE ? OR inn LIKE ?)';
+    const s = `%${search.toLowerCase()}%`;
+    params.push(s, s, s, s, s, `%${search}%`, `%${search}%`);
   }
   if (source) { query += ' AND source = ?'; params.push(source); }
   if (status) { query += ' AND status = ?'; params.push(status); }
-  if (group) { query += ' AND productGroup LIKE ?'; params.push(`%${group}%`); }
+  if (group) { query += ' AND lower_u(productGroup) LIKE ?'; params.push(`%${group.toLowerCase()}%`); }
   if (manufacturer) {
-    query += ' AND (shortName LIKE ? OR applicantName LIKE ? OR lastName LIKE ?)';
-    const m = `%${manufacturer}%`;
-    params.push(m, m, m);
+    query += ' AND (lower_u(shortName) LIKE ? OR lower_u(applicantName) LIKE ? OR lower_u(lastName) LIKE ? OR inn LIKE ?)';
+    const m = `%${manufacturer.toLowerCase()}%`;
+    params.push(m, m, m, `%${manufacturer}%`);
   }
-  if (techReglament) { query += ' AND technicalReglament LIKE ?'; params.push(`%${techReglament}%`); }
+  if (techReglament) { query += ' AND lower_u(technicalReglament) LIKE ?'; params.push(`%${techReglament.toLowerCase()}%`); }
   if (dateFrom) { query += ' AND regDate >= ?'; params.push(dateFrom); }
   if (dateTo) { query += ' AND regDate <= ?'; params.push(dateTo); }
-  if (applicant) { query += ' AND applicantName LIKE ?'; params.push(`%${applicant}%`); }
-  if (address) { query += ' AND address LIKE ?'; params.push(`%${address}%`); }
-  if (product) { query += ' AND productName LIKE ?'; params.push(`%${product}%`); }
+  if (applicant) { query += ' AND lower_u(applicantName) LIKE ?'; params.push(`%${applicant.toLowerCase()}%`); }
+  if (address) { query += ' AND lower_u(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
+  if (product) { query += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
   if (farmerType) { query += ' AND farmerType = ?'; params.push(farmerType); }
 
   const countQuery = 'SELECT COUNT(*) as total FROM (' + query + ')';
