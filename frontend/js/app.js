@@ -460,6 +460,10 @@ async function loadStats() {
     const s = await apiFetch('/api/system/stats');
     document.getElementById('stTotal').textContent  = (s.total || 0).toLocaleString('ru');
     document.getElementById('stActive').textContent = (s.active || 0).toLocaleString('ru');
+    document.getElementById('stFarmers').textContent = (s.farmerProducers || 0).toLocaleString('ru');
+    document.getElementById('stFarmerDecls').textContent = (s.farmerDecls || 0).toLocaleString('ru') + ' деклараций';
+    document.getElementById('stTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
+    document.getElementById('stTraderDecls').textContent = (s.traderDecls || 0).toLocaleString('ru') + ' деклараций';
     document.getElementById('sideTotalRec').textContent = (s.total || 0).toLocaleString('ru');
   } catch(_) {}
 }

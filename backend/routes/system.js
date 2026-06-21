@@ -36,6 +36,12 @@ router.get('/stats', (req, res) => {
   const statusStats = db.prepare('SELECT status, COUNT(*) as count FROM declarations GROUP BY status').all();
   const sourceStats = db.prepare('SELECT source, COUNT(*) as count FROM declarations GROUP BY source').all();
 
+  const producerCountByType = (type) => db.prepare(`
+    SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
+    FROM declarations WHERE farmerType = ?
+  `).get(type).c;
+  const declCountByType = (type) => db.prepare('SELECT COUNT(*) as c FROM declarations WHERE farmerType = ?').get(type).c;
+
   const stats = {
     total: uniqueProducers,
     active: statusStats.find(s => s.status === 'active')?.count || 0,
@@ -43,6 +49,10 @@ router.get('/stats', (req, res) => {
     expired: statusStats.find(s => s.status === 'expired')?.count || 0,
     manual: sourceStats.find(s => s.source === 'manual')?.count || 0,
     fsa: sourceStats.find(s => s.source === 'fsa')?.count || 0,
+    farmerProducers: producerCountByType('farmer'),
+    traderProducers: producerCountByType('trader'),
+    farmerDecls: declCountByType('farmer'),
+    traderDecls: declCountByType('trader'),
   };
 
   res.json(stats);
