@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
-const { backfillMissingInn } = require('../services/dedupe');
+const { backfillMissingInn, findAmbiguousInnGroups } = require('../services/dedupe');
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
@@ -127,6 +127,11 @@ router.delete('/api-keys/:id', auth, requireAdmin, (req, res) => {
 router.post('/dedupe-inn', auth, requireAdmin, (req, res) => {
   const updated = backfillMissingInn();
   res.json({ ok: true, updated });
+});
+
+// GET /api/admin/dedupe-ambiguous — отчёт по группам имя+адрес с несколькими разными ИНН
+router.get('/dedupe-ambiguous', auth, requireAdmin, (req, res) => {
+  res.json(findAmbiguousInnGroups());
 });
 
 module.exports = router;

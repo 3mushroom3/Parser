@@ -1541,6 +1541,24 @@ async function runDedupeInn() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function loadAmbiguousInn() {
+  const tbody = document.getElementById('adminAmbiguousInnTbody');
+  tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px">Загрузка...</td></tr>';
+  try {
+    const groups = await apiFetch('/api/admin/dedupe-ambiguous');
+    if (!groups.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px">Спорных дублей не найдено</td></tr>';
+      return;
+    }
+    tbody.innerHTML = groups.map(g => `
+      <tr>
+        <td><b>${g.name}</b></td>
+        <td style="font-size:12px;color:var(--muted)">${g.address || '—'}</td>
+        <td style="font-size:12px">${g.inns.map(i => `${i.inn} (${i.count})`).join(', ')}</td>
+      </tr>`).join('');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function createApiKey() {
   const label = document.getElementById('apiKeyLabel').value.trim();
   try {
