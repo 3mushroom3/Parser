@@ -103,6 +103,7 @@ app.use('/api/folders', folderRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/enrich', enrichRoutes);
 app.use('/api/notes', notesRoutes);
+app.use('/api/external', externalRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);

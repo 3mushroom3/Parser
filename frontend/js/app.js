@@ -1474,10 +1474,11 @@ async function buyPlan(planId) {
 // ── Admin Panel ───────────────────────────────────────────────────────────
 async function loadAdminData() {
   try {
-    const [stats, users, payments] = await Promise.all([
+    const [stats, users, payments, apiKeys] = await Promise.all([
       apiFetch('/api/admin/stats'),
       apiFetch('/api/admin/users'),
       apiFetch('/api/admin/payments'),
+      apiFetch('/api/admin/api-keys'),
     ]);
 
     document.getElementById('adminStats').innerHTML = `
@@ -1519,6 +1520,39 @@ async function loadAdminData() {
         <td style="font-size:12px">${statusLabel[p.status] || p.status}</td>
         <td style="font-size:12px;color:var(--muted)">${new Date(p.createdAt).toLocaleString('ru-RU')}</td>
       </tr>`).join('');
+
+    document.getElementById('adminApiKeysTbody').innerHTML = apiKeys.map(k => `
+      <tr>
+        <td>${k.label || '—'}</td>
+        <td><code style="font-size:11px;cursor:pointer" title="Нажмите, чтобы скопировать" onclick="copyApiKey('${k.key}')">${k.key.slice(0,10)}…${k.key.slice(-6)}</code></td>
+        <td style="font-size:12px;color:var(--muted)">${new Date(k.createdAt).toLocaleDateString('ru-RU')}</td>
+        <td style="font-size:12px;color:var(--muted)">${k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString('ru-RU') : '—'}</td>
+        <td>${k.active ? '<span class="sub-ok">активен</span>' : '<span class="sub-exp">отозван</span>'}</td>
+        <td class="admin-actions">${k.active ? `<button class="btn btn-sm btn-dng" onclick="revokeApiKey(${k.id})" title="Отозвать">✕</button>` : ''}</td>
+      </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:14px">Ключей пока нет</td></tr>';
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function createApiKey() {
+  const label = document.getElementById('apiKeyLabel').value.trim();
+  try {
+    const created = await apiFetch('/api/admin/api-keys', { method: 'POST', body: JSON.stringify({ label }) });
+    document.getElementById('apiKeyLabel').value = '';
+    await navigator.clipboard?.writeText(created.key).catch(() => {});
+    showAlert('Ключ создан и скопирован в буфер: ' + created.key);
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+function copyApiKey(key) {
+  navigator.clipboard?.writeText(key).then(() => showAlert('Ключ скопирован')).catch(() => showAlert(key));
+}
+
+async function revokeApiKey(id) {
+  if (!confirm('Отозвать ключ? Интеграция с ним перестанет работать.')) return;
+  try {
+    await apiFetch('/api/admin/api-keys/' + id, { method: 'DELETE' });
+    loadAdminData();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 

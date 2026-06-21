@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
@@ -98,6 +99,26 @@ router.get('/stats', auth, requireAdmin, (req, res) => {
   const totalRevenue  = db.prepare("SELECT COALESCE(SUM(amount),0) as n FROM payments WHERE status='succeeded'").get().n;
   const monthRevenue  = db.prepare("SELECT COALESCE(SUM(amount),0) as n FROM payments WHERE status='succeeded' AND createdAt >= date('now','-30 days')").get().n;
   res.json({ totalUsers, activeUsers, totalRevenue, monthRevenue });
+});
+
+// GET /api/admin/api-keys — список ключей внешнего API
+router.get('/api-keys', auth, requireAdmin, (req, res) => {
+  const keys = db.prepare('SELECT id, key, label, active, createdAt, lastUsedAt FROM api_keys ORDER BY id DESC').all();
+  res.json(keys);
+});
+
+// POST /api/admin/api-keys — создать новый ключ
+router.post('/api-keys', auth, requireAdmin, (req, res) => {
+  const { label } = req.body || {};
+  const key = crypto.randomBytes(24).toString('hex');
+  const info = db.prepare('INSERT INTO api_keys (key, label) VALUES (?, ?)').run(key, label || '');
+  res.status(201).json({ id: info.lastInsertRowid, key, label: label || '', active: 1 });
+});
+
+// DELETE /api/admin/api-keys/:id — отозвать ключ
+router.delete('/api-keys/:id', auth, requireAdmin, (req, res) => {
+  db.prepare('UPDATE api_keys SET active = 0 WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 module.exports = router;

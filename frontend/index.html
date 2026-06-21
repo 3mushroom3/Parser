@@ -421,6 +421,19 @@
         <tbody id="adminPaymentsTbody"></tbody>
       </table>
     </div>
+    <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="font-size:14px;font-weight:700">API-ключи (внешние интеграции)</h3>
+      <div style="display:flex;gap:6px">
+        <input id="apiKeyLabel" class="fi" style="width:200px" placeholder="Метка (напр. Битрикс24)">
+        <button class="btn btn-sm btn-p" onclick="createApiKey()">+ Создать ключ</button>
+      </div>
+    </div>
+    <div class="admin-table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Метка</th><th>Ключ</th><th>Создан</th><th>Последнее использование</th><th>Статус</th><th style="width:80px">Действия</th></tr></thead>
+        <tbody id="adminApiKeysTbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- FOLDERS PAGE -->
