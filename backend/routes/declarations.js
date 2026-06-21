@@ -44,9 +44,11 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
   if (farmerType) { baseQuery += ' AND farmerType = ?'; params.push(farmerType); }
 
-  // When searching by manufacturer, rank exact/prefix name matches above
-  // companies that merely contain the term somewhere, regardless of decl count.
-  let orderClause = 'ORDER BY COUNT(id) DESC';
+  // By default, show producers with the most recently registered declaration
+  // first. When searching by manufacturer, rank exact/prefix name matches
+  // above companies that merely contain the term somewhere, with recency as
+  // the tiebreaker.
+  let orderClause = 'ORDER BY lastRegDate DESC';
   const orderParams = [];
   if (manufacturer) {
     const mLower = manufacturer.toLowerCase();
@@ -56,7 +58,7 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
         WHEN lower_u(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) LIKE ? THEN 1
         ELSE 2
       END,
-      COUNT(id) DESC`;
+      lastRegDate DESC`;
     orderParams.push(mLower, `${mLower}%`);
   }
 
@@ -73,6 +75,7 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
       MAX(phone) as phone,
       MAX(farmerType) as farmerType,
       MAX(okved) as okved,
+      MAX(regDate) as lastRegDate,
       GROUP_CONCAT(id) as declIds
     ${baseQuery}
     GROUP BY producerKey
