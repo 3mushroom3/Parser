@@ -1117,6 +1117,14 @@ function updateCropTabs() {
 
   const g = groups.get(State.curCropTab) || groups.get('all');
   if (!g) return;
+
+  // Подписи периодов считаем по сезону урожая именно выбранной культуры
+  // (у разных культур разные границы года — пшеница с 25 мая, кукуруза с 1 окт. и т.д.)
+  [0, 1, 2].forEach(yearsAgo => {
+    const opt = periodEl.querySelector(`option[value="${yearsAgo}"]`);
+    if (opt) opt.textContent = 'Урожай ' + getCropYearRange(g.crop.ys, yearsAgo).from.slice(0, 4);
+  });
+
   const fd = filterPeriod(g.decls, g.crop.ys);
   const sbadge = { active: '<span style="color:var(--succ)">● Действует</span>', suspended: '<span style="color:var(--warn)">● Приостановлена</span>', expired: '<span style="color:var(--muted)">● Истекла</span>', archived: '<span style="color:var(--muted)">● В архиве</span>' };
   const rows = fd.length ? fd.map(d => `
