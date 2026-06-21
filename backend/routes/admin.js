@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const { backfillMissingInn, findAmbiguousInnGroups } = require('../services/dedupe');
+const { archiveOldDeclarations, ARCHIVE_AFTER_DAYS } = require('../services/archiver');
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
@@ -132,6 +133,12 @@ router.post('/dedupe-inn', auth, requireAdmin, (req, res) => {
 // GET /api/admin/dedupe-ambiguous — отчёт по группам имя+адрес с несколькими разными ИНН
 router.get('/dedupe-ambiguous', auth, requireAdmin, (req, res) => {
   res.json(findAmbiguousInnGroups());
+});
+
+// POST /api/admin/archive-old — перевести в архив декларации старше года, помеченные ФСА как "действует"
+router.post('/archive-old', auth, requireAdmin, (req, res) => {
+  const updated = archiveOldDeclarations();
+  res.json({ ok: true, updated, archiveAfterDays: ARCHIVE_AFTER_DAYS });
 });
 
 module.exports = router;

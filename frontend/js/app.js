@@ -1118,7 +1118,7 @@ function updateCropTabs() {
   const g = groups.get(State.curCropTab) || groups.get('all');
   if (!g) return;
   const fd = filterPeriod(g.decls, g.crop.ys);
-  const sbadge = { active: '<span style="color:var(--succ)">● Действует</span>', suspended: '<span style="color:var(--warn)">● Приостановлена</span>', expired: '<span style="color:var(--muted)">● Истекла</span>' };
+  const sbadge = { active: '<span style="color:var(--succ)">● Действует</span>', suspended: '<span style="color:var(--warn)">● Приостановлена</span>', expired: '<span style="color:var(--muted)">● Истекла</span>', archived: '<span style="color:var(--muted)">● В архиве</span>' };
   const rows = fd.length ? fd.map(d => `
     <tr>
       <td style="color:var(--muted);white-space:nowrap">${d.regDate||'—'}</td>
@@ -1534,6 +1534,14 @@ async function loadAdminData() {
         <td>${k.active ? '<span class="sub-ok">активен</span>' : '<span class="sub-exp">отозван</span>'}</td>
         <td class="admin-actions">${k.active ? `<button class="btn btn-sm btn-dng" onclick="revokeApiKey(${k.id})" title="Отозвать">✕</button>` : ''}</td>
       </tr>`).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:14px">Ключей пока нет</td></tr>';
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function runArchiveOld() {
+  try {
+    const r = await apiFetch('/api/admin/archive-old', { method: 'POST' });
+    showAlert(`Архивировано: ${r.updated} деклараций старше ${r.archiveAfterDays} дн.`);
+    loadTable();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 

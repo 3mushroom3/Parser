@@ -48,9 +48,9 @@ router.get('/company', auth, requireSubscription, (req, res) => {
         status: r.status || '',
       }))
       .sort((a, b) => {
-        const statusOrder = { active: 0, suspended: 1, expired: 2 };
-        const sa = statusOrder[a.status] ?? 3;
-        const sb = statusOrder[b.status] ?? 3;
+        const statusOrder = { active: 0, suspended: 1, expired: 2, archived: 3 };
+        const sa = statusOrder[a.status] ?? 4;
+        const sb = statusOrder[b.status] ?? 4;
         if (sa !== sb) return sa - sb;
         return b.regDate.localeCompare(a.regDate);
       }),

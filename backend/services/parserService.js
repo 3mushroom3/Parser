@@ -3,6 +3,7 @@ const logger = require('./logger');
 const parser = require('./parser');
 const { enrichRecords } = require('./innEnricher');
 const { backfillMissingInn } = require('./dedupe');
+const { archiveOldDeclarations } = require('./archiver');
 const telegramBot = require('./telegramBot');
 
 function sleep(ms) {
@@ -204,9 +205,9 @@ async function runParser(apiClient, declarationService, config) {
   setStatus('idle', msg, totalParsed, totalErrors);
   logger.info('Parser finished: %s', msg);
 
-  if (newRecords.length > 0) {
-    setImmediate(async () => {
-      try {
+  setImmediate(async () => {
+    try {
+      if (newRecords.length > 0) {
         await enrichRecords(newRecords);
         const updateStmt = db.prepare('UPDATE declarations SET farmerType = ?, okved = ?, inn = ? WHERE id = ?');
         const transaction = db.transaction((recs) => {
@@ -215,14 +216,18 @@ async function runParser(apiClient, declarationService, config) {
           }
         });
         transaction(newRecords);
-        const dedupeCount = backfillMissingInn();
-        if (dedupeCount > 0) logger.info('[DEDUPE] Проставлен ИНН по совпадению имя+адрес: %d записей', dedupeCount);
         await telegramBot.notifyFavorites(newRecords);
-      } catch (e) {
-        logger.error('Enrichment error: %s', e.message);
       }
-    });
-  }
+
+      const dedupeCount = backfillMissingInn();
+      if (dedupeCount > 0) logger.info('[DEDUPE] Проставлен ИНН по совпадению имя+адрес: %d записей', dedupeCount);
+
+      const archivedCount = archiveOldDeclarations();
+      if (archivedCount > 0) logger.info('[ARCHIVE] Переведено в архив (старше года, но "действует" по ФСА): %d записей', archivedCount);
+    } catch (e) {
+      logger.error('Post-parse step error: %s', e.message);
+    }
+  });
 }
 
 module.exports = { runParser };
