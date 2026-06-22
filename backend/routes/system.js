@@ -36,20 +36,25 @@ router.get('/stats', (req, res) => {
   const statusStats = db.prepare('SELECT status, COUNT(*) as count FROM declarations GROUP BY status').all();
   const sourceStats = db.prepare('SELECT source, COUNT(*) as count FROM declarations GROUP BY source').all();
 
+  // Считаем фермеров/трейдеров только среди ДЕЙСТВУЮЩИХ деклараций — иначе
+  // эта цифра смешивает две разные оси (тип компании и статус декларации)
+  // с "Действуют" и не складывается с ней логически.
   const producerCountByType = (type) => db.prepare(`
     SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
-    FROM declarations WHERE farmerType = ?
+    FROM declarations WHERE farmerType = ? AND status = 'active'
   `).get(type).c;
-  const declCountByType = (type) => db.prepare('SELECT COUNT(*) as c FROM declarations WHERE farmerType = ?').get(type).c;
+  const declCountByType = (type) => db.prepare("SELECT COUNT(*) as c FROM declarations WHERE farmerType = ? AND status = 'active'").get(type).c;
   const producerCountByStatus = (status) => db.prepare(`
     SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
     FROM declarations WHERE status = ?
   `).get(status).c;
 
   const activeDecls = statusStats.find(s => s.status === 'active')?.count || 0;
+  const totalDecls = statusStats.reduce((sum, s) => sum + s.count, 0);
 
   const stats = {
     total: uniqueProducers,
+    totalDecls,
     active: activeDecls,
     activeProducers: producerCountByStatus('active'),
     suspended: statusStats.find(s => s.status === 'suspended')?.count || 0,

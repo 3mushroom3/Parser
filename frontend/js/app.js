@@ -459,6 +459,7 @@ async function loadStats() {
   try {
     const s = await apiFetch('/api/system/stats');
     document.getElementById('stTotal').textContent  = (s.total || 0).toLocaleString('ru');
+    document.getElementById('stTotalDecls').textContent = (s.totalDecls || 0).toLocaleString('ru') + ' деклараций';
     document.getElementById('stActive').textContent = (s.activeProducers || 0).toLocaleString('ru');
     document.getElementById('stActiveDecls').textContent = (s.active || 0).toLocaleString('ru') + ' деклараций';
     document.getElementById('stFarmers').textContent = (s.farmerProducers || 0).toLocaleString('ru');
