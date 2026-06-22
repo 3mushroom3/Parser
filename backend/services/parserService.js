@@ -171,6 +171,47 @@ async function runParser(apiClient, declarationService, config) {
     return { parsed, errors, hitApiLimit };
   }
 
+  function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 86400000); }
+  function addDays(dateStr, n) {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + n);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // FSA отдаёт максимум ~20 страниц на один запрос (RDS-APP-9995 на 21-й).
+  // Если окно упирается в этот лимит, делим его пополам по дням и пересканируем
+  // каждую половину рекурсивно — иначе декларации сверх ~2000 на окно
+  // молча терялись бы на каждом прогоне навсегда.
+  async function processWindow(from, to, newRecords, depth = 0) {
+    if (!to) {
+      // Открытое окно (без верхней границы даты) — дробить по дням нельзя,
+      // оставляем как раньше: просканировать и просто предупредить при лимите.
+      const { parsed, errors } = await runPageLoop(from, to, newRecords, from ? `${from}–сейчас` : null);
+      return { parsed, errors };
+    }
+
+    const label = `${from}–${to}`;
+    const { parsed, errors, hitApiLimit } = await runPageLoop(from, to, newRecords, label);
+    const totalDays = daysBetween(from, to) + 1;
+
+    if (hitApiLimit && totalDays > 1 && depth < 10) {
+      const half = Math.floor(totalDays / 2);
+      const firstTo = addDays(from, half - 1);
+      const secondFrom = addDays(from, half);
+      logger.warn(`Parser: окно ${label} превысило лимит страниц — делим на ${from}–${firstTo} и ${secondFrom}–${to}`);
+      await sleep(CONFIG.DELAY_MS);
+      const r1 = await processWindow(from, firstTo, newRecords, depth + 1);
+      await sleep(CONFIG.DELAY_MS);
+      const r2 = await processWindow(secondFrom, to, newRecords, depth + 1);
+      return { parsed: parsed + r1.parsed + r2.parsed, errors: errors + r1.errors + r2.errors };
+    }
+
+    if (hitApiLimit) {
+      logger.error(`Parser: окно ${label} (1 день) всё равно превышает лимит страниц FSA — часть деклараций за этот день может быть потеряна`);
+    }
+    return { parsed, errors };
+  }
+
   let windows;
   if (CONFIG.DATE_CHUNK > 0 && CONFIG.DATE_FROM) {
     windows = generateDateWindows(CONFIG.DATE_FROM, CONFIG.DATE_TO, CONFIG.DATE_CHUNK);
@@ -194,7 +235,7 @@ async function runParser(apiClient, declarationService, config) {
     const label = `${w.from}–${w.to || 'сейчас'}`;
     setStatus('running', `Окно ${i + 1}/${windows.length}: ${label}`, totalParsed, totalErrors);
 
-    const { parsed, errors } = await runPageLoop(w.from, w.to, newRecords, windows.length > 1 ? label : null);
+    const { parsed, errors } = await processWindow(w.from, w.to, newRecords);
     totalParsed += parsed;
     totalErrors += errors;
 
