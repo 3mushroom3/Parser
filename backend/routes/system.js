@@ -41,10 +41,17 @@ router.get('/stats', (req, res) => {
     FROM declarations WHERE farmerType = ?
   `).get(type).c;
   const declCountByType = (type) => db.prepare('SELECT COUNT(*) as c FROM declarations WHERE farmerType = ?').get(type).c;
+  const producerCountByStatus = (status) => db.prepare(`
+    SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
+    FROM declarations WHERE status = ?
+  `).get(status).c;
+
+  const activeDecls = statusStats.find(s => s.status === 'active')?.count || 0;
 
   const stats = {
     total: uniqueProducers,
-    active: statusStats.find(s => s.status === 'active')?.count || 0,
+    active: activeDecls,
+    activeProducers: producerCountByStatus('active'),
     suspended: statusStats.find(s => s.status === 'suspended')?.count || 0,
     expired: statusStats.find(s => s.status === 'expired')?.count || 0,
     manual: sourceStats.find(s => s.source === 'manual')?.count || 0,
