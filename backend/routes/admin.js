@@ -141,4 +141,11 @@ router.post('/archive-old', auth, requireAdmin, (req, res) => {
   res.json({ ok: true, updated, archiveAfterDays: ARCHIVE_AFTER_DAYS });
 });
 
+// POST /api/admin/reset-parser-checkpoint — забыть, до какого окна дошёл парсер,
+// следующий прогон пересканирует историю с FSA_DATE_FROM заново
+router.post('/reset-parser-checkpoint', auth, requireAdmin, (req, res) => {
+  db.prepare('UPDATE status SET lastCompletedDate = NULL WHERE id = 1').run();
+  res.json({ ok: true });
+});
+
 module.exports = router;

@@ -1703,6 +1703,14 @@ async function runArchiveOld() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function resetParserCheckpoint() {
+  if (!confirm('Парсер заново пройдёт всю историю с FSA_DATE_FROM — это надолго. Точно сбросить чекпоинт?')) return;
+  try {
+    await apiFetch('/api/admin/reset-parser-checkpoint', { method: 'POST' });
+    showAlert('Чекпоинт сброшен — следующий прогон парсера начнётся с начала');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function runDedupeInn() {
   try {
     const r = await apiFetch('/api/admin/dedupe-inn', { method: 'POST' });

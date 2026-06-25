@@ -219,6 +219,18 @@ async function runParser(apiClient, declarationService, config) {
     windows = [{ from: CONFIG.DATE_FROM, to: CONFIG.DATE_TO }];
   }
 
+  // Каждый перезапуск процесса (деплой, pm2 restart) иначе откатывал бы
+  // прогон обратно к DATE_FROM — продолжаем с того места, где остановились
+  // в прошлый раз, а не пересканируем уже пройденные окна с нуля.
+  const forceRescan = String(process.env.FSA_FORCE_RESCAN || '').toLowerCase() === 'true';
+  const prevStatus = db.prepare('SELECT lastCompletedDate FROM status WHERE id = 1').get();
+  const resumeFrom = !forceRescan && prevStatus?.lastCompletedDate ? prevStatus.lastCompletedDate : null;
+  if (resumeFrom) {
+    const skipped = windows.filter(w => w.to && w.to <= resumeFrom).length;
+    windows = windows.filter(w => !w.to || w.to > resumeFrom);
+    if (skipped > 0) logger.info(`Parser: продолжаем с чекпоинта ${resumeFrom} — пропущено ${skipped} уже пройденных окон`);
+  }
+
   setStatus('running', 'Авторизация...');
   const token = await apiClient.ensureAuth();
   if (!token) {
@@ -238,6 +250,13 @@ async function runParser(apiClient, declarationService, config) {
     const { parsed, errors } = await processWindow(w.from, w.to, newRecords);
     totalParsed += parsed;
     totalErrors += errors;
+
+    // Чекпоинт: окно пройдено (даже если что-то внутри не дотянули) — при
+    // следующем запуске/перезапуске не возвращаемся к нему заново.
+    // Не чекпоинтим окно, которое включает сегодня — иначе декларации,
+    // опубликованные позже в течение того же дня, перестанут подхватываться.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (w.to && w.to < todayStr) db.prepare('UPDATE status SET lastCompletedDate = ? WHERE id = 1').run(w.to);
 
     if (i < windows.length - 1) await sleep(CONFIG.DELAY_MS);
   }

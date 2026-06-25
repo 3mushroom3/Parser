@@ -109,7 +109,8 @@ db.exec(`
     message TEXT,
     parsed INTEGER,
     errors INTEGER,
-    time TEXT
+    time TEXT,
+    lastCompletedDate TEXT
   );
 
   CREATE TABLE IF NOT EXISTS notes (
@@ -176,6 +177,10 @@ if (!userCols.includes('subscriptionPlan')) {
 }
 if (!userCols.includes('tgChatId')) {
   db.exec('ALTER TABLE users ADD COLUMN tgChatId TEXT');
+}
+const statusCols = db.prepare("PRAGMA table_info(status)").all().map(c => c.name);
+if (!statusCols.includes('lastCompletedDate')) {
+  db.exec('ALTER TABLE status ADD COLUMN lastCompletedDate TEXT');
 }
 
 module.exports = db;

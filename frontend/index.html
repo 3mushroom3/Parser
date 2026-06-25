@@ -483,6 +483,12 @@
     <p style="font-size:12px;color:var(--muted);margin:-4px 0 0">ФСА не понижает статус декларации, даже если ей много лет — переводим в статус "В архиве" декларации старше года, которые ФСА всё ещё помечает как "действует". Происходит автоматически после каждого прогона парсера; кнопка — для разового прохода по уже накопленным данным.</p>
 
     <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <h3 style="font-size:14px;font-weight:700">Чекпоинт парсера</h3>
+      <button class="btn btn-sm btn-warn" onclick="resetParserCheckpoint()">↺ Сбросить чекпоинт</button>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:-4px 0 0">Парсер запоминает, до какой даты дошёл, и не пересканирует пройденные окна при перезапуске/деплое. Нажмите, если нужно заново пройти всю историю с <code>FSA_DATE_FROM</code> (например, чтобы перепроверить статусы старых деклараций).</p>
+
+    <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h3 style="font-size:14px;font-weight:700">Дубли производителей</h3>
       <button class="btn btn-sm" onclick="runDedupeInn()">🔗 Объединить по ИНН</button>
     </div>
