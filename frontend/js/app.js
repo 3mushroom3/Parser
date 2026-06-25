@@ -390,6 +390,7 @@ function renderTable(data) {
     const hasMany = p.decls.length > 1;
     const firstProduct = (p.decls[0]?.productName || '—').slice(0, 60);
     const badge = ftLabel[p.farmerType] || '';
+    const dormantBadge = p.dormant ? `<span class="ft" style="background:#F1F1F3;color:var(--muted)" title="Последняя декларация: ${p.lastDeclDate||'—'}">⏸ &gt;1.5 года без деклараций</span>` : '';
     const innHint = p.inn ? `<span style="font-size:10px;color:var(--muted);display:block">ИНН: ${p.inn}</span>` : '';
     const isFav = isFavorite(p.inn, p.name);
     const safeInn = (p.inn||'').replace(/'/g,"\\'");
@@ -411,7 +412,7 @@ function renderTable(data) {
       <tr class="producer-row" id="prod_${page}_${idx}" onclick="toggleProducer(${page},${idx},${p.decls.length})" style="cursor:${hasMany?'pointer':'default'}">
         <td style="text-align:center;color:var(--muted);font-size:11px;user-select:none" id="arr_${page}_${idx}">${hasMany?'▶':''}</td>
         <td title="${(p.name).replace(/"/g,'&quot;')}" style="font-weight:500">
-          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name, _csManuf)}${badge}</span>${innHint}
+          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name, _csManuf)}${badge}${dormantBadge}</span>${innHint}
         </td>
         <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—', _csAddr)}</td>
         <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
@@ -880,6 +881,7 @@ async function openCompany(inn, name) {
   document.getElementById('compModalName').textContent = p.name || name || '—';
   document.getElementById('compModalSub').innerHTML = [
     p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
+    p.dormant ? `<span style="color:var(--warn)">⏸ &gt;1.5 года без деклараций (с ${p.lastDeclDate||'—'})</span>` : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
   State.curCompDecls = p.decls || [];

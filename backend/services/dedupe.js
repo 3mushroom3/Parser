@@ -5,35 +5,67 @@
  * известен ровно один ИНН, проставляем его записям, где ИНН пуст.
  * Группы с несколькими РАЗНЫМИ ИНН на одно имя+адрес не трогаем — это может
  * быть смена ИНН или просто два разных юрлица по одному адресу.
+ *
+ * Точный адрес у ФСА часто отличается посимвольно между декларациями одной
+ * и той же компании (разное написание "д." vs "дом", лишние пробелы и т.п.),
+ * из-за чего точное совпадение имя+адрес не срабатывает. Второй проход
+ * добавляет более мягкий ключ имя+почтовый индекс (первые 6 цифр в адресе)
+ * для записей, которые первый проход не нашёл.
  */
 const db = require('./db');
+
+function extractPostalCode(address) {
+  const m = (address || '').match(/\b(\d{6})\b/);
+  return m ? m[1] : '';
+}
 
 function backfillMissingInn() {
   const rows = db.prepare(`
     SELECT id, inn,
       lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
-      lower_u(TRIM(address)) as addrKey
+      lower_u(TRIM(address)) as addrKey,
+      address
     FROM declarations
   `).all();
 
-  const groups = new Map();
+  const exactGroups = new Map();
+  const postalGroups = new Map();
   for (const r of rows) {
     if (!r.nameKey) continue;
-    const key = r.nameKey + '||' + (r.addrKey || '');
-    if (!groups.has(key)) groups.set(key, { innSet: new Set(), missingIds: [] });
-    const g = groups.get(key);
     const inn = (r.inn || '').trim();
-    if (inn) g.innSet.add(inn);
-    else g.missingIds.push(r.id);
+
+    const exactKey = r.nameKey + '||' + (r.addrKey || '');
+    if (!exactGroups.has(exactKey)) exactGroups.set(exactKey, { innSet: new Set(), missingIds: [] });
+    const eg = exactGroups.get(exactKey);
+    if (inn) eg.innSet.add(inn); else eg.missingIds.push(r.id);
+
+    const postal = extractPostalCode(r.address);
+    if (postal) {
+      const postalKey = r.nameKey + '||' + postal;
+      if (!postalGroups.has(postalKey)) postalGroups.set(postalKey, { innSet: new Set(), missingIds: [] });
+      const pg = postalGroups.get(postalKey);
+      if (inn) pg.innSet.add(inn); else pg.missingIds.push(r.id);
+    }
   }
 
   const update = db.prepare('UPDATE declarations SET inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
   let updated = 0;
+  const resolvedIds = new Set();
   const tx = db.transaction(() => {
-    for (const g of groups.values()) {
+    for (const g of exactGroups.values()) {
       if (g.innSet.size === 1 && g.missingIds.length > 0) {
         const [inn] = g.innSet;
-        for (const id of g.missingIds) { update.run(inn, id); updated++; }
+        for (const id of g.missingIds) { update.run(inn, id); resolvedIds.add(id); updated++; }
+      }
+    }
+    for (const g of postalGroups.values()) {
+      if (g.innSet.size !== 1) continue;
+      const [inn] = g.innSet;
+      for (const id of g.missingIds) {
+        if (resolvedIds.has(id)) continue;
+        update.run(inn, id);
+        resolvedIds.add(id);
+        updated++;
       }
     }
   });

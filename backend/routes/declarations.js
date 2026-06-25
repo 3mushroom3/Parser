@@ -5,6 +5,8 @@ const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const exportFromJSON = require('json-to-csv-export');
 
+const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
+
 function extractCity(address) {
   if (!address) return null;
   const m = address.match(/(?:^|[,;\s])([Гг])(?:\.о?\.?\s*|\s+)([А-ЯЁа-яё][А-ЯЁа-яё\-]+(?:\s+[А-ЯЁа-яё][А-ЯЁа-яё\-]+)*)/);
@@ -91,6 +93,8 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
     // Fetch limited decl details for these IDs
     const decls = db.prepare(`SELECT id, regDate, endDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
 
+    const daysSinceLastDecl = p.lastRegDate ? Math.floor((Date.now() - new Date(p.lastRegDate).getTime()) / 86400000) : null;
+
     return {
       inn: p.inn || '',
       name: (p.shortName || p.applicantName || p.lastName || '—').trim(),
@@ -98,6 +102,8 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
       phone: p.phone || '',
       farmerType: p.farmerType || 'unknown',
       okved: p.okved || '',
+      lastDeclDate: p.lastRegDate || '',
+      dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
       decls
     };
   });

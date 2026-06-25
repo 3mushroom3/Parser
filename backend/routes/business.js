@@ -4,6 +4,8 @@ const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 
+const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
+
 router.get('/company', auth, requireSubscription, (req, res) => {
   const { inn, name } = req.query;
   if (!inn && !name) return res.status(400).json({ error: 'inn or name required' });
@@ -22,6 +24,9 @@ router.get('/company', auth, requireSubscription, (req, res) => {
   const companyInfo = db.prepare('SELECT * FROM companies WHERE id = ?').get(key);
   const contacts = db.prepare('SELECT * FROM contacts WHERE companyId = ? ORDER BY id DESC').all(key);
 
+  const lastDeclDate = records.reduce((max, r) => (r.regDate && r.regDate > max ? r.regDate : max), '');
+  const daysSinceLastDecl = lastDeclDate ? Math.floor((Date.now() - new Date(lastDeclDate).getTime()) / 86400000) : null;
+
   res.json({
     found: true,
     inn: first.inn || '',
@@ -37,6 +42,8 @@ router.get('/company', auth, requireSubscription, (req, res) => {
     description: companyInfo?.description || '',
     notes: companyInfo?.notes || '',
     contacts,
+    lastDeclDate,
+    dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
     decls: records
       .map(r => ({
         id: r.id,
