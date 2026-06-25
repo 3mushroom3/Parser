@@ -33,6 +33,7 @@ const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const notesRoutes = require('./routes/notes');
 const externalRoutes = require('./routes/external');
+const feedbackRoutes = require('./routes/feedback');
 const { sendMessageTo } = require('./services/telegramBot');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 
@@ -70,6 +71,7 @@ app.use(cors({
 app.use(morgan('short', { stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
+app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
 
 // Swagger Setup (only in development)
 const swaggerOptions = {
@@ -104,6 +106,7 @@ app.use('/api/system', systemRoutes);
 app.use('/api/enrich', enrichRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/external', externalRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);

@@ -86,6 +86,7 @@
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
       <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
       <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
+      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')">🐞 Обращения</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
     </nav>
     <div class="hdr-r">
@@ -320,6 +321,34 @@
       <p>Нет заметок.<br>Создайте заметку с ссылками на декларации и настройте Telegram-уведомление.</p>
     </div>
     <div class="notes-grid" id="notesGrid"></div>
+  </div>
+
+  <!-- FEEDBACK PAGE -->
+  <div class="panel-page" id="pg-feedback">
+    <div class="panel-hdr">
+      <h2>🐞 Обращения</h2>
+      <button class="btn btn-p btn-sm" onclick="openFeedbackForm()">+ Сообщить о проблеме</button>
+    </div>
+
+    <div id="feedbackForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:18px">
+      <input id="fbTitle" class="fi" style="width:100%;margin-bottom:8px" placeholder="Коротко: что случилось?">
+      <textarea id="fbDescription" class="fi" style="width:100%;min-height:80px;resize:vertical;margin-bottom:8px" placeholder="Подробности (необязательно)"></textarea>
+      <div id="fbDropZone" tabindex="0" style="border:2px dashed var(--border);border-radius:var(--r);padding:14px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px" onclick="document.getElementById('fbFileInput').click()">
+        📋 Вставьте скриншот (Ctrl+V) или нажмите, чтобы выбрать файл
+        <input type="file" id="fbFileInput" accept="image/*" style="display:none" onchange="onFeedbackFileSelected(this.files[0])">
+      </div>
+      <div id="fbPreviewWrap" style="display:none;margin-bottom:8px">
+        <img id="fbPreview" style="max-width:200px;max-height:140px;border-radius:var(--r);border:1px solid var(--border)">
+        <button class="btn btn-sm" onclick="clearFeedbackImage()">✕ Убрать изображение</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p btn-sm" onclick="submitFeedback()">Отправить</button>
+        <button class="btn btn-sm" onclick="document.getElementById('feedbackForm').style.display='none'">Отмена</button>
+      </div>
+    </div>
+
+    <div id="feedbackEmpty" class="empty" style="display:none"><div class="ico">🐞</div><p>Обращений пока нет.</p></div>
+    <div class="item-list" id="feedbackList"></div>
   </div>
 
   <!-- PROFILE PAGE -->

@@ -144,6 +144,20 @@ db.exec(`
     lastUsedAt DATETIME
   );
 
+  CREATE TABLE IF NOT EXISTS feedback (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    username TEXT,
+    title TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    imagePath TEXT,
+    status TEXT DEFAULT 'new',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
+
   CREATE INDEX IF NOT EXISTS idx_contacts_companyId ON contacts(companyId);
   CREATE INDEX IF NOT EXISTS idx_decl_regDate ON declarations(regDate);
   CREATE INDEX IF NOT EXISTS idx_decl_status ON declarations(status);

@@ -260,6 +260,7 @@ function showPage(name) {
   document.getElementById('pg-folders').className       = 'panel-page' + (name === 'folders'   ? ' active' : '');
   document.getElementById('pg-admin').className         = 'panel-page' + (name === 'admin'     ? ' active' : '');
   document.getElementById('pg-profile').className       = 'panel-page' + (name === 'profile'   ? ' active' : '');
+  document.getElementById('pg-feedback').className      = 'panel-page' + (name === 'feedback'  ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
@@ -277,6 +278,7 @@ function showPage(name) {
   if (name === 'folders') loadFolders();
   if (name === 'admin') loadAdminData();
   if (name === 'profile') loadProfile();
+  if (name === 'feedback') loadFeedback();
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
@@ -1249,6 +1251,125 @@ async function toggleFavCurrentDetail() {
 }
 
 // ── Profile ───────────────────────────────────────────────────────────────
+// ── Feedback (обращения) ────────────────────────────────────────────────────
+let _fbImageBlob = null;
+let _fbListenersBound = false;
+
+function openFeedbackForm() {
+  document.getElementById('feedbackForm').style.display = 'block';
+  document.getElementById('fbTitle').value = '';
+  document.getElementById('fbDescription').value = '';
+  clearFeedbackImage();
+  bindFeedbackPasteListener();
+  document.getElementById('fbTitle').focus();
+}
+
+function bindFeedbackPasteListener() {
+  if (_fbListenersBound) return;
+  _fbListenersBound = true;
+  const zone = document.getElementById('fbDropZone');
+  zone.addEventListener('paste', (e) => {
+    const items = e.clipboardData?.items || [];
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        onFeedbackFileSelected(item.getAsFile());
+        e.preventDefault();
+        break;
+      }
+    }
+  });
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = 'var(--accent)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = 'var(--border)'; });
+  zone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    zone.style.borderColor = 'var(--border)';
+    const file = e.dataTransfer?.files?.[0];
+    if (file && file.type.startsWith('image/')) onFeedbackFileSelected(file);
+  });
+}
+
+function onFeedbackFileSelected(file) {
+  if (!file) return;
+  _fbImageBlob = file;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('fbPreview').src = reader.result;
+    document.getElementById('fbPreviewWrap').style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearFeedbackImage() {
+  _fbImageBlob = null;
+  document.getElementById('fbPreviewWrap').style.display = 'none';
+  document.getElementById('fbFileInput').value = '';
+}
+
+async function submitFeedback() {
+  const title = document.getElementById('fbTitle').value.trim();
+  if (!title) { showAlert('Опишите проблему коротко в заголовке', 'err'); return; }
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', document.getElementById('fbDescription').value);
+  if (_fbImageBlob) fd.append('image', _fbImageBlob, _fbImageBlob.name || 'screenshot.png');
+
+  try {
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: State.token ? { 'Authorization': `Bearer ${State.token}` } : {},
+      body: fd,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Ошибка отправки');
+    }
+    document.getElementById('feedbackForm').style.display = 'none';
+    showAlert('Отправлено, спасибо!');
+    loadFeedback();
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+const FB_STATUS_LABEL = { new: '🆕 Новое', in_progress: '🔧 В работе', resolved: '✅ Решено' };
+
+async function loadFeedback() {
+  const isAdmin = State.user?.role === 'admin';
+  try {
+    const items = await apiFetch(isAdmin ? '/api/feedback' : '/api/feedback/mine');
+    const listEl = document.getElementById('feedbackList');
+    document.getElementById('feedbackEmpty').style.display = items.length ? 'none' : 'block';
+    listEl.innerHTML = items.map(it => `
+      <div class="item-card" style="align-items:flex-start;flex-wrap:wrap">
+        ${it.imagePath ? `<a href="${it.imagePath}" target="_blank"><img src="${it.imagePath}" style="width:64px;height:64px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border)"></a>` : '<span style="font-size:24px">🐞</span>'}
+        <div class="item-card-info" style="min-width:200px">
+          <div class="item-card-name">${escHtml(it.title)}</div>
+          ${it.description ? `<div class="item-card-sub" style="white-space:pre-wrap">${escHtml(it.description)}</div>` : ''}
+          <div class="item-card-sub">${isAdmin ? escHtml(it.username || '') + ' · ' : ''}${new Date(it.createdAt).toLocaleString('ru-RU')}</div>
+        </div>
+        ${isAdmin ? `
+          <select class="fi" style="width:auto;font-size:12px" onchange="updateFeedbackStatus(${it.id}, this.value)">
+            ${Object.entries(FB_STATUS_LABEL).map(([v, l]) => `<option value="${v}" ${it.status === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+          <button class="btn btn-dng btn-sm" onclick="deleteFeedback(${it.id})">✕</button>
+        ` : `<span class="ft" style="background:#F1F1F3;color:var(--text)">${FB_STATUS_LABEL[it.status] || it.status}</span>`}
+      </div>`).join('');
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function updateFeedbackStatus(id, status) {
+  try {
+    await apiFetch('/api/feedback/' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function deleteFeedback(id) {
+  if (!confirm('Удалить обращение?')) return;
+  try {
+    await apiFetch('/api/feedback/' + id, { method: 'DELETE' });
+    loadFeedback();
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
 async function loadProfile() {
   try {
     const [me, sub] = await Promise.all([
