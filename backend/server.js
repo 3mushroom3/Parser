@@ -13,6 +13,7 @@ const cron = require('node-cron');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const logger = require('./services/logger');
 const db = require('./services/db');
@@ -179,9 +180,13 @@ if (process.env.NODE_ENV !== 'test') {
     // Create default admin if none exists
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
     if (userCount === 0) {
-      const hashed = bcrypt.hashSync('admin', 12);
+      const tempPassword = crypto.randomBytes(9).toString('base64url'); // ~12 случайных символов
+      const hashed = bcrypt.hashSync(tempPassword, 12);
       db.prepare('INSERT INTO users (username, password, role) VALUES (?, ?, ?)').run('admin', hashed, 'admin');
-      logger.warn('⚠️  Создан дефолтный аккаунт admin/admin — НЕМЕДЛЕННО СМЕНИТЕ ПАРОЛЬ через /профиль!');
+      logger.warn('========================================================================');
+      logger.warn(`⚠️  Создан аккаунт admin. Пароль (показывается только один раз): ${tempPassword}`);
+      logger.warn('⚠️  Запишите его и смените через /профиль при первом входе!');
+      logger.warn('========================================================================');
     }
 
     // Start cron

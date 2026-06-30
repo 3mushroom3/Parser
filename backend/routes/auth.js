@@ -3,17 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
-
-const _secret = (() => {
-  const s = process.env.JWT_SECRET;
-  if (!s) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error('[SECURITY] КРИТИЧНО: JWT_SECRET не задан! Добавьте в .env: JWT_SECRET=<random-64-chars>');
-    }
-    return 'dev-only-insecure-secret-change-me';
-  }
-  return s;
-})();
+const _secret = require('../config/jwtSecret');
 
 const MIN_PASSWORD_LEN = 8;
 
