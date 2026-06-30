@@ -4,8 +4,12 @@ const db = require('../services/db');
 const auth = require('../middleware/auth');
 
 router.get('/', auth, (req, res) => {
-  const folders = db.prepare('SELECT * FROM folders').all();
-  const folderItems = db.prepare('SELECT * FROM folder_items').all();
+  const uid = req.user.id;
+  const folders = db.prepare('SELECT * FROM folders WHERE userId = ?').all(uid);
+  const folderIds = folders.map(f => f.id);
+  const folderItems = folderIds.length
+    ? db.prepare(`SELECT * FROM folder_items WHERE folderId IN (${folderIds.map(() => '?').join(',')})`).all(...folderIds)
+    : [];
 
   const foldersWithItems = folders.map(f => ({
     ...f,
@@ -20,14 +24,14 @@ router.post('/', auth, (req, res) => {
   if (!name) return res.status(400).json({ error: 'name обязателен' });
 
   const id = Date.now().toString();
-  db.prepare('INSERT INTO folders (id, name, parentId) VALUES (?, ?, ?)').run(id, name.trim(), parentId || null);
+  db.prepare('INSERT INTO folders (id, userId, name, parentId) VALUES (?, ?, ?, ?)').run(id, req.user.id, name.trim(), parentId || null);
 
   const folder = db.prepare('SELECT * FROM folders WHERE id = ?').get(id);
   res.status(201).json({ ...folder, items: [] });
 });
 
 router.delete('/:id', auth, (req, res) => {
-  db.prepare('DELETE FROM folders WHERE id = ?').run(req.params.id);
+  db.prepare('DELETE FROM folders WHERE id = ? AND userId = ?').run(req.params.id, req.user.id);
   res.json({ ok: true });
 });
 
@@ -35,8 +39,11 @@ router.post('/:id/items', auth, (req, res) => {
   const { type, value, label } = req.body || {};
   if (!type || !value) return res.status(400).json({ error: 'type и value обязательны' });
 
-  const existing = db.prepare('SELECT id FROM folder_items WHERE folderId = ? AND type = ? AND value = ?').get(req.params.id, type, value);
+  // проверяем что папка принадлежит этому пользователю
+  const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND userId = ?').get(req.params.id, req.user.id);
+  if (!folder) return res.status(403).json({ error: 'Папка не найдена' });
 
+  const existing = db.prepare('SELECT id FROM folder_items WHERE folderId = ? AND type = ? AND value = ?').get(req.params.id, type, value);
   if (!existing) {
     db.prepare('INSERT INTO folder_items (folderId, type, value, label) VALUES (?, ?, ?, ?)').run(
       req.params.id, type, value, label || null
@@ -48,6 +55,9 @@ router.post('/:id/items', auth, (req, res) => {
 
 router.delete('/:id/items', auth, (req, res) => {
   const { type, value } = req.body || {};
+  const folder = db.prepare('SELECT id FROM folders WHERE id = ? AND userId = ?').get(req.params.id, req.user.id);
+  if (!folder) return res.status(403).json({ error: 'Папка не найдена' });
+
   db.prepare('DELETE FROM folder_items WHERE folderId = ? AND type = ? AND value = ?').run(req.params.id, type, value);
   res.json({ ok: true });
 });

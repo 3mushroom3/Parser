@@ -116,7 +116,7 @@ router.delete('/company/contacts/:id', auth, (req, res) => {
 });
 
 router.get('/favorites', auth, (req, res) => {
-  const favorites = db.prepare('SELECT * FROM favorites').all();
+  const favorites = db.prepare('SELECT * FROM favorites WHERE userId = ?').all(req.user.id);
   res.json(favorites);
 });
 
@@ -125,7 +125,7 @@ router.post('/favorites', auth, (req, res) => {
   if (!name) return res.status(400).json({ error: 'name обязателен' });
 
   try {
-    db.prepare('INSERT OR IGNORE INTO favorites (inn, name) VALUES (?, ?)').run(inn || '', name);
+    db.prepare('INSERT OR IGNORE INTO favorites (userId, inn, name) VALUES (?, ?, ?)').run(req.user.id, inn || '', name);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -134,7 +134,7 @@ router.post('/favorites', auth, (req, res) => {
 
 router.delete('/favorites', auth, (req, res) => {
   const { inn, name } = req.body || {};
-  db.prepare('DELETE FROM favorites WHERE (inn = ? AND name = ?)').run(inn || '', name);
+  db.prepare('DELETE FROM favorites WHERE userId = ? AND inn = ? AND name = ?').run(req.user.id, inn || '', name);
   res.json({ ok: true });
 });
 

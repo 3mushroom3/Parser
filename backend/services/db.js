@@ -83,14 +83,16 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS favorites (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL DEFAULT 1,
     inn TEXT,
     name TEXT,
     addedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(inn, name)
+    UNIQUE(userId, inn, name)
   );
 
   CREATE TABLE IF NOT EXISTS folders (
     id TEXT PRIMARY KEY,
+    userId INTEGER NOT NULL DEFAULT 1,
     name TEXT NOT NULL,
     parentId TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -197,6 +199,29 @@ if (!companiesCols.includes('regDate')) {
 }
 if (!companiesCols.includes('autoNote')) {
   db.exec('ALTER TABLE companies ADD COLUMN autoNote TEXT');
+}
+const favCols = db.prepare("PRAGMA table_info(favorites)").all().map(c => c.name);
+if (!favCols.includes('userId')) {
+  db.exec('ALTER TABLE favorites ADD COLUMN userId INTEGER NOT NULL DEFAULT 1');
+  // сбрасываем UNIQUE, т.к. он изменился (теперь userId+inn+name)
+  // в SQLite нельзя ALTER UNIQUE — пересоздаём через временную таблицу
+  db.exec(`
+    CREATE TABLE favorites_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL DEFAULT 1,
+      inn TEXT, name TEXT,
+      addedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(userId, inn, name)
+    );
+    INSERT OR IGNORE INTO favorites_new (id, userId, inn, name, addedAt)
+      SELECT id, userId, inn, name, addedAt FROM favorites;
+    DROP TABLE favorites;
+    ALTER TABLE favorites_new RENAME TO favorites;
+  `);
+}
+const folderCols = db.prepare("PRAGMA table_info(folders)").all().map(c => c.name);
+if (!folderCols.includes('userId')) {
+  db.exec('ALTER TABLE folders ADD COLUMN userId INTEGER NOT NULL DEFAULT 1');
 }
 
 module.exports = db;
