@@ -632,13 +632,13 @@ function renderMarkers(cities, totalDecl) {
 function buildMapPopup(c) {
   const orgsHtml = (c.orgs || []).map(o => {
     const declsHtml = (o.decls || []).map(d => {
-      const label = d.product || 'Декларация';
+      const label = escHtml(d.product || 'Декларация');
       const safeId = d.id.replace(/'/g, '');
       return `<div onclick="mapOpenDecl('${safeId}')" style="cursor:pointer;padding:3px 8px;margin:2px 0;border-radius:4px;font-size:11px;color:#185FA5;background:#eef4ff;line-height:1.4" onmouseover="this.style.background='#d9e8ff'" onmouseout="this.style.background='#eef4ff'">${label}</div>`;
     }).join('');
     return `
       <div style="padding:7px 0;border-bottom:1px solid #f0f2f5">
-        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${o.name} <span style="font-weight:400;color:#6b7280">${o.count > 1 ? '(' + o.count + ')' : ''}</span></div>
+        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${escHtml(o.name)} <span style="font-weight:400;color:#6b7280">${o.count > 1 ? '(' + o.count + ')' : ''}</span></div>
         ${declsHtml}
       </div>`;
   }).join('');
@@ -787,11 +787,11 @@ function renderFolderItems(id, items) {
   const listEl = document.getElementById('folderItems');
   emptyEl.style.display = items.length ? 'none' : 'block';
   listEl.innerHTML = items.map(item => {
-    const safeVal = (item.value||'').replace(/'/g,"\\'");
+    const safeVal = (item.value||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
     const isInn = item.type === 'inn';
     const isDecl = item.type === 'decl';
     const icon = isInn ? '🏢' : '📄';
-    const displayName = item.label || item.value;
+    const displayName = escHtml(item.label || item.value);
     return `
     <div class="item-card">
       <span style="font-size:18px">${icon}</span>
@@ -1007,9 +1007,9 @@ function renderCompContacts() {
   el.innerHTML = contacts.map(c => `
     <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px">
       <div style="flex:1;min-width:0">
-        <b>${(c.name||'—')}</b>${c.role ? ' · ' + c.role : ''}
-        ${c.phone ? `<div style="color:var(--text)">${c.phone}</div>` : ''}
-        ${c.comment ? `<div style="color:var(--muted);font-size:12px">${c.comment}</div>` : ''}
+        <b>${escHtml(c.name||'—')}</b>${c.role ? ' · ' + escHtml(c.role) : ''}
+        ${c.phone ? `<div style="color:var(--text)">${escHtml(c.phone)}</div>` : ''}
+        ${c.comment ? `<div style="color:var(--muted);font-size:12px">${escHtml(c.comment)}</div>` : ''}
       </div>
       <button class="btn btn-sm" onclick="deleteCompContact(${c.id})" title="Удалить">✕</button>
     </div>`).join('');
@@ -1227,9 +1227,10 @@ async function openDetail(id) {
     const isFav = isFavorite(r.inn, r.shortName);
     const declLabel = (r.declNumber || r.id).replace(/'/g,"\\'");
     const declUrl = (r.fsaUrl || '').replace(/'/g,"\\'");
+    const isAdmin = State.user?.role === 'admin';
     document.getElementById('detFoot').innerHTML = `
-      <button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>
-      <button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>
+      ${isAdmin ? `<button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>` : ''}
+      ${isAdmin ? `<button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>` : ''}
       <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
       <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
       <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>

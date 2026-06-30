@@ -89,16 +89,35 @@ router.get('/check/:paymentId', auth, async (req, res) => {
 });
 
 // POST /api/payment/webhook — вебхук от ЮКасса (настроить в личном кабинете ЮКасса)
-router.post('/webhook', express.json(), (req, res) => {
+//
+// Тело вебхука не подписано и не аутентифицировано — это публичный
+// неавторизованный эндпоинт. НЕЛЬЗЯ активировать подписку по одним лишь
+// данным из POST-тела: любой может создать платёж через /create, узнать
+// свой paymentId, и затем подделать вебхук с "succeeded", получив подписку
+// бесплатно. Поэтому статус всегда перепроверяется напрямую у ЮКассы по
+// нашим серверным ключам — подделать ответ ЮКассы атакующий не может.
+router.post('/webhook', express.json(), async (req, res) => {
   const event = req.body;
   if (!event || event.type !== 'payment.succeeded') return res.sendStatus(200);
 
+  const yPaymentId = event.object?.id;
   const meta = event.object?.metadata;
-  if (!meta?.paymentId || !meta?.userId || !meta?.planId) return res.sendStatus(200);
+  if (!yPaymentId || !meta?.paymentId || !meta?.userId || !meta?.planId) return res.sendStatus(200);
 
-  const payment = db.prepare('SELECT * FROM payments WHERE id = ?').get(meta.paymentId);
-  if (payment && payment.status !== 'succeeded') {
-    activateSubscription(Number(meta.userId), meta.planId, meta.paymentId);
+  const payment = db.prepare('SELECT * FROM payments WHERE id = ? AND providerPaymentId = ?').get(meta.paymentId, yPaymentId);
+  if (!payment || payment.status === 'succeeded') return res.sendStatus(200);
+
+  if (!yukassa.isConfigured()) return res.sendStatus(200);
+
+  try {
+    const verified = await yukassa.getPayment(yPaymentId);
+    if (verified.status === 'succeeded' && Number(verified.amount?.value) === Number(payment.amount)) {
+      activateSubscription(Number(meta.userId), meta.planId, meta.paymentId);
+    } else {
+      console.warn(`[payment webhook] статус/сумма не подтверждены ЮКассой для ${yPaymentId}: status=${verified.status}`);
+    }
+  } catch (err) {
+    console.error('[payment webhook] ошибка проверки платежа:', err.message);
   }
   res.sendStatus(200);
 });

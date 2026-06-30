@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
+const requireAdmin = require('../middleware/requireAdmin');
 const exportFromJSON = require('json-to-csv-export');
 
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
@@ -247,7 +248,7 @@ router.get('/:id', auth, requireSubscription, (req, res) => {
   });
 });
 
-router.post('/', auth, (req, res) => {
+router.post('/', auth, requireAdmin, (req, res) => {
   const rec = {
     id: 'manual_' + Date.now(),
     source: 'manual',
@@ -269,7 +270,7 @@ router.post('/', auth, (req, res) => {
   res.status(201).json(rec);
 });
 
-router.put('/:id', auth, (req, res) => {
+router.put('/:id', auth, requireAdmin, (req, res) => {
   const item = db.prepare('SELECT * FROM declarations WHERE id = ?').get(req.params.id);
   if (!item) return res.status(404).json({ error: 'Не найдено' });
 
@@ -304,7 +305,7 @@ router.put('/:id', auth, (req, res) => {
   });
 });
 
-router.delete('/:id', auth, (req, res) => {
+router.delete('/:id', auth, requireAdmin, (req, res) => {
   const info = db.prepare('DELETE FROM declarations WHERE id = ? OR fsaId = ?').run(req.params.id, req.params.id);
   if (info.changes === 0) return res.status(404).json({ error: 'Не найдено' });
   res.json({ ok: true });
