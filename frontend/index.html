@@ -525,7 +525,12 @@
   <div class="panel-page" id="pg-folders">
     <div class="panel-hdr">
       <h2>📁 Папки</h2>
-      <button class="btn btn-p btn-sm" id="folderCreateBtn" onclick="createFolderCtx()">+ Новая папка</button>
+      <div id="folderCreateForm" style="display:none;align-items:center;gap:6px">
+        <input id="folderCreateInput" class="fi" style="width:200px" placeholder="Название папки…" onkeydown="if(event.key==='Enter')submitFolderCreate();if(event.key==='Escape')cancelFolderCreate()">
+        <button class="btn btn-p btn-sm" onclick="submitFolderCreate()">Создать</button>
+        <button class="btn btn-sm" onclick="cancelFolderCreate()">✕</button>
+      </div>
+      <button class="btn btn-p btn-sm" id="folderCreateBtn" onclick="openFolderCreate()">+ Новая папка</button>
     </div>
     <div id="foldersEmpty" class="empty" style="display:none"><div class="ico">📁</div><p>Нет папок. Создайте первую папку.</p></div>
     <div class="folder-grid" id="folderGrid"></div>

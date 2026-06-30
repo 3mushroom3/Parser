@@ -715,6 +715,7 @@ async function loadFolders() {
 }
 
 function renderFolderGrid() {
+  cancelFolderCreate();
   State.curFolderOpen = null;
   State.folderBreadcrumb = [];
   const grid = document.getElementById('folderGrid');
@@ -806,17 +807,37 @@ function renderFolderItems(id, items) {
   }).join('');
 }
 
-async function createFolderCtx() {
-  const name = prompt(State.curFolderOpen ? 'Название подпапки:' : 'Название папки:');
-  if (!name?.trim()) return;
+function openFolderCreate() {
+  const form = document.getElementById('folderCreateForm');
+  const btn = document.getElementById('folderCreateBtn');
+  form.style.display = 'flex';
+  btn.style.display = 'none';
+  const inp = document.getElementById('folderCreateInput');
+  inp.value = '';
+  inp.placeholder = State.curFolderOpen ? 'Название подпапки…' : 'Название папки…';
+  inp.focus();
+}
+
+function cancelFolderCreate() {
+  document.getElementById('folderCreateForm').style.display = 'none';
+  document.getElementById('folderCreateBtn').style.display = '';
+}
+
+async function submitFolderCreate() {
+  const name = document.getElementById('folderCreateInput').value.trim();
+  if (!name) { document.getElementById('folderCreateInput').focus(); return; }
   try {
-    const body = { name: name.trim() };
+    const body = { name };
     if (State.curFolderOpen) body.parentId = State.curFolderOpen;
     await apiFetch('/api/folders', { method: 'POST', body: JSON.stringify(body) });
+    cancelFolderCreate();
     await loadFolders();
     if (State.curFolderOpen) openFolder(State.curFolderOpen, false);
   } catch(e) { showAlert(e.message, 'err'); }
 }
+
+// оставляем для обратной совместимости (вызывается из renderFolderGrid)
+async function createFolderCtx() { openFolderCreate(); }
 
 async function deleteFolder(id) {
   if (!confirm('Удалить папку?')) return;
