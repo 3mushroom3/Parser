@@ -180,13 +180,25 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
 
     if (!cacheKey || cacheKey === 'name:') { job.done++; continue; }
 
-    // Есть в кэше — применяем мгновенно
+    // Есть в кэше — проверяем, можно ли доверять кэшу:
+    // - known (farmer/trader): кэш вечный, не переспрашиваем
+    // - unknown с конкретным ОКВЭД (41.20, 64.20 и т.п.): компания найдена но
+    //   не аграрная — правильно unknown, не переспрашиваем никогда
+    // - unknown без ОКВЭД: DaData не нашёл компанию вообще — переспрашиваем
+    //   раз в 30 дней (база DaData обновляется, новые компании появляются)
     if (cache[cacheKey]) {
-      rec.farmerType = cache[cacheKey].farmerType;
-      rec.okved = cache[cacheKey].okved || '';
-      if (!rec.inn && cache[cacheKey].inn) rec.inn = cache[cacheKey].inn;
-      job.done++;
-      continue;
+      const cached = cache[cacheKey];
+      const isStaleUnknown = cached.farmerType === 'unknown' && !cached.okved;
+      const STALE_MS = 30 * 24 * 60 * 60 * 1000;
+      const isExpired = !cached.checkedAt || (Date.now() - new Date(cached.checkedAt).getTime()) > STALE_MS;
+      if (!isStaleUnknown || !isExpired) {
+        rec.farmerType = cached.farmerType;
+        rec.okved = cached.okved || '';
+        if (!rec.inn && cached.inn) rec.inn = cached.inn;
+        job.done++;
+        continue;
+      }
+      // устаревший пустой unknown — падаём ниже к API-запросу
     }
 
     // Запрос к ФНС

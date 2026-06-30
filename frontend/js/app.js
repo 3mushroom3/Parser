@@ -1441,6 +1441,8 @@ async function testTgNotification() {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
+let _enrichPollTimer = null;
+
 async function openSettings() {
   try {
     const cfg = await apiFetch('/api/system/telegram-config');
@@ -1448,6 +1450,7 @@ async function openSettings() {
     document.getElementById('tgChatId').value = cfg.chatId || '';
     openModal('settingsModal');
     refreshEnrichStatus();
+    refreshEnrichCacheStats();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -1472,22 +1475,56 @@ async function refreshEnrichStatus() {
     const s = await apiFetch('/api/enrich/enrich-status');
     const el = document.getElementById('enrichStatus');
     if (!el) return;
-    el.innerHTML = s.running ? `Работает: ${s.done}/${s.total}` : `Ожидает: ${s.pending}`;
+    if (s.running) {
+      const pct = s.total > 0 ? Math.round(100 * s.done / s.total) : 0;
+      el.innerHTML = `⏳ Работает: ${s.done.toLocaleString('ru')} / ${s.total.toLocaleString('ru')} (${pct}%)` +
+        (s.apiCalls ? ` · API-запросов: ${s.apiCalls}` : '') +
+        (s.errors ? ` · ошибок: ${s.errors}` : '');
+    } else {
+      el.innerHTML = `Ожидают обогащения: <b>${(s.pending||0).toLocaleString('ru')}</b> деклараций`;
+    }
     document.getElementById('enrichStartBtn').style.display = s.running ? 'none' : '';
     document.getElementById('enrichStopBtn').style.display = s.running ? '' : 'none';
+
+    // живой polling пока работает
+    clearTimeout(_enrichPollTimer);
+    if (s.running && document.getElementById('settingsModal')?.classList.contains('open')) {
+      _enrichPollTimer = setTimeout(refreshEnrichStatus, 4000);
+    }
+  } catch(_) {}
+}
+
+async function refreshEnrichCacheStats() {
+  try {
+    const c = await apiFetch('/api/enrich/cache-stats');
+    const el = document.getElementById('enrichCacheStatus');
+    if (!el) return;
+    el.innerHTML = c.total > 0
+      ? `Кэш: <b>${c.known.toLocaleString('ru')}</b> классифицировано · <b>${c.unknownWithOkved.toLocaleString('ru')}</b> не-аграрные (навсегда) · <b>${c.unknownEmpty.toLocaleString('ru')}</b> не найдены (можно переспросить, из них устарело: ${c.staleEmpty})`
+      : 'Кэш пуст или не найден';
   } catch(_) {}
 }
 
 async function startEnrich() {
   try {
     await apiFetch('/api/enrich/enrich', { method: 'POST' });
-    refreshEnrichStatus();
+    setTimeout(refreshEnrichStatus, 300);
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
 async function stopEnrich() {
   await apiFetch('/api/enrich/enrich/stop', { method: 'POST' });
+  clearTimeout(_enrichPollTimer);
   refreshEnrichStatus();
+}
+
+async function purgeStaleCache() {
+  if (!confirm('Удалить из кэша записи без ОКВЭД старше 30 дней? Они будут переспрошены при следующем обогащении.')) return;
+  try {
+    const r = await apiFetch('/api/enrich/purge-stale', { method: 'POST' });
+    showAlert(`Сброшено ${r.removed} устаревших записей из кэша`);
+    refreshEnrichCacheStats();
+  } catch(e) { showAlert(e.message, 'err'); }
 }
 
 // ── Modal helpers ─────────────────────────────────────────────────────────

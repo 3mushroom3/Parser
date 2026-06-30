@@ -225,10 +225,12 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Daily auto-enrichment at 00:05 UTC (limit 9500 API calls/day)
     cron.schedule('5 0 * * *', () => {
-      if (autoEnrichJob.running || parserRunning) {
-        logger.info('[AUTO-ENRICH] Пропуск: уже запущено обогащение или парсер');
+      if (autoEnrichJob.running) {
+        logger.info('[AUTO-ENRICH] Пропуск: обогащение уже запущено');
         return;
       }
+      // parserRunning намеренно не блокирует: парсер работает почти постоянно
+      // во время бэкфилла и ранее из-за этого обогащение пропускалось каждый день.
       const MAX_DAILY = parseInt(process.env.ENRICH_DAILY_LIMIT || '9500');
       const records = db.prepare("SELECT * FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown'").all();
       if (!records.length) {
