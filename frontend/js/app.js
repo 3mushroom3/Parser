@@ -485,9 +485,15 @@ async function pollStatus() {
     const bar = document.getElementById('stBar');
     bar.style.width = running ? '60%' : '100%';
     bar.style.background = running ? 'var(--acm)' : s.state === 'error' ? 'var(--dng)' : 'var(--succ)';
+    // "Обновлено" должно показывать время самого статуса (особенно важно при
+    // ошибке — иначе видно лишь время последней записи в БД, что вводит в
+    // заблуждение, будто ошибка "старая"), а не время последней правки данных.
+    if (s.time) {
+      const st = new Date(s.time);
+      document.getElementById('stTime').textContent = 'Обновлено: ' + st.toLocaleString('ru-RU');
+    }
     if (s.lastUpdated) {
       const d = new Date(s.lastUpdated);
-      document.getElementById('stTime').textContent = 'Обновлено: ' + d.toLocaleString('ru-RU');
       document.getElementById('sideLastUpd').textContent = d.toLocaleTimeString('ru-RU');
       document.getElementById('hdrStatus').textContent = d.toLocaleTimeString('ru-RU');
     }
