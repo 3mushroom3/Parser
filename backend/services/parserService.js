@@ -17,6 +17,7 @@ async function runParser(apiClient, declarationService, config) {
     PAGE_SIZE: Math.min(100, Math.max(1, config.PAGE_SIZE || 100)),
     MAX_PAGES_PER_RUN: config.MAX_PAGES_PER_RUN || 0,
     DELAY_MS: config.DELAY_MS || 1500,
+    DETAIL_DELAY_MS: config.DETAIL_DELAY_MS || 300,
     MAX_RECORDS: config.MAX_RECORDS || 0,
     TECH_REGLAMENT: (config.TECH_REGLAMENT || '').trim().toLowerCase(),
     TECH_REG_IDS: config.TECH_REG_IDS || [32],
@@ -139,7 +140,7 @@ async function runParser(apiClient, declarationService, config) {
         let detail = null;
         try {
           detail = await apiClient.getDeclarationById(declId);
-          await sleep(300);
+          await sleep(CONFIG.DETAIL_DELAY_MS);
         } catch (e) {
           if (e.response?.status !== 404) errors++;
         }

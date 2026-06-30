@@ -137,6 +137,7 @@ async function safeRunParser() {
         return 0;
       })(),
       DELAY_MS: Number(process.env.FSA_DELAY_MS) || 1500,
+      DETAIL_DELAY_MS: Number(process.env.FSA_DETAIL_DELAY_MS) || 300,
       MAX_RECORDS: Number(process.env.FSA_MAX_RECORDS) || 0,
       TECH_REGLAMENT: (process.env.FSA_TECH_REGLAMENT || '').trim().toLowerCase(),
       TECH_REG_IDS: (() => {
