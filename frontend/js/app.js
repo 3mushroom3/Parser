@@ -420,7 +420,7 @@ function renderTable(data) {
         <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
         <td class="actions" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
           <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="${isFav?'Убрать из избранного':'Добавить в избранное'}">★</button>
-          <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'")}',this)" title="В папку">📁</button>
+          <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="В папку">📁</button>
           ${p.decls.length === 1
             ? `<button class="btn btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();openDetail('${p.decls[0].id}')">↗</button>`
             : `<span style="background:var(--acl);color:var(--accent);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${p.decls.length}</span>`}
@@ -901,7 +901,7 @@ async function openCompany(inn, name) {
     ? `<div class="df full"><div class="df-l">Заявитель</div><div class="df-v" style="font-size:12px">${p.applicantName}</div></div>` : '';
   const safeDesc  = (p.description||'').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   const safeInn   = (p.inn||'').replace(/'/g,"\\'");
-  const safeName  = (p.name||name||'').replace(/'/g,"\\'");
+  const safeName  = (p.name||name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
   document.getElementById('compModalBody').innerHTML = `
     <div id="compDescArea" style="margin-bottom:14px">
@@ -954,7 +954,7 @@ async function openCompany(inn, name) {
   updateCropTabs();
 
   const isFav = isFavorite(p.inn, p.name || name);
-  const compLabel = (p.name || name || inn || '').replace(/'/g,"\\'");
+  const compLabel = (p.name || name || inn || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const compInnHint = p.inn ? ` (ИНН ${p.inn})` : '';
   document.getElementById('compModalFoot').innerHTML = `
     <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
