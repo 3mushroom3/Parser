@@ -832,37 +832,77 @@ async function removeFolderItem(folderId, type, value) {
   openFolder(folderId, false);
 }
 
-async function addToFolder(inn, name) {
-  if (!State.foldersCache.length) { showAlert('Сначала создайте папку', 'warn'); return; }
-  const folderOpts = State.foldersCache.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
-  const idx = parseInt(prompt('Выберите папку:\n' + folderOpts)) - 1;
-  if (isNaN(idx) || idx < 0 || idx >= State.foldersCache.length) return;
+// ── Модалка "В папку" ─────────────────────────────────────────────────────
+let _atfPending = null; // { type, value, label }
 
-  const folder = State.foldersCache[idx];
-  const type = inn ? 'inn' : 'name';
-  try {
-    await apiFetch('/api/folders/' + folder.id + '/items', {
-      method: 'POST',
-      body: JSON.stringify({ type, value: inn || name, label: name || (inn || name) })
-    });
-    showAlert('Добавлено');
-  } catch(e) { showAlert(e.message, 'err'); }
+async function addToFolder(inn, name, _btn) {
+  if (!State.foldersCache.length) await loadFolders();
+  _atfPending = { type: inn ? 'inn' : 'name', value: inn || name, label: name || inn };
+  document.getElementById('atfItemLabel').textContent = name || inn || '';
+  document.getElementById('atfNewName').value = '';
+  document.getElementById('atfSearch').value = '';
+  atfRenderList();
+  openModal('addToFolderModal');
 }
 
 async function addDeclToFolder(id, declNumber) {
-  if (!State.foldersCache.length) { await loadFolders(); }
-  if (!State.foldersCache.length) { showAlert('Сначала создайте папку', 'warn'); return; }
-  const folderOpts = State.foldersCache.map((f, i) => `${i + 1}. ${f.name}`).join('\n');
-  const idx = parseInt(prompt('Выберите папку:\n' + folderOpts)) - 1;
-  if (isNaN(idx) || idx < 0 || idx >= State.foldersCache.length) return;
+  if (!State.foldersCache.length) await loadFolders();
+  _atfPending = { type: 'decl', value: id, label: declNumber || id };
+  document.getElementById('atfItemLabel').textContent = declNumber || id;
+  document.getElementById('atfNewName').value = '';
+  document.getElementById('atfSearch').value = '';
+  atfRenderList();
+  openModal('addToFolderModal');
+}
 
-  const folder = State.foldersCache[idx];
+function atfRenderList() {
+  const q = (document.getElementById('atfSearch').value || '').trim().toLowerCase();
+  const folders = State.foldersCache.filter(f => !q || f.name.toLowerCase().includes(q));
+  const list = document.getElementById('atfFolderList');
+  const empty = document.getElementById('atfEmpty');
+  if (!folders.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = folders.map(f => {
+    const count = (f.items || []).length;
+    return `<div onclick="atfPickFolder('${f.id}')" style="display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;background:var(--surface);transition:background .12s" onmouseover="this.style.background='var(--acl)'" onmouseout="this.style.background='var(--surface)'">
+      <span style="font-size:20px">📁</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(f.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${count} элем.</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function atfPickFolder(folderId) {
+  if (!_atfPending) return;
   try {
-    await apiFetch('/api/folders/' + folder.id + '/items', {
-      method: 'POST',
-      body: JSON.stringify({ type: 'decl', value: id, label: declNumber || id })
+    await apiFetch('/api/folders/' + folderId + '/items', {
+      method: 'POST', body: JSON.stringify(_atfPending)
     });
-    showAlert('Добавлено');
+    closeModal('addToFolderModal');
+    showAlert('Добавлено в папку');
+    loadFolders();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function atfCreateAndAdd() {
+  const name = document.getElementById('atfNewName').value.trim();
+  if (!name) { document.getElementById('atfNewName').focus(); return; }
+  try {
+    const folder = await apiFetch('/api/folders', { method: 'POST', body: JSON.stringify({ name }) });
+    await loadFolders();
+    if (_atfPending) {
+      await apiFetch('/api/folders/' + folder.id + '/items', {
+        method: 'POST', body: JSON.stringify(_atfPending)
+      });
+    }
+    closeModal('addToFolderModal');
+    showAlert('Папка создана и добавлено');
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -1575,7 +1615,7 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','addToFolderModal','addToNoteModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
@@ -1909,57 +1949,67 @@ document.addEventListener('DOMContentLoaded', () => {
   checkAuth();
 });
 
-// ── Add to Note ───────────────────────────────────────────────────────────
+// ── Модалка "В заметку" ───────────────────────────────────────────────────
 let _atnLink = null;
+let _atnAllNotes = [];
 
 async function openAddToNoteModal(label, url) {
   _atnLink = { label, url };
   document.getElementById('atnLabel').textContent = label;
-  document.getElementById('atnUrl').textContent = url || '';
-  document.getElementById('atnUrl').style.display = url ? '' : 'none';
+  const urlEl = document.getElementById('atnUrl');
+  urlEl.textContent = url || '';
+  urlEl.style.display = url ? '' : 'none';
   document.getElementById('atnNewTitle').value = label;
+  document.getElementById('atnSearch').value = '';
 
-  // Always fetch fresh notes list
-  let notes = [];
-  try { notes = await apiFetch('/api/notes'); } catch(_) {}
-
-  const select = document.getElementById('atnNoteSelect');
-  select.innerHTML = '<option value="new">➕ Создать новую заметку</option>';
-  notes.forEach(n => {
-    const opt = document.createElement('option');
-    opt.value = n.id;
-    opt.textContent = n.title.length > 55 ? n.title.slice(0, 55) + '…' : n.title;
-    select.appendChild(opt);
-  });
-  select.value = 'new';
-  document.getElementById('atnNewTitleRow').style.display = '';
+  try { _atnAllNotes = await apiFetch('/api/notes'); } catch(_) { _atnAllNotes = []; }
+  atnRenderList();
   openModal('addToNoteModal');
+  setTimeout(() => document.getElementById('atnSearch').focus(), 150);
 }
 
-function toggleAtnNew(val) {
-  document.getElementById('atnNewTitleRow').style.display = val === 'new' ? '' : 'none';
+function atnRenderList() {
+  const q = (document.getElementById('atnSearch').value || '').trim().toLowerCase();
+  const notes = _atnAllNotes.filter(n => !q || n.title.toLowerCase().includes(q));
+  const list = document.getElementById('atnNoteList');
+  const empty = document.getElementById('atnEmpty');
+  if (!notes.length) {
+    list.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+  list.innerHTML = notes.map(n => `
+    <div onclick="atnPickNote(${n.id})" style="display:flex;align-items:flex-start;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer;background:var(--surface);transition:background .12s" onmouseover="this.style.background='var(--acl)'" onmouseout="this.style.background='var(--surface)'">
+      <span style="font-size:18px;flex-shrink:0">📝</span>
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(n.title)}</div>
+        ${n.links?.length ? `<div style="font-size:11px;color:var(--muted)">${n.links.length} ссылок</div>` : ''}
+      </div>
+    </div>`).join('');
 }
 
-async function saveAddToNote() {
+async function atnPickNote(noteId) {
   if (!_atnLink) return;
-  const select = document.getElementById('atnNoteSelect');
-  const val = select.value;
   try {
-    if (val === 'new') {
-      const title = document.getElementById('atnNewTitle').value.trim() || _atnLink.label;
-      await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify({
-        title, content: '', links: [_atnLink], notifyTime: null
-      })});
-    } else {
-      // Add link to existing note
-      const existing = await apiFetch('/api/notes/' + val + '/link', {
-        method: 'POST', body: JSON.stringify(_atnLink)
-      });
-    }
-    if (_notes.length) await loadNotes(); // refresh if notes page was opened
+    await apiFetch('/api/notes/' + noteId + '/link', { method: 'POST', body: JSON.stringify(_atnLink) });
     closeModal('addToNoteModal');
-    showAlert('Добавлено в заметку ✓', 'ok');
-  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
+    showAlert('Добавлено в заметку');
+    if (_notes.length) loadNotes();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function atnCreateAndAdd() {
+  const title = document.getElementById('atnNewTitle').value.trim();
+  if (!title) { document.getElementById('atnNewTitle').focus(); return; }
+  try {
+    await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify({
+      title, content: '', links: _atnLink ? [_atnLink] : [], notifyTime: null
+    })});
+    closeModal('addToNoteModal');
+    showAlert('Заметка создана');
+    if (_notes.length) loadNotes();
+  } catch(e) { showAlert(e.message, 'err'); }
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────

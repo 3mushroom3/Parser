@@ -682,38 +682,55 @@
 </div>
 </div>
 
+<!-- ADD TO FOLDER MODAL -->
+<div class="ov" id="addToFolderModal" style="display:none">
+<div class="modal" style="max-width:400px;display:flex;flex-direction:column;overflow:hidden;max-height:85vh">
+  <div class="mh">
+    <div>
+      <h3>📁 Выбрать папку</h3>
+      <div id="atfItemLabel" style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px"></div>
+    </div>
+    <button class="mcl" onclick="closeModal('addToFolderModal')">✕</button>
+  </div>
+  <div style="padding:10px 20px 6px">
+    <input id="atfSearch" class="fi" placeholder="Поиск папки..." oninput="atfRenderList()" autocomplete="off">
+  </div>
+  <div class="mb" style="padding:6px 20px;flex:1;min-height:0;overflow-y:auto">
+    <div id="atfFolderList" style="display:flex;flex-direction:column;gap:5px"></div>
+    <div id="atfEmpty" style="display:none;color:var(--muted);font-size:13px;text-align:center;padding:20px 0">Папок нет</div>
+  </div>
+  <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px">
+    <input id="atfNewName" class="fi" style="flex:1" placeholder="Создать новую папку...">
+    <button class="btn btn-p btn-sm" onclick="atfCreateAndAdd()">Создать</button>
+  </div>
+</div>
+</div>
+
 <!-- ADD TO NOTE MODAL -->
 <div class="ov" id="addToNoteModal" style="display:none">
-<div class="modal" style="max-width:420px">
+<div class="modal" style="max-width:400px;display:flex;flex-direction:column;overflow:hidden;max-height:85vh">
   <div class="mh">
-    <h3>📝 В заметку</h3>
-    <button class="mcl" onclick="closeModal('addToNoteModal')">✕</button>
-  </div>
-  <div class="mb">
-    <div class="fg" style="grid-template-columns:1fr">
-      <div class="frow">
-        <label>Что добавляем</label>
-        <div style="padding:9px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);font-size:13px">
-          <div id="atnLabel" style="font-weight:600;margin-bottom:2px"></div>
-          <div id="atnUrl" style="color:var(--muted);font-size:11px;word-break:break-all"></div>
-        </div>
-      </div>
-      <div class="frow">
-        <label>Добавить в заметку</label>
-        <select id="atnNoteSelect" class="fi" onchange="toggleAtnNew(this.value)">
-          <option value="new">➕ Создать новую заметку</option>
-        </select>
-      </div>
-      <div id="atnNewTitleRow" class="frow">
-        <label>Название новой заметки</label>
-        <input type="text" id="atnNewTitle" class="fi" placeholder="Введите название">
+    <div>
+      <h3>📝 В заметку</h3>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">
+        <span id="atnLabel" style="font-weight:600"></span>
+        <span id="atnUrl" style="margin-left:4px;word-break:break-all;display:none"></span>
       </div>
     </div>
+    <button class="mcl" onclick="closeModal('addToNoteModal')">✕</button>
   </div>
-  <div class="mf">
-    <button class="btn" onclick="closeModal('addToNoteModal')">Отмена</button>
-    <button class="btn btn-p" onclick="saveAddToNote()">Сохранить</button>
+  <div style="padding:10px 20px 6px">
+    <input id="atnSearch" class="fi" placeholder="Поиск заметки..." oninput="atnRenderList()" autocomplete="off">
   </div>
+  <div class="mb" style="padding:6px 20px;flex:1;min-height:0;overflow-y:auto">
+    <div id="atnNoteList" style="display:flex;flex-direction:column;gap:5px"></div>
+    <div id="atnEmpty" style="display:none;color:var(--muted);font-size:13px;text-align:center;padding:20px 0">Заметок нет — создайте новую ниже</div>
+  </div>
+  <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px">
+    <input id="atnNewTitle" class="fi" style="flex:1" placeholder="Создать новую заметку...">
+    <button class="btn btn-p btn-sm" onclick="atnCreateAndAdd()">Создать</button>
+  </div>
+</div>
 </div>
 </div>
 
