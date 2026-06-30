@@ -5,3 +5,4 @@ data/*.db
 backend/data/
 .env
 *.log
+"Добавить заявителя.txt"

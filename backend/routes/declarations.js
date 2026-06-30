@@ -4,9 +4,11 @@ const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const requireAdmin = require('../middleware/requireAdmin');
+const { dataReadLimiter, exportLimiter } = require('../middleware/rateLimiters');
 const exportFromJSON = require('json-to-csv-export');
 
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
+const MAX_PAGE_SIZE = 100; // совпадает с максимумом в UI (см. #pgSize) — больше там никогда не запрашивается
 
 function extractCity(address) {
   if (!address) return null;
@@ -15,7 +17,7 @@ function extractCity(address) {
   return null;
 }
 
-router.get('/producers', auth, requireSubscription, (req, res) => {
+router.get('/producers', auth, requireSubscription, dataReadLimiter, (req, res) => {
   const {
     page = 0,
     size = 50,
@@ -85,39 +87,41 @@ router.get('/producers', auth, requireSubscription, (req, res) => {
     ${orderClause}
   `;
 
-  // Get all matching to perform secondary logic (like grouping)
-  // For large DBs this should be optimized, but for now we follow old logic
+  // Группируем по всей таблице (нужно для total/сортировки), но декларации
+  // каждой группы подгружаем ТОЛЬКО для текущей страницы — раньше это
+  // делалось для всех ~40k групп на каждый запрос (N+1), что было и узким
+  // местом производительности, и готовым DoS-вектором вне зависимости от
+  // лимита size.
   const allProducers = db.prepare(dataQuery).all(...params, ...orderParams);
 
-  const producers = allProducers.map(p => {
-    const ids = p.declIds.split(',');
-    // Fetch limited decl details for these IDs
+  const total = allProducers.length;
+  const p = parseInt(page) || 0;
+  const s = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(size) || 50));
+  const pageRows = allProducers.slice(p * s, (p + 1) * s);
+
+  const items = pageRows.map(row => {
+    const ids = row.declIds.split(',');
     const decls = db.prepare(`SELECT id, regDate, endDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
 
-    const daysSinceLastDecl = p.lastRegDate ? Math.floor((Date.now() - new Date(p.lastRegDate).getTime()) / 86400000) : null;
+    const daysSinceLastDecl = row.lastRegDate ? Math.floor((Date.now() - new Date(row.lastRegDate).getTime()) / 86400000) : null;
 
     return {
-      inn: p.inn || '',
-      name: (p.shortName || p.applicantName || p.lastName || '—').trim(),
-      address: p.address || '',
-      phone: p.phone || '',
-      farmerType: p.farmerType || 'unknown',
-      okved: p.okved || '',
-      lastDeclDate: p.lastRegDate || '',
+      inn: row.inn || '',
+      name: (row.shortName || row.applicantName || row.lastName || '—').trim(),
+      address: row.address || '',
+      phone: row.phone || '',
+      farmerType: row.farmerType || 'unknown',
+      okved: row.okved || '',
+      lastDeclDate: row.lastRegDate || '',
       dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
       decls
     };
   });
 
-  const total = producers.length;
-  const p = parseInt(page);
-  const s = parseInt(size);
-  const items = producers.slice(p * s, (p + 1) * s);
-
   res.json({ items, total, page: p, size: s, pages: Math.ceil(total / s) });
 });
 
-router.get('/map-data', auth, requireSubscription, (req, res) => {
+router.get('/map-data', auth, requireSubscription, dataReadLimiter, (req, res) => {
   try {
     const stmt = db.prepare("SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ''");
 
@@ -167,7 +171,7 @@ router.get('/map-data', auth, requireSubscription, (req, res) => {
   }
 });
 
-router.get('/', auth, requireSubscription, (req, res) => {
+router.get('/', auth, requireSubscription, dataReadLimiter, (req, res) => {
   const {
     page = 0,
     size = 20,
@@ -219,8 +223,10 @@ router.get('/', auth, requireSubscription, (req, res) => {
   const finalSortDir = sortDir.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
   query += ` ORDER BY ${finalSortField === 'group' ? 'productGroup' : finalSortField} ${finalSortDir}`;
 
+  const safeSize = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(size) || 20));
+  const safePage = Math.max(0, parseInt(page) || 0);
   query += ' LIMIT ? OFFSET ?';
-  params.push(parseInt(size), parseInt(page) * parseInt(size));
+  params.push(safeSize, safePage * safeSize);
 
   const items = db.prepare(query).all(...params);
 
@@ -231,13 +237,13 @@ router.get('/', auth, requireSubscription, (req, res) => {
       productionSites: item.productionSites ? JSON.parse(item.productionSites) : []
     })),
     total,
-    page: parseInt(page),
-    size: parseInt(size),
-    pages: Math.ceil(total / size) || 1
+    page: safePage,
+    size: safeSize,
+    pages: Math.ceil(total / safeSize) || 1
   });
 });
 
-router.get('/:id', auth, requireSubscription, (req, res) => {
+router.get('/:id', auth, requireSubscription, dataReadLimiter, (req, res) => {
   const item = db.prepare('SELECT * FROM declarations WHERE id = ? OR fsaId = ?').get(req.params.id, req.params.id);
   if (!item) return res.status(404).json({ error: 'Не найдено' });
 
@@ -311,7 +317,7 @@ router.delete('/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-router.get('/export/csv', auth, requireSubscription, (req, res) => {
+router.get('/export/csv', auth, requireSubscription, exportLimiter, (req, res) => {
   const records = db.prepare('SELECT * FROM declarations ORDER BY regDate DESC').all();
   const data = records.map(r => ({
     ID: r.id,
