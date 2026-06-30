@@ -76,6 +76,8 @@ db.exec(`
     name TEXT,
     description TEXT,
     notes TEXT,
+    regDate TEXT,  -- дата регистрации компании по данным ФНС/ОКВЭД-лукапа
+    autoNote TEXT, -- авто-пометка (напр. растениеводство + доп.ОКВЭД торговля), отдельно от ручного description
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -145,6 +147,13 @@ db.exec(`
     lastUsedAt DATETIME
   );
 
+  CREATE TABLE IF NOT EXISTS dedupe_ignored (
+    nameKey TEXT NOT NULL,
+    addrKey TEXT NOT NULL,
+    ignoredAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (nameKey, addrKey)
+  );
+
   CREATE TABLE IF NOT EXISTS feedback (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
@@ -181,6 +190,13 @@ if (!userCols.includes('tgChatId')) {
 const statusCols = db.prepare("PRAGMA table_info(status)").all().map(c => c.name);
 if (!statusCols.includes('lastCompletedDate')) {
   db.exec('ALTER TABLE status ADD COLUMN lastCompletedDate TEXT');
+}
+const companiesCols = db.prepare("PRAGMA table_info(companies)").all().map(c => c.name);
+if (!companiesCols.includes('regDate')) {
+  db.exec('ALTER TABLE companies ADD COLUMN regDate TEXT');
+}
+if (!companiesCols.includes('autoNote')) {
+  db.exec('ALTER TABLE companies ADD COLUMN autoNote TEXT');
 }
 
 module.exports = db;

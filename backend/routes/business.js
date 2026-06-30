@@ -41,6 +41,8 @@ router.get('/company', auth, requireSubscription, (req, res) => {
     applicantName: first.applicantName || '',
     description: companyInfo?.description || '',
     notes: companyInfo?.notes || '',
+    companyRegDate: companyInfo?.regDate || '',
+    autoNote: companyInfo?.autoNote || '',
     contacts,
     lastDeclDate,
     dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,

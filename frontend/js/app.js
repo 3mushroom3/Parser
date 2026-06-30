@@ -889,6 +889,7 @@ async function openCompany(inn, name) {
   document.getElementById('compModalName').textContent = p.name || name || '—';
   document.getElementById('compModalSub').innerHTML = [
     p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
+    p.companyRegDate ? 'Зарегистрирована: <b>' + p.companyRegDate + '</b>' : '',
     p.dormant ? `<span style="color:var(--warn)">⏸ &gt;1.5 года без деклараций (с ${p.lastDeclDate||'—'})</span>` : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
@@ -903,8 +904,13 @@ async function openCompany(inn, name) {
   const safeInn   = (p.inn||'').replace(/'/g,"\\'");
   const safeName  = (p.name||name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
 
+  const autoNoteHtml = p.autoNote
+    ? `<div style="padding:7px 12px;background:#FEF3C7;border:1px solid #F2D272;border-radius:var(--r);font-size:12px;color:#7A5B00;margin-bottom:8px">⚠ ${(p.autoNote||'').replace(/</g,'&lt;')}</div>`
+    : '';
+
   document.getElementById('compModalBody').innerHTML = `
     <div id="compDescArea" style="margin-bottom:14px">
+      ${autoNoteHtml}
       <div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:${p.description?'var(--text)':'var(--muted)'}" onclick="editCompDesc()" title="Нажмите для редактирования">${p.description ? safeDesc : '+ Добавить описание компании...'}</div>
       <div id="compDescEdit" style="display:none">
         <input id="compDescInput" type="text" class="fi" placeholder="Краткое описание компании..." value="${safeDesc}">
@@ -1725,21 +1731,55 @@ async function runDedupeInn() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+let _ambiguousGroups = [];
+
 async function loadAmbiguousInn() {
   const tbody = document.getElementById('adminAmbiguousInnTbody');
-  tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px">Загрузка...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:14px">Загрузка...</td></tr>';
   try {
     const groups = await apiFetch('/api/admin/dedupe-ambiguous');
+    _ambiguousGroups = groups;
     if (!groups.length) {
-      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px">Спорных дублей не найдено</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:14px">Спорных дублей не найдено</td></tr>';
       return;
     }
-    tbody.innerHTML = groups.map(g => `
+    tbody.innerHTML = groups.map((g, idx) => `
       <tr>
-        <td><b>${g.name}</b></td>
-        <td style="font-size:12px;color:var(--muted)">${g.address || '—'}</td>
+        <td><b>${escHtml(g.name)}</b></td>
+        <td style="font-size:12px;color:var(--muted)">${escHtml(g.address || '—')}</td>
         <td style="font-size:12px">${g.inns.map(i => `${i.inn} (${i.count})`).join(', ')}</td>
+        <td>
+          <div style="display:flex;gap:4px;align-items:center">
+            <select class="fi" id="ambInnSel_${idx}" style="font-size:11px;padding:3px 5px;width:auto">
+              ${g.inns.map(i => `<option value="${i.inn}">${i.inn} (${i.count})</option>`).join('')}
+            </select>
+            <button class="btn btn-sm btn-p" style="font-size:11px;padding:3px 7px" onclick="resolveAmbiguousGroup(${idx})" title="Объединить все декларации группы на выбранный ИНН">Объединить</button>
+            <button class="btn btn-sm" style="font-size:11px;padding:3px 7px" onclick="dismissAmbiguousGroup(${idx})" title="Это не дубли — разные компании">Не дубль</button>
+          </div>
+        </td>
       </tr>`).join('');
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function resolveAmbiguousGroup(idx) {
+  const g = _ambiguousGroups[idx];
+  if (!g) return;
+  const chosenInn = document.getElementById('ambInnSel_' + idx).value;
+  if (!confirm(`Все декларации "${g.name}" (${g.address || 'без адреса'}) получат ИНН ${chosenInn}. Продолжить?`)) return;
+  try {
+    const r = await apiFetch('/api/admin/dedupe-resolve', { method: 'POST', body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey, inn: chosenInn }) });
+    showAlert(`Объединено: ${r.updated} деклараций получили ИНН ${chosenInn}`);
+    loadAmbiguousInn();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function dismissAmbiguousGroup(idx) {
+  const g = _ambiguousGroups[idx];
+  if (!g) return;
+  try {
+    await apiFetch('/api/admin/dedupe-dismiss', { method: 'POST', body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey }) });
+    showAlert('Помечено как "не дубль" — больше не будет в отчёте');
+    loadAmbiguousInn();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 

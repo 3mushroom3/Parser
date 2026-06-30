@@ -5,10 +5,29 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { lookupInn, lookupByName, classifyOkved, classifyByName, RATE_LIMITED } = require('./fnsClient');
+const db = require('./db');
+const { lookupInn, lookupByName, classifyOkved, classifyByName, buildMixedActivityNote, RATE_LIMITED } = require('./fnsClient');
 
 const CACHE_FILE = path.join(__dirname, '../../data/inn_cache.json');
 const DELAY_MS = 300; // пауза между запросами (dadata допускает быстрее чем itsoft)
+
+// Сохраняет дату регистрации/авто-пометку в companies, не трогая ручные description/notes.
+const _upsertCompanyInfoStmt = db.prepare(`
+  INSERT INTO companies (id, inn, name, regDate, autoNote)
+  VALUES (@key, @inn, @name, @regDate, @autoNote)
+  ON CONFLICT(id) DO UPDATE SET
+    regDate = COALESCE(NULLIF(excluded.regDate, ''), companies.regDate),
+    autoNote = excluded.autoNote,
+    updatedAt = CURRENT_TIMESTAMP
+`);
+function upsertCompanyInfo(key, inn, name, regDate, autoNote) {
+  if (!key || (!regDate && !autoNote)) return;
+  try {
+    _upsertCompanyInfoStmt.run({ key, inn: inn || null, name: name || null, regDate: regDate || '', autoNote: autoNote || '' });
+  } catch (e) {
+    console.warn('[INN] Ошибка сохранения regDate/autoNote для', key, ':', e.message);
+  }
+}
 
 function loadCache() {
   try {
@@ -51,9 +70,11 @@ async function enrichRecords(records) {
         const data = await lookupInn(inn);
         const farmerType = data ? classifyOkved(data.okved, data.okveds) : 'unknown';
         const okved = data?.okved || '';
-        cache[inn] = { farmerType, okved, checkedAt: new Date().toISOString() };
+        const autoNote = data ? buildMixedActivityNote(data.okved, data.okveds) : '';
+        cache[inn] = { farmerType, okved, regDate: data?.regDate || '', autoNote, checkedAt: new Date().toISOString() };
         rec.farmerType = farmerType;
         rec.okved = okved;
+        upsertCompanyInfo(inn, inn, rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote);
         newLookups++;
         console.log(`[INN] ${inn} → ${okved || '?'} → ${farmerType}`);
       } catch (e) {
@@ -84,13 +105,15 @@ async function enrichRecords(records) {
       const farmerType = data ? classifyOkved(data.okved, data.okveds) : 'unknown';
       const okved = data?.okved || '';
       const foundInn = data?.inn || '';
+      const autoNote = data ? buildMixedActivityNote(data.okved, data.okveds) : '';
 
-      cache[nameCacheKey] = { farmerType, okved, inn: foundInn, checkedAt: new Date().toISOString() };
-      if (foundInn) cache[foundInn] = { farmerType, okved, checkedAt: new Date().toISOString() };
+      cache[nameCacheKey] = { farmerType, okved, inn: foundInn, regDate: data?.regDate || '', autoNote, checkedAt: new Date().toISOString() };
+      if (foundInn) cache[foundInn] = { farmerType, okved, regDate: data?.regDate || '', autoNote, checkedAt: new Date().toISOString() };
 
       rec.farmerType = farmerType;
       rec.okved = okved;
       if (foundInn) rec.inn = foundInn;
+      upsertCompanyInfo(foundInn || nameKey, foundInn, nameKey, data?.regDate, autoNote);
       newLookups++;
       console.log(`[INN] "${nameKey.slice(0,30)}" → ИНН ${foundInn || '?'} → ${okved || '?'} → ${farmerType}`);
     } catch (e) {
@@ -187,6 +210,7 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
       const okved = data?.okved || '';
       const foundInn = data?.inn || inn || '';
       let farmerType = data ? classifyOkved(data.okved, data.okveds) : 'unknown';
+      const autoNote = data ? buildMixedActivityNote(data.okved, data.okveds) : '';
 
       // Если ОКВЭД не получен — пробуем по названию
       if (farmerType === 'unknown') {
@@ -194,14 +218,15 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
         if (nameFallback !== 'unknown') farmerType = nameFallback;
       }
 
-      cache[cacheKey] = { farmerType, okved, inn: foundInn, checkedAt: new Date().toISOString() };
+      cache[cacheKey] = { farmerType, okved, inn: foundInn, regDate: data?.regDate || '', autoNote, checkedAt: new Date().toISOString() };
       if (foundInn && foundInn !== cacheKey) {
-        cache[foundInn] = { farmerType, okved, checkedAt: new Date().toISOString() };
+        cache[foundInn] = { farmerType, okved, regDate: data?.regDate || '', autoNote, checkedAt: new Date().toISOString() };
       }
 
       rec.farmerType = farmerType;
       rec.okved = okved;
       if (foundInn) rec.inn = foundInn;
+      upsertCompanyInfo(foundInn || nameKey, foundInn, nameKey || rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote);
 
       if (i < 20 || farmerType !== 'unknown') {
         console.log(`[INN] [${i+1}/${job.total}] "${(nameKey||inn||'').slice(0,35)}" → ИНН:${foundInn||'?'} ОКВЭД:${okved||'нет'} → ${farmerType}`);

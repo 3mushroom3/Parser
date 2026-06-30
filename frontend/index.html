@@ -498,11 +498,11 @@
       <h3 style="font-size:14px;font-weight:700">Спорные дубли (несколько разных ИНН на одно имя+адрес)</h3>
       <button class="btn btn-sm" onclick="loadAmbiguousInn()">🔄 Обновить отчёт</button>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin:-4px 0 0">Не объединяется автоматически — возможна смена ИНН компании или два разных юрлица по одному адресу. Решение вручную (через карточку компании или прямое редактирование).</p>
+    <p style="font-size:12px;color:var(--muted);margin:-4px 0 0">Не объединяется автоматически — возможна смена ИНН компании или два разных юрлица по одному адресу. Выберите верный ИНН (объединит все декларации группы на него) или отметьте, что это не дубль.</p>
     <div class="admin-table-wrap" style="margin-top:10px">
       <table class="admin-table">
-        <thead><tr><th>Название</th><th>Адрес</th><th>ИНН (кол-во деклараций)</th></tr></thead>
-        <tbody id="adminAmbiguousInnTbody"><tr><td colspan="3" style="color:var(--muted);text-align:center;padding:14px">Нажмите "Обновить отчёт"</td></tr></tbody>
+        <thead><tr><th>Название</th><th>Адрес</th><th>ИНН (кол-во деклараций)</th><th style="width:260px">Действие</th></tr></thead>
+        <tbody id="adminAmbiguousInnTbody"><tr><td colspan="4" style="color:var(--muted);text-align:center;padding:14px">Нажмите "Обновить отчёт"</td></tr></tbody>
       </table>
     </div>
 

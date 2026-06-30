@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
-const { backfillMissingInn, findAmbiguousInnGroups } = require('../services/dedupe');
+const { backfillMissingInn, findAmbiguousInnGroups, resolveAmbiguousGroup, dismissAmbiguousGroup } = require('../services/dedupe');
 const { archiveOldDeclarations, ARCHIVE_AFTER_DAYS } = require('../services/archiver');
 
 function requireAdmin(req, res, next) {
@@ -133,6 +133,22 @@ router.post('/dedupe-inn', auth, requireAdmin, (req, res) => {
 // GET /api/admin/dedupe-ambiguous — отчёт по группам имя+адрес с несколькими разными ИНН
 router.get('/dedupe-ambiguous', auth, requireAdmin, (req, res) => {
   res.json(findAmbiguousInnGroups());
+});
+
+// POST /api/admin/dedupe-resolve — вручную выбрать правильный ИНН для спорной группы
+router.post('/dedupe-resolve', auth, requireAdmin, (req, res) => {
+  const { nameKey, addrKey, inn } = req.body || {};
+  if (!nameKey || !inn) return res.status(400).json({ error: 'nameKey и inn обязательны' });
+  const updated = resolveAmbiguousGroup(nameKey, addrKey || '', inn);
+  res.json({ ok: true, updated });
+});
+
+// POST /api/admin/dedupe-dismiss — пометить спорную группу как "не дубль" (скрыть из отчёта)
+router.post('/dedupe-dismiss', auth, requireAdmin, (req, res) => {
+  const { nameKey, addrKey } = req.body || {};
+  if (!nameKey) return res.status(400).json({ error: 'nameKey обязателен' });
+  dismissAmbiguousGroup(nameKey, addrKey || '');
+  res.json({ ok: true });
 });
 
 // POST /api/admin/archive-old — перевести в архив декларации старше года, помеченные ФСА как "действует"

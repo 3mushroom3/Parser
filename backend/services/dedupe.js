@@ -76,8 +76,13 @@ function backfillMissingInn() {
 // Группы, где одно и то же название+адрес встречается с несколькими РАЗНЫМИ
 // ИНН — авто-слияние тут не делаем (могло быть переоформление компании на
 // новый ИНН, или просто два разных юрлица по одному адресу), но показываем
-// администратору отчёт для ручного решения.
+// администратору отчёт для ручного решения (см. resolveAmbiguousGroup/
+// dismissAmbiguousGroup ниже).
 function findAmbiguousInnGroups() {
+  const ignored = new Set(
+    db.prepare('SELECT nameKey, addrKey FROM dedupe_ignored').all().map(r => r.nameKey + '||' + r.addrKey)
+  );
+
   const rows = db.prepare(`
     SELECT id, inn, declNumber,
       TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) as name,
@@ -92,7 +97,8 @@ function findAmbiguousInnGroups() {
   for (const r of rows) {
     if (!r.nameKey) continue;
     const key = r.nameKey + '||' + (r.addrKey || '');
-    if (!groups.has(key)) groups.set(key, { name: r.name, address: r.address, innCounts: new Map() });
+    if (ignored.has(key)) continue;
+    if (!groups.has(key)) groups.set(key, { nameKey: r.nameKey, addrKey: r.addrKey || '', name: r.name, address: r.address, innCounts: new Map() });
     const g = groups.get(key);
     const inn = r.inn.trim();
     g.innCounts.set(inn, (g.innCounts.get(inn) || 0) + 1);
@@ -102,6 +108,8 @@ function findAmbiguousInnGroups() {
   for (const g of groups.values()) {
     if (g.innCounts.size > 1) {
       ambiguous.push({
+        nameKey: g.nameKey,
+        addrKey: g.addrKey,
         name: g.name,
         address: g.address,
         inns: [...g.innCounts.entries()].map(([inn, count]) => ({ inn, count })).sort((a, b) => b.count - a.count),
@@ -111,4 +119,23 @@ function findAmbiguousInnGroups() {
   return ambiguous.sort((a, b) => b.inns.length - a.inns.length);
 }
 
-module.exports = { backfillMissingInn, findAmbiguousInnGroups };
+// Админ вручную выбрал, какой ИНН правильный для группы имя+адрес —
+// проставляем его всем записям группы (включая те, что уже имели другой ИНН).
+function resolveAmbiguousGroup(nameKey, addrKey, chosenInn) {
+  if (!nameKey || !chosenInn) return 0;
+  const info = db.prepare(`
+    UPDATE declarations SET inn = ?, updatedAt = CURRENT_TIMESTAMP
+    WHERE lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) = ?
+      AND lower_u(TRIM(address)) = ?
+  `).run(chosenInn, nameKey, addrKey || '');
+  return info.changes;
+}
+
+// Админ решил, что это НЕ дубль (два разных юрлица по одному адресу/одинаковым
+// названием) — больше не показываем эту пару в отчёте.
+function dismissAmbiguousGroup(nameKey, addrKey) {
+  if (!nameKey) return;
+  db.prepare('INSERT OR IGNORE INTO dedupe_ignored (nameKey, addrKey) VALUES (?, ?)').run(nameKey, addrKey || '');
+}
+
+module.exports = { backfillMissingInn, findAmbiguousInnGroups, resolveAmbiguousGroup, dismissAmbiguousGroup };

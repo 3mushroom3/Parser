@@ -11,6 +11,25 @@ const DADATA_TOKEN = process.env.DADATA_TOKEN || 'f2ffe0e5102a973aab6d4447ce92a3
 
 const FARMER_PREFIXES = ['01.'];
 const TRADER_PREFIXES = ['46.', '47.', '51.', '52.'];
+const CROP_GROWING_PREFIX = '01.1'; // выращивание однолетних/многолетних культур
+
+function parseDadataDate(ms) {
+  if (!ms) return '';
+  try { return new Date(ms).toISOString().slice(0, 10); } catch (_) { return ''; }
+}
+
+/**
+ * Если основной ОКВЭД — растениеводство, а среди дополнительных есть торговый —
+ * компания совмещает выращивание и сбыт. Возвращает текст для пометки в описании
+ * карточки или '' если условие не выполняется.
+ */
+function buildMixedActivityNote(primary, extras = []) {
+  const p = String(primary || '');
+  if (!p.startsWith(CROP_GROWING_PREFIX)) return '';
+  const tradeExtras = extras.filter(c => TRADER_PREFIXES.some(pr => String(c || '').startsWith(pr)));
+  if (!tradeExtras.length) return '';
+  return `Растениеводство (ОКВЭД ${p}) + торговля (доп. ОКВЭД: ${tradeExtras.join(', ')})`;
+}
 
 const HTTP = axios.create({
   headers: {
@@ -139,11 +158,12 @@ async function fetchOkvedFromDadata(inn) {
     .map(o => String(o.code || '').trim())
     .filter(Boolean);
   const name = data.name?.short_with_opf || data.name?.full_with_opf || '';
+  const regDate = parseDadataDate(data.state?.registration_date);
 
   if (primary) {
     console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length})`);
   }
-  return { name, okved: primary, okveds: extras, inn };
+  return { name, okved: primary, okveds: extras, inn, regDate };
 }
 
 /**
@@ -180,9 +200,10 @@ async function findByNameDadata(name) {
     .filter(Boolean);
   const foundInn = String(data.inn || '').trim();
   const foundName = data.name?.short_with_opf || match.value || '';
+  const regDate = parseDadataDate(data.state?.registration_date);
 
   if (foundInn) console.log(`[FNS] dadata name:"${name.slice(0,30)}" → ИНН:${foundInn} осн=${primary||'?'}`);
-  return { name: foundName, okved: primary, okveds: extras, inn: foundInn };
+  return { name: foundName, okved: primary, okveds: extras, inn: foundInn, regDate };
 }
 
 /**
@@ -379,4 +400,4 @@ async function lookupByName(name) {
   return result || { name, okved: '', okveds: [], inn };
 }
 
-module.exports = { lookupInn, lookupByName, classifyOkved, classifyByName, RATE_LIMITED };
+module.exports = { lookupInn, lookupByName, classifyOkved, classifyByName, buildMixedActivityNote, RATE_LIMITED };
