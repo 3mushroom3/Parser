@@ -35,7 +35,7 @@ const adminRoutes = require('./routes/admin');
 const notesRoutes = require('./routes/notes');
 const externalRoutes = require('./routes/external');
 const feedbackRoutes = require('./routes/feedback');
-const { sendMessageTo } = require('./services/telegramBot');
+const { sendMessageTo, pollCommands } = require('./services/telegramBot');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 
 const app = express();
@@ -191,6 +191,9 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Start cron
     cron.schedule(process.env.FSA_CRON_SCHEDULE || '*/30 * * * *', safeRunParser);
+
+    // Telegram bot polling — отвечает на /start командой с chatId пользователя
+    setInterval(pollCommands, 10000);
 
     // Notes Telegram notifications — every minute
     cron.schedule('* * * * *', async () => {

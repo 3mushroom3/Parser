@@ -54,35 +54,69 @@ async function sendMessageTo(chatId, text) {
 
 /**
  * Уведомление об избранных компаниях с новыми декларациями.
- * favorites — массив { inn, name } из data/favorites.json
- * newRecords — новые записи после парсинга
+ * Избранное читается из SQLite (таблица favorites), не из старого JSON.
+ * Каждый пользователь получает уведомление на свой tgChatId если он задан.
  */
 async function notifyFavorites(newRecords) {
-  const { botToken, chatId } = loadConfig();
-  if (!botToken || !chatId) return;
+  const { botToken } = loadConfig();
+  if (!botToken || !newRecords.length) return;
 
-  let favs = [];
-  const FAV_FILE = path.join(__dirname, '../../data/favorites.json');
-  try {
-    if (fs.existsSync(FAV_FILE)) favs = JSON.parse(fs.readFileSync(FAV_FILE, 'utf8'));
-  } catch (_) {}
-  if (!favs.length) return;
+  const db = require('./db');
 
-  const favInns = new Set(favs.map(f => f.inn).filter(Boolean));
-  const favNames = new Set(favs.map(f => f.name).filter(Boolean));
+  // Собираем всех пользователей с Telegram chatId
+  const users = db.prepare("SELECT id, tgChatId FROM users WHERE tgChatId IS NOT NULL AND tgChatId != ''").all();
+  if (!users.length) return;
 
-  const matched = newRecords.filter(r =>
-    (r.inn && favInns.has(r.inn)) ||
-    (r.shortName && favNames.has(r.shortName))
-  );
+  for (const user of users) {
+    const favs = db.prepare('SELECT inn, name FROM favorites WHERE userId = ?').all(user.id);
+    if (!favs.length) continue;
 
-  if (!matched.length) return;
+    const favInns = new Set(favs.map(f => f.inn).filter(Boolean));
+    const favNames = new Set(favs.map(f => f.name).filter(Boolean));
 
-  const lines = matched.map(r =>
-    `• <b>${r.shortName || r.applicantName || '—'}</b>\n  ${r.declNumber || r.id} · ${r.regDate || '?'}\n  ${r.productName ? r.productName.slice(0, 80) : ''}`
-  ).join('\n\n');
+    const matched = newRecords.filter(r =>
+      (r.inn && favInns.has(r.inn)) ||
+      (r.shortName && favNames.has(r.shortName))
+    );
+    if (!matched.length) continue;
 
-  await sendMessage(`⭐ <b>Новые декларации — избранные компании</b>\n\n${lines}`);
+    const lines = matched.map(r =>
+      `• <b>${r.shortName || r.applicantName || '—'}</b>\n  ${r.declNumber || r.id} · ${r.regDate || '?'}\n  ${r.productName ? r.productName.slice(0, 80) : ''}`
+    ).join('\n\n');
+
+    await sendMessageTo(user.tgChatId, `⭐ <b>Новые декларации — избранные компании</b>\n\n${lines}`);
+  }
 }
 
-module.exports = { sendMessage, sendMessageTo, notifyFavorites, loadConfig, saveConfig };
+/**
+ * Простой поллинг входящих сообщений — отвечает на /start и /id командой с chatId.
+ * Это позволяет пользователю узнать свой Chat ID прямо через бот.
+ */
+let _pollOffset = 0;
+async function pollCommands() {
+  const { botToken } = loadConfig();
+  if (!botToken) return;
+  try {
+    const r = await axios.get(
+      `https://api.telegram.org/bot${botToken}/getUpdates`,
+      { params: { offset: _pollOffset, timeout: 5, limit: 10 }, timeout: 15000 }
+    );
+    const updates = r.data?.result || [];
+    for (const upd of updates) {
+      _pollOffset = upd.update_id + 1;
+      const msg = upd.message;
+      if (!msg?.text) continue;
+      const cmd = msg.text.split('@')[0].toLowerCase();
+      if (cmd === '/start' || cmd === '/id') {
+        const cid = msg.chat.id;
+        await axios.post(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          chat_id: cid,
+          parse_mode: 'HTML',
+          text: `👋 Привет, <b>${msg.from?.first_name || 'пользователь'}</b>!\n\nВаш Chat ID: <code>${cid}</code>\n\nСкопируйте это число и вставьте в поле «Telegram Chat ID» в разделе Профиль на сайте.`,
+        });
+      }
+    }
+  } catch (_) {}
+}
+
+module.exports = { sendMessage, sendMessageTo, notifyFavorites, pollCommands, loadConfig, saveConfig };
