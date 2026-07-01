@@ -1,6 +1,32 @@
 const axios = require('axios');
+const { HttpsProxyAgent } = (() => { try { return require('https-proxy-agent'); } catch { return {}; } })();
+const { SocksProxyAgent } = (() => { try { return require('socks-proxy-agent'); } catch { return {}; } })();
 const { isJwtString, mergeCookieStrings, parseCookiesFromResponse, extractXsrfToken } = require('./authUtils');
 const log = require('./logger');
+
+/**
+ * Если задан FSA_PROXY_URL — роутим запросы к ФСА через этот прокси,
+ * чтобы обойти IP-бан сервера. Примеры значений .env:
+ *   FSA_PROXY_URL=http://user:pass@proxy.host:3128
+ *   FSA_PROXY_URL=socks5://user:pass@proxy.host:1080
+ */
+function buildProxyAgent() {
+  const url = process.env.FSA_PROXY_URL;
+  if (!url) return null;
+  try {
+    if (url.startsWith('socks')) {
+      if (!SocksProxyAgent) { log.warn('[PROXY] socks-proxy-agent не установлен (npm install socks-proxy-agent)'); return null; }
+      log.info('[PROXY] Используется SOCKS5-прокси:', url.replace(/:([^@]{2})[^@]*@/, ':***@'));
+      return new SocksProxyAgent(url);
+    }
+    if (!HttpsProxyAgent) { log.warn('[PROXY] https-proxy-agent не установлен (npm install https-proxy-agent)'); return null; }
+    log.info('[PROXY] Используется HTTP-прокси:', url.replace(/:([^@]{2})[^@]*@/, ':***@'));
+    return new HttpsProxyAgent(url);
+  } catch (e) {
+    log.error('[PROXY] Ошибка создания агента:', e.message);
+    return null;
+  }
+}
 
 /**
  * HTTP-клиент ФГИС: сессия, POST /login, запросы к API с Bearer и retry.
@@ -8,10 +34,12 @@ const log = require('./logger');
  */
 function createFsaApiClient(cfg) {
   const baseURL = cfg.fsaBaseUrl.replace(/\/$/, '');
+  const proxyAgent = buildProxyAgent();
   const http = axios.create({
     baseURL,
     timeout: cfg.http.defaultTimeoutMs,
     validateStatus: () => true,
+    ...(proxyAgent ? { httpsAgent: proxyAgent, proxy: false } : {}),
   });
 
   let token = '';
