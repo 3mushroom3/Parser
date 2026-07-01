@@ -1,4 +1,5 @@
 const axios = require('axios');
+const https = require('https');
 const { HttpsProxyAgent } = (() => { try { return require('https-proxy-agent'); } catch { return {}; } })();
 const { SocksProxyAgent } = (() => { try { return require('socks-proxy-agent'); } catch { return {}; } })();
 const { isJwtString, mergeCookieStrings, parseCookiesFromResponse, extractXsrfToken } = require('./authUtils');
@@ -35,11 +36,27 @@ function buildProxyAgent() {
 function createFsaApiClient(cfg) {
   const baseURL = cfg.fsaBaseUrl.replace(/\/$/, '');
   const proxyAgent = buildProxyAgent();
+
+  // FSA_LOCAL_ADDRESS — использовать конкретный локальный IP для исходящих запросов.
+  // Это самый простой способ обойти бан: добавить новый IP на сервере (Timeweb → Добавить)
+  // и указать его здесь. Трафик к ФСА пойдёт с чистого IP.
+  const localAddress = process.env.FSA_LOCAL_ADDRESS || '';
+  const httpsAgentOpts = localAddress ? { localAddress } : {};
+  const defaultHttpsAgent = Object.keys(httpsAgentOpts).length
+    ? new https.Agent(httpsAgentOpts)
+    : undefined;
+
+  if (localAddress) log.info(`[FSA] Исходящий IP для ФСА: ${localAddress}`);
+
   const http = axios.create({
     baseURL,
     timeout: cfg.http.defaultTimeoutMs,
     validateStatus: () => true,
-    ...(proxyAgent ? { httpsAgent: proxyAgent, proxy: false } : {}),
+    ...(proxyAgent
+      ? { httpsAgent: proxyAgent, proxy: false }
+      : defaultHttpsAgent
+        ? { httpsAgent: defaultHttpsAgent }
+        : {}),
   });
 
   let token = '';
