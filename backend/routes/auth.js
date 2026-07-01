@@ -3,6 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
+const crypto = require('crypto');
 const _secret = require('../config/jwtSecret');
 
 const MIN_PASSWORD_LEN = 8;
@@ -60,8 +61,13 @@ router.post('/login', (req, res) => {
     return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
 
+  // Новая сессия вытесняет все предыдущие (защита от одновременного использования
+  // одного аккаунта с нескольких устройств)
+  const sessionId = crypto.randomBytes(16).toString('hex');
+  db.prepare('UPDATE users SET sessionId = ? WHERE id = ?').run(sessionId, user.id);
+
   const token = jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, role: user.role, sessionId },
     _secret,
     { expiresIn: '24h' }
   );

@@ -7,9 +7,11 @@ const yukassa = require('../services/yukassa');
 
 // Планы подписки (цены в рублях, дни)
 const PLANS = {
-  month1:  { label: '1 месяц',   days: 30,  price: Number(process.env.PLAN_1M_PRICE)  || 990  },
-  month3:  { label: '3 месяца',  days: 90,  price: Number(process.env.PLAN_3M_PRICE)  || 2490 },
-  month12: { label: '12 месяцев',days: 365, price: Number(process.env.PLAN_12M_PRICE) || 7990 },
+  ind_month1:  { label: 'Индивидуальный 1 месяц',   days: 30,  price: Number(process.env.PLAN_IND_1M)  || 1000, type: 'individual', maxUsers: 1 },
+  month3:      { label: 'Индивидуальный 3 месяца',   days: 90,  price: Number(process.env.PLAN_3M_PRICE)  || 2490, type: 'individual', maxUsers: 1 },
+  month12:     { label: 'Индивидуальный 12 месяцев', days: 365, price: Number(process.env.PLAN_12M_PRICE) || 7990, type: 'individual', maxUsers: 1 },
+  group_year:  { label: 'Корпоративный 12 месяцев',  days: 365, price: Number(process.env.PLAN_GROUP_YEAR) || 30000, type: 'group', maxUsers: 5,
+                 description: 'До 5 пользователей в компании' },
 };
 
 // GET /api/payment/plans — список тарифов (публичный)
@@ -19,13 +21,25 @@ router.get('/plans', (req, res) => {
 
 // GET /api/payment/subscription — статус подписки текущего пользователя
 router.get('/subscription', auth, (req, res) => {
-  const user = db.prepare('SELECT subscriptionUntil, subscriptionPlan, role FROM users WHERE id = ?').get(req.user.id);
-  const active = user.role === 'admin' || (user.subscriptionUntil && new Date(user.subscriptionUntil) > new Date());
+  const user = db.prepare('SELECT subscriptionUntil, subscriptionPlan, role, groupId FROM users WHERE id = ?').get(req.user.id);
+  const now = new Date();
+  let active = user.role === 'admin' || (user.subscriptionUntil && new Date(user.subscriptionUntil) > now);
+  let groupInfo = null;
+
+  if (!active && user.groupId) {
+    const group = db.prepare('SELECT * FROM group_subscriptions WHERE id = ?').get(user.groupId);
+    if (group && group.subscriptionUntil && new Date(group.subscriptionUntil) > now) {
+      active = true;
+      groupInfo = { name: group.name, until: group.subscriptionUntil, maxUsers: group.maxUsers };
+    }
+  }
+
   res.json({
     active,
     subscriptionUntil: user.subscriptionUntil || null,
     subscriptionPlan: user.subscriptionPlan || null,
     isAdmin: user.role === 'admin',
+    group: groupInfo,
   });
 });
 
@@ -128,14 +142,22 @@ function activateSubscription(userId, planId, paymentId) {
 
   const user = db.prepare('SELECT subscriptionUntil FROM users WHERE id = ?').get(userId);
   const base = user?.subscriptionUntil && new Date(user.subscriptionUntil) > new Date()
-    ? new Date(user.subscriptionUntil)
-    : new Date();
-
+    ? new Date(user.subscriptionUntil) : new Date();
   base.setDate(base.getDate() + plan.days);
   const newUntil = base.toISOString();
 
-  db.prepare('UPDATE users SET subscriptionUntil=?, subscriptionPlan=? WHERE id=?')
-    .run(newUntil, planId, userId);
+  if (plan.type === 'group') {
+    // Создаём групповую подписку и назначаем владельца
+    const groupId = crypto.randomUUID();
+    db.prepare('INSERT INTO group_subscriptions (id, name, ownerId, maxUsers, subscriptionUntil, subscriptionPlan) VALUES (?,?,?,?,?,?)')
+      .run(groupId, `Группа пользователя #${userId}`, userId, plan.maxUsers, newUntil, planId);
+    db.prepare('UPDATE users SET subscriptionUntil=?, subscriptionPlan=?, groupId=? WHERE id=?')
+      .run(newUntil, planId, groupId, userId);
+  } else {
+    db.prepare('UPDATE users SET subscriptionUntil=?, subscriptionPlan=? WHERE id=?')
+      .run(newUntil, planId, userId);
+  }
+
   db.prepare("UPDATE payments SET status='succeeded', updatedAt=CURRENT_TIMESTAMP WHERE id=?")
     .run(paymentId);
 }

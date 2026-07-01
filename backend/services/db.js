@@ -223,5 +223,25 @@ const folderCols = db.prepare("PRAGMA table_info(folders)").all().map(c => c.nam
 if (!folderCols.includes('userId')) {
   db.exec('ALTER TABLE folders ADD COLUMN userId INTEGER NOT NULL DEFAULT 1');
 }
+if (!userCols.includes('sessionId')) {
+  db.exec('ALTER TABLE users ADD COLUMN sessionId TEXT');
+}
+if (!userCols.includes('groupId')) {
+  db.exec('ALTER TABLE users ADD COLUMN groupId TEXT');
+}
+
+// Таблица групповых подписок (1 подписка — несколько пользователей компании)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS group_subscriptions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    ownerId INTEGER NOT NULL,
+    maxUsers INTEGER NOT NULL DEFAULT 5,
+    subscriptionUntil DATETIME,
+    subscriptionPlan TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (ownerId) REFERENCES users(id)
+  );
+`);
 
 module.exports = db;

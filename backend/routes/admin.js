@@ -164,4 +164,53 @@ router.post('/reset-parser-checkpoint', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Управление групповыми подписками ──────────────────────────────────────
+
+// GET /api/admin/groups — список всех групп
+router.get('/groups', auth, requireAdmin, (req, res) => {
+  const groups = db.prepare(`
+    SELECT g.*, u.username as ownerName,
+      (SELECT COUNT(*) FROM users WHERE groupId = g.id) as memberCount
+    FROM group_subscriptions g JOIN users u ON g.ownerId = u.id
+    ORDER BY g.createdAt DESC
+  `).all();
+  const members = db.prepare('SELECT id, username, groupId FROM users WHERE groupId IS NOT NULL').all();
+  res.json(groups.map(g => ({
+    ...g,
+    members: members.filter(m => m.groupId === g.id)
+  })));
+});
+
+// POST /api/admin/groups — создать группу вручную (для ручного выставления счёта)
+router.post('/groups', auth, requireAdmin, (req, res) => {
+  const { name, ownerId, maxUsers = 5, days = 365 } = req.body || {};
+  if (!name || !ownerId) return res.status(400).json({ error: 'name и ownerId обязательны' });
+  const until = new Date();
+  until.setDate(until.getDate() + days);
+  const id = require('crypto').randomUUID();
+  db.prepare('INSERT INTO group_subscriptions (id, name, ownerId, maxUsers, subscriptionUntil, subscriptionPlan) VALUES (?,?,?,?,?,?)')
+    .run(id, name, ownerId, maxUsers, until.toISOString(), 'group_year');
+  db.prepare('UPDATE users SET subscriptionUntil=?, subscriptionPlan=?, groupId=? WHERE id=?')
+    .run(until.toISOString(), 'group_year', id, ownerId);
+  res.status(201).json({ ok: true, id });
+});
+
+// POST /api/admin/groups/:id/members — добавить пользователя в группу
+router.post('/groups/:id/members', auth, requireAdmin, (req, res) => {
+  const { userId } = req.body || {};
+  if (!userId) return res.status(400).json({ error: 'userId обязателен' });
+  const group = db.prepare('SELECT * FROM group_subscriptions WHERE id = ?').get(req.params.id);
+  if (!group) return res.status(404).json({ error: 'Группа не найдена' });
+  const currentCount = db.prepare('SELECT COUNT(*) c FROM users WHERE groupId = ?').get(req.params.id).c;
+  if (currentCount >= group.maxUsers) return res.status(400).json({ error: `Лимит группы: ${group.maxUsers} пользователей` });
+  db.prepare('UPDATE users SET groupId = ? WHERE id = ?').run(req.params.id, userId);
+  res.json({ ok: true });
+});
+
+// DELETE /api/admin/groups/:id/members/:userId — удалить пользователя из группы
+router.delete('/groups/:id/members/:userId', auth, requireAdmin, (req, res) => {
+  db.prepare('UPDATE users SET groupId = NULL WHERE id = ? AND groupId = ?').run(req.params.userId, req.params.id);
+  res.json({ ok: true });
+});
+
 module.exports = router;

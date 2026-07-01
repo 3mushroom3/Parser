@@ -113,7 +113,11 @@ async function apiFetch(path, opts = {}) {
   const response = await fetch(path, { ...opts, headers });
 
   if (response.status === 401 && State.token) {
+    const body = await response.json().catch(() => ({}));
     handleLogout();
+    if (body.code === 'SESSION_INVALIDATED') {
+      throw new Error('Выполнен вход с другого устройства. Войдите снова.');
+    }
     throw new Error('Сессия истекла. Войдите снова.');
   }
 
