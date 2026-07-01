@@ -16,8 +16,15 @@ const State = {
   favsCache: [],
   folderBreadcrumb: [],
   curCompDecls: [],
+  curCompContacts: [],
   curCropTab: 'all',
   detailRecord: null,
+  // Навигация по производителям (текущая страница таблицы)
+  navItems: [],
+  navIndex: -1,
+  // Навигация по декларациям внутри карточки компании
+  navDeclIds: [],
+  navDeclIndex: -1,
 };
 
 const CITY_COORDS = {
@@ -365,6 +372,10 @@ function showSkeleton() {
 function renderTable(data) {
   const { items, total, pages, page } = data;
   const tbody = document.getElementById('tblBody');
+
+  // Запоминаем текущую страницу для навигации стрелками внутри карточки компании
+  State.navItems = items || [];
+  State.navIndex = -1;
 
   items.forEach(p => {
     const key = p.inn || p.name;
@@ -931,8 +942,61 @@ async function atfCreateAndAdd() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+// ── Навигация по производителям и декларациям ─────────────────────────────
+function navProducer(delta) {
+  const next = State.navIndex + delta;
+  if (next < 0 || next >= State.navItems.length) return;
+  const p = State.navItems[next];
+  openCompany(p.inn, p.name);
+}
+
+function navDecl(delta) {
+  const next = State.navDeclIndex + delta;
+  if (next < 0 || next >= State.navDeclIds.length) return;
+  State.navDeclIndex = next;
+  openDetail(State.navDeclIds[next], true);
+}
+
+function _updateCompNavButtons() {
+  const prev = document.getElementById('compNavPrev');
+  const next = document.getElementById('compNavNext');
+  const pos  = document.getElementById('compNavPos');
+  if (!prev) return;
+  prev.disabled = State.navIndex <= 0;
+  next.disabled = State.navIndex < 0 || State.navIndex >= State.navItems.length - 1;
+  if (pos && State.navIndex >= 0)
+    pos.textContent = `${State.navIndex + 1} / ${State.navItems.length}`;
+}
+
+function _updateDeclNavButtons() {
+  const prev = document.getElementById('declNavPrev');
+  const next = document.getElementById('declNavNext');
+  const pos  = document.getElementById('declNavPos');
+  if (!prev) return;
+  prev.disabled = State.navDeclIndex <= 0;
+  next.disabled = State.navDeclIndex < 0 || State.navDeclIndex >= State.navDeclIds.length - 1;
+  if (pos && State.navDeclIndex >= 0)
+    pos.textContent = `${State.navDeclIndex + 1} / ${State.navDeclIds.length}`;
+}
+
+// Глобальный обработчик стрелок: работает пока открыта соответствующая модалка
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const compOpen = document.getElementById('compModal')?.classList.contains('open');
+  const detOpen  = document.getElementById('detModal')?.classList.contains('open');
+  if (e.key === 'ArrowLeft')  { if (detOpen) navDecl(-1); else if (compOpen) navProducer(-1); }
+  if (e.key === 'ArrowRight') { if (detOpen) navDecl(+1); else if (compOpen) navProducer(+1); }
+});
+
 // ── Company Card ──────────────────────────────────────────────────────────
 async function openCompany(inn, name) {
+  // Запоминаем позицию в списке
+  const idx = State.navItems.findIndex(p => (inn && p.inn && p.inn === inn) || p.name === name);
+  State.navIndex = idx;
+  // Сбрасываем навигацию по декларациям (откроем при клике на конкретную)
+  State.navDeclIds = [];
+  State.navDeclIndex = -1;
+
   const key = inn || name;
   document.getElementById('compModalName').textContent = name || inn || 'Загрузка...';
   document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
@@ -1027,11 +1091,18 @@ async function openCompany(inn, name) {
   const isFav = isFavorite(p.inn, p.name || name);
   const compLabel = (p.name || name || inn || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
   const compInnHint = p.inn ? ` (ИНН ${p.inn})` : '';
+  const hasNav = State.navItems.length > 1;
   document.getElementById('compModalFoot').innerHTML = `
+    ${hasNav ? `<div style="display:flex;align-items:center;gap:4px;margin-right:auto">
+      <button class="btn btn-sm" id="compNavPrev" onclick="navProducer(-1)" title="Предыдущий (←)">‹</button>
+      <span id="compNavPos" style="font-size:11px;color:var(--muted);min-width:44px;text-align:center"></span>
+      <button class="btn btn-sm" id="compNavNext" onclick="navProducer(+1)" title="Следующий (→)">›</button>
+    </div>` : ''}
     <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
     <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
     <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
     <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>`;
+  _updateCompNavButtons();
 }
 
 function updateCompFavBtn(inn, name) {
@@ -1241,7 +1312,7 @@ function updateCropTabs() {
       <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
       <td style="color:var(--muted)">${parseTon(d.batchSize) > 0 ? fmtTon(parseTon(d.batchSize)) : (d.batchSize||'—')}</td>
       <td>${sbadge[d.status] || d.status || '—'}</td>
-      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}')">↗</button></td>
+      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}',true)">↗</button></td>
     </tr>`).join('')
     : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
 
@@ -1259,7 +1330,17 @@ function selectCropTab(key) {
 }
 
 // ── Detail Modal ──────────────────────────────────────────────────────────
-async function openDetail(id) {
+async function openDetail(id, fromCompany = false) {
+  // Настраиваем контекст навигации по декларациям
+  if (fromCompany && State.curCompDecls.length > 0) {
+    State.navDeclIds = State.curCompDecls.map(d => d.id);
+    State.navDeclIndex = State.navDeclIds.indexOf(id);
+  } else if (!fromCompany) {
+    // Открытие без контекста компании — сбрасываем навигацию
+    State.navDeclIds = [];
+    State.navDeclIndex = -1;
+  }
+
   try {
     const r = await apiFetch('/api/declarations/' + id);
     State.detailRecord = r;
@@ -1293,13 +1374,20 @@ async function openDetail(id) {
     const declLabel = (r.declNumber || r.id).replace(/'/g,"\\'");
     const declUrl = (r.fsaUrl || '').replace(/'/g,"\\'");
     const isAdmin = State.user?.role === 'admin';
+    const hasDeclNav = State.navDeclIds.length > 1;
     document.getElementById('detFoot').innerHTML = `
+      ${hasDeclNav ? `<div style="display:flex;align-items:center;gap:4px;margin-right:auto">
+        <button class="btn btn-sm" id="declNavPrev" onclick="navDecl(-1)" title="Предыдущая (←)">‹</button>
+        <span id="declNavPos" style="font-size:11px;color:var(--muted);min-width:44px;text-align:center"></span>
+        <button class="btn btn-sm" id="declNavNext" onclick="navDecl(+1)" title="Следующая (→)">›</button>
+      </div>` : ''}
       ${isAdmin ? `<button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>` : ''}
       ${isAdmin ? `<button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>` : ''}
       <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
       <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
       <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
       <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
+    _updateDeclNavButtons();
 
     openModal('detModal');
   } catch(e) { showAlert(e.message, 'err'); }
