@@ -17,8 +17,19 @@ async function getBalance() {
   return r.status === 200 ? r.data : null;
 }
 
+// ИНН 10 знаков = организация (ООО, АО, ...) — API отдаёт данные напрямую.
+// ИНН 12 знаков = ИП/физлицо — API не поддерживает, возвращаем специальный
+// объект со ссылкой на профиль на сайте export-base.ru.
+function isIp(inn) { return String(inn).length === 12; }
+function profileUrl(inn) { return `https://export-base.ru/?query=${inn}`; }
+
 async function lookupByInn(inn) {
   if (!EXPORT_BASE_KEY || !inn) return null;
+
+  if (isIp(inn)) {
+    return { _isIp: true, profileUrl: profileUrl(inn) };
+  }
+
   const r = await http.get(`${BASE_URL}/company/`, { params: { inn, key: EXPORT_BASE_KEY } });
   if (r.status !== 200) {
     console.warn('[EB] company HTTP', r.status, r.data);
@@ -29,11 +40,14 @@ async function lookupByInn(inn) {
 
 function extractData(c) {
   if (!c) return null;
+  // ИП — данные через API недоступны, только ссылка на профиль
+  if (c._isIp) return { _isIp: true, profileUrl: c.profileUrl };
+
   const phones = [c.stationary_phone, c.mobile_phone].filter(Boolean).join(' | ').trim() || null;
   return {
     phone:     phones,
-    email:     c.email   || null,
-    website:   c.site    || null,
+    email:     c.email    || null,
+    website:   c.site     || null,
     ceoName:   c.ceo_name || null,
     employees: c.employees ? String(c.employees) : null,
     revenue:   c.income   || null,
@@ -41,4 +55,4 @@ function extractData(c) {
   };
 }
 
-module.exports = { getBalance, lookupByInn, extractData, isConfigured: () => !!EXPORT_BASE_KEY };
+module.exports = { getBalance, lookupByInn, extractData, isConfigured: () => !!EXPORT_BASE_KEY, isIp, profileUrl };

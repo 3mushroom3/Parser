@@ -1056,23 +1056,34 @@ async function openCompany(inn, name) {
       ${p.address ? `<div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address}</div></div>` : ''}
     </div>
     <div id="ebDataBlock" style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;margin-bottom:14px">
-      ${p.ebEnrichedAt ? `
-        <div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px">
-          <span>📊 export-base.ru · обновлено ${new Date(p.ebEnrichedAt).toLocaleDateString('ru-RU')}</span>
-          <button class="btn btn-sm" style="font-size:10px;padding:2px 6px" onclick="enrichCompanyEB('${safeInn}','${safeName}')">↺ Обновить</button>
-        </div>
-        <div class="dg" style="gap:6px 20px">
-          ${p.ebPhone ? `<div class="df full"><div class="df-l">☎ Телефоны</div><div class="df-v" style="font-size:12px">${escHtml(p.ebPhone)}</div></div>` : ''}
-          ${p.ebEmail ? `<div class="df full"><div class="df-l">✉ Email</div><div class="df-v" style="font-size:12px">${escHtml(p.ebEmail)}</div></div>` : ''}
-          ${p.ebWebsite ? `<div class="df"><div class="df-l">🌐 Сайт</div><div class="df-v"><a href="https://${escHtml(p.ebWebsite)}" target="_blank">${escHtml(p.ebWebsite)}</a></div></div>` : ''}
-          ${p.ebCeoName ? `<div class="df full"><div class="df-l">👤 Директор</div><div class="df-v" style="font-size:12px">${escHtml(p.ebCeoName)}</div></div>` : ''}
-          ${p.ebRevenue ? `<div class="df"><div class="df-l">💰 Выручка</div><div class="df-v">${escHtml(p.ebRevenue)} тыс. ₽</div></div>` : ''}
-          ${p.ebEmployees ? `<div class="df"><div class="df-l">👥 Сотрудников</div><div class="df-v">${escHtml(p.ebEmployees)}</div></div>` : ''}
-        </div>` : `
-        <div style="display:flex;align-items:center;justify-content:space-between">
+      ${(() => {
+        const isIp = p.inn && p.inn.length === 12;
+        const ebLink = `https://export-base.ru/?query=${escHtml(p.inn||'')}`;
+        if (isIp) {
+          return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+            <span style="font-size:12px;color:var(--muted)">ИП/КФХ: контакты через API недоступны — данные только на сайте</span>
+            <a href="${ebLink}" target="_blank" class="btn btn-sm btn-p" style="font-size:11px;white-space:nowrap">🔗 Открыть на export-base</a>
+          </div>`;
+        }
+        if (p.ebEnrichedAt) {
+          return `<div style="font-size:10px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px">
+            <span>📊 export-base.ru · обновлено ${new Date(p.ebEnrichedAt).toLocaleDateString('ru-RU')}</span>
+            <button class="btn btn-sm" style="font-size:10px;padding:2px 6px" onclick="enrichCompanyEB('${safeInn}','${safeName}')">↺ Обновить</button>
+          </div>
+          <div class="dg" style="gap:6px 20px">
+            ${p.ebPhone ? `<div class="df full"><div class="df-l">☎ Телефоны</div><div class="df-v" style="font-size:12px">${escHtml(p.ebPhone)}</div></div>` : ''}
+            ${p.ebEmail ? `<div class="df full"><div class="df-l">✉ Email</div><div class="df-v" style="font-size:12px">${escHtml(p.ebEmail)}</div></div>` : ''}
+            ${p.ebWebsite ? `<div class="df"><div class="df-l">🌐 Сайт</div><div class="df-v"><a href="https://${escHtml(p.ebWebsite)}" target="_blank">${escHtml(p.ebWebsite)}</a></div></div>` : ''}
+            ${p.ebCeoName ? `<div class="df full"><div class="df-l">👤 Директор</div><div class="df-v" style="font-size:12px">${escHtml(p.ebCeoName)}</div></div>` : ''}
+            ${p.ebRevenue ? `<div class="df"><div class="df-l">💰 Выручка</div><div class="df-v">${escHtml(p.ebRevenue)} тыс. ₽</div></div>` : ''}
+            ${p.ebEmployees ? `<div class="df"><div class="df-l">👥 Сотрудников</div><div class="df-v">${escHtml(p.ebEmployees)}</div></div>` : ''}
+          </div>`;
+        }
+        return `<div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;color:var(--muted)">Телефоны, email, директор, выручка не загружены</span>
           <button class="btn btn-sm btn-p" style="font-size:11px" onclick="enrichCompanyEB('${safeInn}','${safeName}')">📊 Получить контакты</button>
-        </div>`}
+        </div>`;
+      })()}
     </div>
     <div class="dsec">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -1207,10 +1218,14 @@ async function enrichCompanyEB(inn, name) {
       method: 'POST',
       body: JSON.stringify({ inn: inn || undefined, name: name || undefined })
     });
-    if (!r.ok) { showAlert(r.message || 'Не найдено', 'warn'); }
-    else {
+    if (r._isIp) {
+      // ИП — данные нельзя получить через API, открываем профиль на сайте
+      window.open(r.profileUrl, '_blank');
+      showAlert('ИП: данные через API недоступны — открыта страница на export-base.ru', 'warn');
+    } else if (!r.ok) {
+      showAlert(r.message || 'Не найдено', 'warn');
+    } else {
       showAlert('Контакты получены!');
-      // Перезагружаем карточку компании
       openCompany(inn, name);
     }
   } catch(e) { showAlert(e.message, 'err'); }
