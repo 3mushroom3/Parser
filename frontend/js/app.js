@@ -1093,15 +1093,19 @@ async function openCompany(inn, name) {
   const compInnHint = p.inn ? ` (ИНН ${p.inn})` : '';
   const hasNav = State.navItems.length > 1;
   document.getElementById('compModalFoot').innerHTML = `
-    ${hasNav ? `<div style="display:flex;align-items:center;gap:4px;margin-right:auto">
-      <button class="btn btn-sm" id="compNavPrev" onclick="navProducer(-1)" title="Предыдущий (←)">‹</button>
-      <span id="compNavPos" style="font-size:11px;color:var(--muted);min-width:44px;text-align:center"></span>
-      <button class="btn btn-sm" id="compNavNext" onclick="navProducer(+1)" title="Следующий (→)">›</button>
-    </div>` : ''}
-    <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
-    <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
-    <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
-    <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>`;
+    <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+      ${hasNav ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+        <button class="btn btn-sm" id="compNavPrev" onclick="navProducer(-1)" style="min-width:90px">‹ Предыд.</button>
+        <span id="compNavPos" style="font-size:12px;color:var(--muted);min-width:56px;text-align:center;font-weight:600"></span>
+        <button class="btn btn-sm" id="compNavNext" onclick="navProducer(+1)" style="min-width:90px">Следующ. ›</button>
+      </div>` : ''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+        <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
+        <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
+        <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
+        <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>
+      </div>
+    </div>`;
   _updateCompNavButtons();
 }
 
@@ -1375,18 +1379,24 @@ async function openDetail(id, fromCompany = false) {
     const declUrl = (r.fsaUrl || '').replace(/'/g,"\\'");
     const isAdmin = State.user?.role === 'admin';
     const hasDeclNav = State.navDeclIds.length > 1;
+    // Навигация вынесена отдельной строкой над кнопками — иначе при нескольких
+    // кнопках они вылазят за край flex-контейнера без переноса.
     document.getElementById('detFoot').innerHTML = `
-      ${hasDeclNav ? `<div style="display:flex;align-items:center;gap:4px;margin-right:auto">
-        <button class="btn btn-sm" id="declNavPrev" onclick="navDecl(-1)" title="Предыдущая (←)">‹</button>
-        <span id="declNavPos" style="font-size:11px;color:var(--muted);min-width:44px;text-align:center"></span>
-        <button class="btn btn-sm" id="declNavNext" onclick="navDecl(+1)" title="Следующая (→)">›</button>
-      </div>` : ''}
-      ${isAdmin ? `<button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>` : ''}
-      ${isAdmin ? `<button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>` : ''}
-      <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
-      <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
-      <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
-      <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>`;
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+        ${hasDeclNav ? `<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--border)">
+          <button class="btn btn-sm" id="declNavPrev" onclick="navDecl(-1)" style="min-width:80px">‹ Предыд.</button>
+          <span id="declNavPos" style="font-size:12px;color:var(--muted);min-width:56px;text-align:center;font-weight:600"></span>
+          <button class="btn btn-sm" id="declNavNext" onclick="navDecl(+1)" style="min-width:80px">Следующ. ›</button>
+        </div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
+          ${isAdmin ? `<button class="btn btn-dng btn-sm" onclick="deleteCurrentDetail()">Удалить</button>` : ''}
+          ${isAdmin ? `<button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>` : ''}
+          <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
+          <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
+          <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
+          <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>
+        </div>
+      </div>`;
     _updateDeclNavButtons();
 
     openModal('detModal');
