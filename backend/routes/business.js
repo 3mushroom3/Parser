@@ -4,6 +4,7 @@ const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const { dataReadLimiter } = require('../middleware/rateLimiters');
+const eb = require('../services/exportBaseClient');
 
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
 
@@ -44,6 +45,13 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
     notes: companyInfo?.notes || '',
     companyRegDate: companyInfo?.regDate || '',
     autoNote: companyInfo?.autoNote || '',
+    ebPhone: companyInfo?.phone || '',
+    ebEmail: companyInfo?.email || '',
+    ebWebsite: companyInfo?.website || '',
+    ebCeoName: companyInfo?.ceoName || '',
+    ebEmployees: companyInfo?.employees || '',
+    ebRevenue: companyInfo?.revenue || '',
+    ebEnrichedAt: companyInfo?.ebEnrichedAt || '',
     contacts,
     lastDeclDate,
     dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
@@ -136,6 +144,43 @@ router.delete('/favorites', auth, (req, res) => {
   const { inn, name } = req.body || {};
   db.prepare('DELETE FROM favorites WHERE userId = ? AND inn = ? AND name = ?').run(req.user.id, inn || '', name);
   res.json({ ok: true });
+});
+
+// POST /api/business/company/enrich-eb — обогатить компанию через export-base.ru
+// Тратит 1 лимит. Доступно авторизованным пользователям с подпиской.
+router.post('/company/enrich-eb', auth, requireSubscription, async (req, res) => {
+  const { inn, name } = req.body || {};
+  if (!inn && !name) return res.status(400).json({ error: 'inn или name обязателен' });
+  if (!eb.isConfigured()) return res.status(503).json({ error: 'EXPORT_BASE_KEY не задан в .env' });
+
+  const key = inn || name;
+  try {
+    const raw = await eb.lookupByInn(inn);
+    const data = eb.extractData(raw);
+    if (!data) return res.json({ ok: false, message: 'Компания не найдена в export-base' });
+
+    const existing = db.prepare('SELECT id FROM companies WHERE id = ?').get(key);
+    const fields = Object.entries(data).filter(([,v]) => v != null);
+    const setClause = fields.map(([k]) => `${k} = ?`).join(', ');
+    const values = fields.map(([,v]) => v);
+
+    if (existing) {
+      db.prepare(`UPDATE companies SET ${setClause}, ebEnrichedAt = CURRENT_TIMESTAMP, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`)
+        .run(...values, key);
+    } else {
+      db.prepare(`INSERT INTO companies (id, inn, name, ${fields.map(([k])=>k).join(',')}, ebEnrichedAt) VALUES (?,?,?,${fields.map(()=>'?').join(',')},CURRENT_TIMESTAMP)`)
+        .run(key, inn || null, name || null, ...values);
+    }
+    res.json({ ok: true, ...data });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/business/eb-balance — остаток лимитов export-base
+router.get('/eb-balance', auth, async (req, res) => {
+  const balance = await eb.getBalance();
+  res.json({ balance, configured: eb.isConfigured() });
 });
 
 module.exports = router;

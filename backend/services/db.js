@@ -76,8 +76,16 @@ db.exec(`
     name TEXT,
     description TEXT,
     notes TEXT,
-    regDate TEXT,  -- дата регистрации компании по данным ФНС/ОКВЭД-лукапа
-    autoNote TEXT, -- авто-пометка (напр. растениеводство + доп.ОКВЭД торговля), отдельно от ручного description
+    regDate TEXT,
+    autoNote TEXT,
+    phone TEXT,     -- телефоны из export-base.ru (стац. + моб.)
+    email TEXT,     -- email из export-base.ru
+    website TEXT,   -- сайт из export-base.ru
+    ceoName TEXT,   -- имя директора из export-base.ru
+    employees TEXT, -- кол-во сотрудников из export-base.ru
+    revenue TEXT,   -- выручка форматированная (тыс. руб.)
+    revenueRaw INTEGER, -- выручка числом (тыс. руб.)
+    ebEnrichedAt DATETIME, -- дата последнего обогащения через export-base
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -228,6 +236,15 @@ if (!userCols.includes('sessionId')) {
 }
 if (!userCols.includes('groupId')) {
   db.exec('ALTER TABLE users ADD COLUMN groupId TEXT');
+}
+
+// Миграции таблицы companies (export-base поля)
+const companiesExCols = db.prepare("PRAGMA table_info(companies)").all().map(c => c.name);
+for (const col of ['phone','email','website','ceoName','employees','revenue','revenueRaw','ebEnrichedAt']) {
+  if (!companiesExCols.includes(col)) {
+    const type = col === 'revenueRaw' ? 'INTEGER' : 'TEXT';
+    db.exec(`ALTER TABLE companies ADD COLUMN ${col} ${type}`);
+  }
 }
 
 // Таблица групповых подписок (1 подписка — несколько пользователей компании)
