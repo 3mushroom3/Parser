@@ -184,6 +184,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_decl_farmerType ON declarations(farmerType);
   CREATE INDEX IF NOT EXISTS idx_decl_inn ON declarations(inn);
   CREATE INDEX IF NOT EXISTS idx_decl_fsaId ON declarations(fsaId);
+  CREATE INDEX IF NOT EXISTS idx_decl_shortName ON declarations(shortName);
 `);
 
 // Migrations for existing databases

@@ -101,6 +101,27 @@ function importXlsx(buffer, options = {}) {
   // ── Запись в БД ───────────────────────────────────────────────────────
   const result = { total: companies.length, inserted: 0, enriched: 0, skipped: 0, errors: [] };
 
+  // Один запрос вместо 134: собираем все ИНН и имена, получаем какие уже есть
+  const innsFromFile = companies.map(c => c.inn).filter(Boolean);
+  const namesFromFile = companies.map(c => c.name).filter(Boolean);
+
+  const existingInns = new Set();
+  const existingNames = new Set();
+
+  if (innsFromFile.length) {
+    const rows = db.prepare(
+      `SELECT DISTINCT inn FROM declarations WHERE inn IN (${innsFromFile.map(() => '?').join(',')}) AND inn != ''`
+    ).all(...innsFromFile);
+    rows.forEach(r => existingInns.add(r.inn));
+  }
+  if (namesFromFile.length) {
+    // Ищем по первым 10 символам lower_u (быстрее, чем полный скан)
+    const nameRows = db.prepare(
+      `SELECT DISTINCT lower_u(shortName) as sn FROM declarations WHERE source != 'xls_import' AND length(shortName) > 3 LIMIT 50000`
+    ).all();
+    nameRows.forEach(r => { if (r.sn) existingNames.add(r.sn); });
+  }
+
   const upsertCompany = db.prepare(`
     INSERT INTO companies (id, inn, name, phone, ceoName, description, notes, updatedAt)
     VALUES (@id, @inn, @name, @phone, @ceoName, @description, @notes, CURRENT_TIMESTAMP)
@@ -111,9 +132,6 @@ function importXlsx(buffer, options = {}) {
       updatedAt = CURRENT_TIMESTAMP
   `);
 
-  const checkDecl = db.prepare(
-    "SELECT COUNT(*) c FROM declarations WHERE (inn = ? AND inn != '') OR (lower_u(shortName) = lower_u(?))"
-  );
   const insertDecl = db.prepare(`
     INSERT OR IGNORE INTO declarations
       (id, source, status, shortName, inn, address, phone, productName, fetchedAt, updatedAt)
@@ -142,10 +160,9 @@ function importXlsx(buffer, options = {}) {
           notes:       notes || null,
         });
 
-        // Создаём ручную декларацию только если нет ФСА-данных
-        const exists = c.inn
-          ? checkDecl.get(c.inn, c.name).c > 0
-          : checkDecl.get('', c.name).c > 0;
+        // Проверяем по заранее загруженным множествам (без повторных SQL-запросов)
+        const exists = (c.inn && existingInns.has(c.inn)) ||
+                       existingNames.has((c.name || '').toLowerCase());
 
         if (!exists && !skipExisting) {
           const declId = 'xls_' + companyKey.replace(/\W/g, '_') + '_' + Date.now() % 100000;
