@@ -4,8 +4,12 @@ const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
+const multer = require('multer');
 const { backfillMissingInn, findAmbiguousInnGroups, resolveAmbiguousGroup, dismissAmbiguousGroup } = require('../services/dedupe');
 const { archiveOldDeclarations, ARCHIVE_AFTER_DAYS } = require('../services/archiver');
+const { importXlsx } = require('../services/xlsImporter');
+
+const xlsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 function requireAdmin(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
@@ -211,6 +215,20 @@ router.post('/groups/:id/members', auth, requireAdmin, (req, res) => {
 router.delete('/groups/:id/members/:userId', auth, requireAdmin, (req, res) => {
   db.prepare('UPDATE users SET groupId = NULL WHERE id = ? AND groupId = ?').run(req.params.userId, req.params.id);
   res.json({ ok: true });
+});
+
+// POST /api/admin/import-xlsx — импорт производителей из XLS/XLSX-файла
+router.post('/import-xlsx', auth, requireAdmin, (req, res) => {
+  xlsUpload.single('file')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
+    try {
+      const result = importXlsx(req.file.buffer, { skipExisting: req.body.skipExisting === '1' });
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
 });
 
 module.exports = router;

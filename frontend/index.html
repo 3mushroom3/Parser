@@ -476,6 +476,19 @@
         <tbody id="adminPaymentsTbody"></tbody>
       </table>
     </div>
+    <div style="margin-top:28px;margin-bottom:12px">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">📥 Импорт из XLS/XLSX</h3>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Загрузите файл с производителями (формат: название, ИНН, адрес/директор/телефон, культуры). Если производитель уже есть в ФСА-базе — только обновится карточка компании. Если нет — создастся новая запись для поиска.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+        <input type="file" id="xlsFileInput" accept=".xls,.xlsx" style="font-size:12px">
+        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)">
+          <input type="checkbox" id="xlsSkipExisting"> Пропускать, если нет в ФСА
+        </label>
+        <button class="btn btn-p btn-sm" onclick="importXlsFile()">Импортировать</button>
+      </div>
+      <div id="xlsImportResult" style="font-size:12px;display:none"></div>
+    </div>
+
     <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <h3 style="font-size:14px;font-weight:700">Архивация старых деклараций</h3>
       <button class="btn btn-sm" onclick="runArchiveOld()">🗄 Архивировать (>1 года)</button>

@@ -1981,6 +1981,34 @@ async function loadAdminData() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function importXlsFile() {
+  const input = document.getElementById('xlsFileInput');
+  const file = input?.files?.[0];
+  if (!file) { showAlert('Выберите файл', 'warn'); return; }
+  const skipExisting = document.getElementById('xlsSkipExisting')?.checked ? '1' : '0';
+  const resultEl = document.getElementById('xlsImportResult');
+  resultEl.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('skipExisting', skipExisting);
+  try {
+    const r = await fetch('/api/admin/import-xlsx', {
+      method: 'POST',
+      headers: State.token ? { Authorization: 'Bearer ' + State.token } : {},
+      body: fd,
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showAlert(j.error || 'Ошибка импорта', 'err'); return; }
+    const errors = j.errors?.length ? ` · ошибок: ${j.errors.length}` : '';
+    resultEl.innerHTML = `✅ Всего: <b>${j.total}</b> компаний · новых: <b>${j.inserted}</b> · обогащено: <b>${j.enriched}</b>${errors}`;
+    resultEl.style.display = 'block';
+    showAlert(`Импорт завершён: ${j.inserted} новых, ${j.enriched} обновлено`);
+    if (j.errors?.length) console.warn('[XLS] Ошибки:', j.errors);
+    input.value = '';
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function runArchiveOld() {
   try {
     const r = await apiFetch('/api/admin/archive-old', { method: 'POST' });
