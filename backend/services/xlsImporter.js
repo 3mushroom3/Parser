@@ -123,12 +123,12 @@ function importXlsx(buffer, options = {}) {
   }
 
   const upsertCompany = db.prepare(`
-    INSERT INTO companies (id, inn, name, phone, ceoName, description, notes, updatedAt)
-    VALUES (@id, @inn, @name, @phone, @ceoName, @description, @notes, CURRENT_TIMESTAMP)
+    INSERT INTO companies (id, inn, name, phone, ceoName, notes, updatedAt)
+    VALUES (@id, @inn, @name, @phone, @ceoName, @notes, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       phone    = COALESCE(NULLIF(excluded.phone, ''), companies.phone),
       ceoName  = COALESCE(NULLIF(excluded.ceoName, ''), companies.ceoName),
-      description = COALESCE(NULLIF(excluded.description, ''), companies.description),
+      notes    = COALESCE(NULLIF(companies.notes, ''), excluded.notes),
       updatedAt = CURRENT_TIMESTAMP
   `);
 
@@ -144,20 +144,30 @@ function importXlsx(buffer, options = {}) {
       try {
         const { address, phone, ceoName } = parseContact(c.rawContact);
         const companyKey = c.inn || c.name;
-        const cropsStr   = c.crops.join(', ');
-        const areaStr    = Object.entries(c.areaByСrop)
+        const cropsStr = c.crops.join(', ');
+        const areaStr  = Object.entries(c.areaByСrop)
           .map(([cr, a]) => `${cr}: ${a} га`)
           .join('; ');
-        const notes = [cropsStr, areaStr].filter(Boolean).join(' | ');
+
+        // Всё из XLS пишем в заметки — description не трогаем,
+        // чтобы не затирать то, что admin написал вручную
+        const xlsParts = [
+          address  ? `Адрес: ${address}`          : '',
+          ceoName  ? `Директор: ${ceoName}`        : '',
+          cropsStr ? `Культуры: ${cropsStr}`       : '',
+          areaStr  ? `Посевная площадь: ${areaStr}` : '',
+        ].filter(Boolean);
+        const notes = xlsParts.length
+          ? `📥 Из XLS-базы\n${xlsParts.join('\n')}`
+          : null;
 
         upsertCompany.run({
-          id:          companyKey,
-          inn:         c.inn || null,
-          name:        c.name,
-          phone:       phone || null,
-          ceoName:     ceoName || null,
-          description: address || null,
-          notes:       notes || null,
+          id:      companyKey,
+          inn:     c.inn || null,
+          name:    c.name,
+          phone:   phone  || null,
+          ceoName: ceoName || null,
+          notes,
         });
 
         // Проверяем по заранее загруженным множествам (без повторных SQL-запросов)
