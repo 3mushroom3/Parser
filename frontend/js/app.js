@@ -2075,37 +2075,74 @@ function renderDedupeGroups() {
     return;
   }
 
-  list.innerHTML = page.map((g, localIdx) => {
+  // Используем DOM-методы вместо innerHTML с вложенными template literals
+  // чтобы избежать поломки HTML из-за спецсимволов в названиях/ИНН
+  list.innerHTML = '';
+  page.forEach(g => {
     const globalIdx = _ambiguousGroups.indexOf(g);
-    return `
-    <div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
-      <div style="background:var(--surf2);padding:10px 14px;border-bottom:1px solid var(--border)">
-        <div style="font-size:14px;font-weight:600;margin-bottom:2px">${escHtml(g.name)}</div>
-        <div style="font-size:11px;color:var(--muted)">${escHtml(g.address || 'Адрес не указан')}</div>
-      </div>
-      <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">ИНН варианты (выберите правильный)</div>
-        ${g.inns.map(i => `
-          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13px;font-weight:600">${i.inn}</div>
-              <div style="font-size:11px;color:var(--muted)">${i.count} деклараций</div>
-            </div>
-            <button class="btn btn-sm" style="font-size:11px;padding:3px 8px;white-space:nowrap"
-              onclick="openCompany('${i.inn}','${escHtml(g.name).replace(/'/g,"\\'")}');void(0)"
-              title="Открыть карточку компании с этим ИНН">🔍 Открыть</button>
-            <button class="btn btn-sm btn-p" style="font-size:11px;padding:3px 8px;white-space:nowrap"
-              onclick="dedupeChooseInn(${globalIdx},'${i.inn}')"
-              title="Объединить все декларации этой группы на данный ИНН">✓ Выбрать</button>
-          </div>`).join('')}
-        <div style="display:flex;justify-content:flex-end;padding-top:4px">
-          <button class="btn btn-sm" style="font-size:11px;color:var(--muted)"
-            onclick="dedupeNotDuplicate(${globalIdx})"
-            title="Это разные компании — скрыть из отчёта">✕ Не дубль — это разные компании</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+    const card = document.createElement('div');
+    card.style.cssText = 'border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)';
+
+    // Заголовок карточки
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'background:var(--surf2);padding:10px 14px;border-bottom:1px solid var(--border)';
+    hdr.innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(g.name)}</div>
+      <div style="font-size:11px;color:var(--muted)">${escHtml(g.address || '—')}</div>`;
+    card.appendChild(hdr);
+
+    // Тело карточки
+    const body = document.createElement('div');
+    body.style.cssText = 'padding:10px 14px';
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px';
+    label.textContent = 'Варианты ИНН — выберите правильный:';
+    body.appendChild(label);
+
+    // Строки с ИНН
+    g.inns.forEach(inn => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px';
+
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0';
+      info.innerHTML = `<div style="font-size:13px;font-weight:600">${escHtml(inn.inn)}</div>
+        <div style="font-size:11px;color:var(--muted)">${inn.count} деклараций</div>`;
+      row.appendChild(info);
+
+      const btnOpen = document.createElement('button');
+      btnOpen.className = 'btn btn-sm';
+      btnOpen.style.cssText = 'font-size:11px;padding:3px 8px;white-space:nowrap;flex-shrink:0';
+      btnOpen.textContent = '🔍 Открыть';
+      btnOpen.title = 'Открыть карточку компании с этим ИНН';
+      btnOpen.addEventListener('click', () => openCompany(inn.inn, g.name));
+      row.appendChild(btnOpen);
+
+      const btnChoose = document.createElement('button');
+      btnChoose.className = 'btn btn-sm btn-p';
+      btnChoose.style.cssText = 'font-size:11px;padding:3px 8px;white-space:nowrap;flex-shrink:0';
+      btnChoose.textContent = '✓ Выбрать';
+      btnChoose.title = 'Объединить все декларации группы на этот ИНН';
+      btnChoose.addEventListener('click', () => dedupeChooseInn(globalIdx, inn.inn));
+      row.appendChild(btnChoose);
+
+      body.appendChild(row);
+    });
+
+    // Кнопка "Не дубль"
+    const notDuplDiv = document.createElement('div');
+    notDuplDiv.style.cssText = 'display:flex;justify-content:flex-end;margin-top:4px';
+    const btnNot = document.createElement('button');
+    btnNot.className = 'btn btn-sm';
+    btnNot.style.cssText = 'font-size:11px;color:var(--muted)';
+    btnNot.textContent = '✕ Не дубль — это разные компании';
+    btnNot.addEventListener('click', () => dedupeNotDuplicate(globalIdx));
+    notDuplDiv.appendChild(btnNot);
+    body.appendChild(notDuplDiv);
+
+    card.appendChild(body);
+    list.appendChild(card);
+  });
 }
 
 function dedupeChangePage(delta) {
