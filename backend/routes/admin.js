@@ -63,7 +63,9 @@ router.delete('/users/:id/subscription', auth, requireAdmin, (req, res) => {
 router.put('/users/:id/role', auth, requireAdmin, (req, res) => {
   const { role } = req.body;
   if (!['admin', 'user'].includes(role)) return res.status(400).json({ error: 'Недопустимая роль' });
-  db.prepare('UPDATE users SET role=? WHERE id=?').run(role, req.params.id);
+  // Сбрасываем sessionId — при следующем входе пользователь получит
+  // новый JWT с актуальной ролью, а старый токен сразу перестаёт работать
+  db.prepare('UPDATE users SET role=?, sessionId=NULL WHERE id=?').run(role, req.params.id);
   res.json({ ok: true });
 });
 
