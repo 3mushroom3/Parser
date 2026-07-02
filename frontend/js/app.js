@@ -1050,7 +1050,7 @@ async function openCompany(inn, name) {
       </div>
     </div>
     <div class="dg" style="margin-bottom:18px;gap:10px 20px">
-      <div class="df"><div class="df-l">Телефон (ФСА)</div><div class="df-v">${p.phone||'—'}</div></div>
+      <div class="df"><div class="df-l">Телефон</div><div class="df-v">${p.phone||'—'}</div></div>
       ${fioStr ? `<div class="df full"><div class="df-l">ФИО</div><div class="df-v">${fioStr}</div></div>` : ''}
       ${applicantHtml}
       ${p.address ? `<div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address}</div></div>` : ''}
