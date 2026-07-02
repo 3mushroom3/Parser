@@ -5,6 +5,7 @@ const bcrypt = require('bcryptjs');
 const db = require('../services/db');
 const crypto = require('crypto');
 const _secret = require('../config/jwtSecret');
+const { sendMessageTo } = require('../services/telegramBot');
 
 const MIN_PASSWORD_LEN = 8;
 
@@ -136,6 +137,15 @@ router.put('/telegram', authMiddleware, (req, res) => {
   const sanitized = tgChatId ? String(tgChatId).trim().replace(/[^\d-]/g, '') : null;
   db.prepare('UPDATE users SET tgChatId = ? WHERE id = ?').run(sanitized || null, req.user.id);
   res.json({ ok: true });
+});
+
+// Тестовое сообщение на свой chatId — доступно любому пользователю (не только админу)
+router.post('/telegram-test', authMiddleware, async (req, res) => {
+  const user = db.prepare('SELECT tgChatId, username FROM users WHERE id = ?').get(req.user.id);
+  if (!user?.tgChatId) return res.status(400).json({ error: 'Chat ID не сохранён. Сначала сохраните Chat ID.' });
+  const ok = await sendMessageTo(user.tgChatId, `✅ Тест уведомлений работает!\n\nПользователь: ${user.username}`);
+  if (ok) res.json({ ok: true });
+  else res.status(500).json({ error: 'Не удалось отправить — проверьте Chat ID и доступность бота' });
 });
 
 module.exports = router;

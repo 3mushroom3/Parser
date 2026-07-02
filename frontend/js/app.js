@@ -1650,7 +1650,7 @@ async function saveTgChatId() {
 
 async function testTgNotification() {
   try {
-    await apiFetch('/api/system/telegram-test', { method: 'POST' });
+    await apiFetch('/api/auth/telegram-test', { method: 'POST' });
     showAlert('Тестовое сообщение отправлено', 'ok');
   } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
 }
