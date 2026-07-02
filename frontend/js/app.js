@@ -2035,11 +2035,11 @@ function renderDedupeGroups() {
   page.forEach(g => {
     const globalIdx = _ambiguousGroups.indexOf(g);
     const card = document.createElement('div');
-    card.style.cssText = 'border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--surface)';
+    card.style.cssText = 'border:1px solid var(--border);border-radius:12px;background:var(--surface);margin-bottom:12px';
 
     // Заголовок карточки
     const hdr = document.createElement('div');
-    hdr.style.cssText = 'background:var(--surf2);padding:10px 14px;border-bottom:1px solid var(--border)';
+    hdr.style.cssText = 'background:var(--surf2);padding:10px 14px;border-bottom:1px solid var(--border);border-radius:12px 12px 0 0';
     hdr.innerHTML = `<div style="font-size:14px;font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(g.name)}</div>
       <div style="font-size:11px;color:var(--muted)">${escHtml(g.address || '—')}</div>`;
     card.appendChild(hdr);
