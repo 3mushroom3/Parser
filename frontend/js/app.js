@@ -1811,7 +1811,7 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','addToFolderModal','addToNoteModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','addToFolderModal','addToNoteModal','dedupeModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
@@ -2033,57 +2033,122 @@ async function runDedupeInn() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+// ── Спорные дубли (модалка) ───────────────────────────────────────────────
 let _ambiguousGroups = [];
+let _dedupePage = 0;
+const _dedupePageSize = 15;
 
-async function loadAmbiguousInn() {
-  const tbody = document.getElementById('adminAmbiguousInnTbody');
-  tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:14px">Загрузка...</td></tr>';
+async function openDedupeModal() {
+  openModal('dedupeModal');
+  document.getElementById('dedupeSearch').value = '';
+  document.getElementById('dedupeGroupsList').innerHTML =
+    '<div style="color:var(--muted);text-align:center;padding:40px 0">Загрузка...</div>';
   try {
-    const groups = await apiFetch('/api/admin/dedupe-ambiguous');
-    _ambiguousGroups = groups;
-    if (!groups.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:14px">Спорных дублей не найдено</td></tr>';
-      return;
-    }
-    tbody.innerHTML = groups.map((g, idx) => `
-      <tr>
-        <td><b>${escHtml(g.name)}</b></td>
-        <td style="font-size:12px;color:var(--muted)">${escHtml(g.address || '—')}</td>
-        <td style="font-size:12px">${g.inns.map(i => `${i.inn} (${i.count})`).join(', ')}</td>
-        <td>
-          <div style="display:flex;gap:4px;align-items:center">
-            <select class="fi" id="ambInnSel_${idx}" style="font-size:11px;padding:3px 5px;width:auto">
-              ${g.inns.map(i => `<option value="${i.inn}">${i.inn} (${i.count})</option>`).join('')}
-            </select>
-            <button class="btn btn-sm btn-p" style="font-size:11px;padding:3px 7px" onclick="resolveAmbiguousGroup(${idx})" title="Объединить все декларации группы на выбранный ИНН">Объединить</button>
-            <button class="btn btn-sm" style="font-size:11px;padding:3px 7px" onclick="dismissAmbiguousGroup(${idx})" title="Это не дубли — разные компании">Не дубль</button>
-          </div>
-        </td>
-      </tr>`).join('');
+    _ambiguousGroups = await apiFetch('/api/admin/dedupe-ambiguous');
+    _dedupePage = 0;
+    document.getElementById('dedupeModalSub').textContent =
+      `Найдено спорных групп: ${_ambiguousGroups.length}`;
+    renderDedupeGroups();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
-async function resolveAmbiguousGroup(idx) {
+function renderDedupeGroups() {
+  const q = (document.getElementById('dedupeSearch')?.value || '').toLowerCase().trim();
+  const filtered = q
+    ? _ambiguousGroups.filter(g =>
+        g.name.toLowerCase().includes(q) ||
+        g.inns.some(i => i.inn.includes(q)))
+    : _ambiguousGroups;
+
+  const totalPages = Math.ceil(filtered.length / _dedupePageSize);
+  if (_dedupePage >= totalPages) _dedupePage = Math.max(0, totalPages - 1);
+  const page = filtered.slice(_dedupePage * _dedupePageSize, (_dedupePage + 1) * _dedupePageSize);
+
+  document.getElementById('dedupePagInfo').textContent =
+    `${filtered.length} групп · стр. ${_dedupePage + 1} / ${totalPages || 1}`;
+  document.getElementById('dedupePrevBtn').disabled = _dedupePage === 0;
+  document.getElementById('dedupeNextBtn').disabled = _dedupePage >= totalPages - 1;
+
+  const list = document.getElementById('dedupeGroupsList');
+  if (!filtered.length) {
+    list.innerHTML = '<div style="color:var(--muted);text-align:center;padding:40px 0">Спорных дублей не найдено</div>';
+    return;
+  }
+
+  list.innerHTML = page.map((g, localIdx) => {
+    const globalIdx = _ambiguousGroups.indexOf(g);
+    return `
+    <div style="border:1px solid var(--border);border-radius:var(--rl);overflow:hidden">
+      <div style="background:var(--surf2);padding:10px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:14px;font-weight:600;margin-bottom:2px">${escHtml(g.name)}</div>
+        <div style="font-size:11px;color:var(--muted)">${escHtml(g.address || 'Адрес не указан')}</div>
+      </div>
+      <div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em">ИНН варианты (выберите правильный)</div>
+        ${g.inns.map(i => `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600">${i.inn}</div>
+              <div style="font-size:11px;color:var(--muted)">${i.count} деклараций</div>
+            </div>
+            <button class="btn btn-sm" style="font-size:11px;padding:3px 8px;white-space:nowrap"
+              onclick="openCompany('${i.inn}','${escHtml(g.name).replace(/'/g,"\\'")}');void(0)"
+              title="Открыть карточку компании с этим ИНН">🔍 Открыть</button>
+            <button class="btn btn-sm btn-p" style="font-size:11px;padding:3px 8px;white-space:nowrap"
+              onclick="dedupeChooseInn(${globalIdx},'${i.inn}')"
+              title="Объединить все декларации этой группы на данный ИНН">✓ Выбрать</button>
+          </div>`).join('')}
+        <div style="display:flex;justify-content:flex-end;padding-top:4px">
+          <button class="btn btn-sm" style="font-size:11px;color:var(--muted)"
+            onclick="dedupeNotDuplicate(${globalIdx})"
+            title="Это разные компании — скрыть из отчёта">✕ Не дубль — это разные компании</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function dedupeChangePage(delta) {
+  _dedupePage += delta;
+  renderDedupeGroups();
+  document.getElementById('dedupeGroupsList').scrollTop = 0;
+}
+
+async function dedupeChooseInn(idx, chosenInn) {
   const g = _ambiguousGroups[idx];
   if (!g) return;
-  const chosenInn = document.getElementById('ambInnSel_' + idx).value;
-  if (!confirm(`Все декларации "${g.name}" (${g.address || 'без адреса'}) получат ИНН ${chosenInn}. Продолжить?`)) return;
+  if (!confirm(`Все декларации группы "${g.name}" получат ИНН ${chosenInn}.\nОбновится ${g.inns.reduce((s,i)=>s+i.count,0)} деклараций. Продолжить?`)) return;
   try {
-    const r = await apiFetch('/api/admin/dedupe-resolve', { method: 'POST', body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey, inn: chosenInn }) });
-    showAlert(`Объединено: ${r.updated} деклараций получили ИНН ${chosenInn}`);
-    loadAmbiguousInn();
+    const r = await apiFetch('/api/admin/dedupe-resolve', {
+      method: 'POST',
+      body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey, inn: chosenInn })
+    });
+    _ambiguousGroups.splice(idx, 1);
+    showAlert(`✅ Объединено: ${r.updated} деклараций получили ИНН ${chosenInn}`);
+    document.getElementById('dedupeModalSub').textContent =
+      `Найдено спорных групп: ${_ambiguousGroups.length}`;
+    renderDedupeGroups();
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
-async function dismissAmbiguousGroup(idx) {
+async function dedupeNotDuplicate(idx) {
   const g = _ambiguousGroups[idx];
   if (!g) return;
   try {
-    await apiFetch('/api/admin/dedupe-dismiss', { method: 'POST', body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey }) });
-    showAlert('Помечено как "не дубль" — больше не будет в отчёте');
-    loadAmbiguousInn();
+    await apiFetch('/api/admin/dedupe-dismiss', {
+      method: 'POST',
+      body: JSON.stringify({ nameKey: g.nameKey, addrKey: g.addrKey })
+    });
+    _ambiguousGroups.splice(idx, 1);
+    showAlert('Помечено как "не дубль"');
+    document.getElementById('dedupeModalSub').textContent =
+      `Найдено спорных групп: ${_ambiguousGroups.length}`;
+    renderDedupeGroups();
   } catch(e) { showAlert(e.message, 'err'); }
 }
+
+// Оставляем для совместимости (вызывается из loadAdminData)
+async function loadAmbiguousInn() { openDedupeModal(); }
 
 async function createApiKey() {
   const label = document.getElementById('apiKeyLabel').value.trim();
