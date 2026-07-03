@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Реестр производителей зерна</title>
+  <title>База АПК — База сельхозпроизводителей</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -13,10 +13,27 @@
 <div id="pg-login" class="login-page" style="display:none">
   <div class="login-card">
     <div class="login-logo">
-      <div class="logo-ic">РЗ</div>
+      <div class="logo-ic logo-apk">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
+          <!-- Пшеничный стебель -->
+          <line x1="18" y1="28" x2="18" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <!-- Колосья (зёрна) сверху -->
+          <ellipse cx="18" cy="9" rx="2.2" ry="3.5" fill="white" opacity="0.95"/>
+          <!-- Боковые колоски -->
+          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(-25 18 13) translate(-4 0)"/>
+          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(25 18 13) translate(4 0)"/>
+          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(-25 18 17) translate(-4.5 0)"/>
+          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(25 18 17) translate(4.5 0)"/>
+          <!-- Поле внизу -->
+          <path d="M7 28 Q12 24 18 26 Q24 24 29 28" stroke="#4ade80" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M4 31 Q11 27 18 29 Q25 27 32 31" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <div class="login-brand">
+        <span class="brand-base">БАЗА</span><span class="brand-apk">АПК</span>
+      </div>
     </div>
-    <h1 class="login-title">Реестр производителей</h1>
-    <p class="login-subtitle">Декларации по безопасности зерна</p>
+    <p class="login-subtitle">База сельхозпроизводителей</p>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Вход</button>
@@ -76,8 +93,19 @@
   <!-- HEADER -->
   <div class="hdr">
     <a class="logo" href="#" onclick="showPage('registry');return false">
-      <div class="logo-ic">РЗ</div>
-      <span>Реестр производителей</span>
+      <div class="logo-ic logo-apk">
+        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
+          <line x1="18" y1="28" x2="18" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <ellipse cx="18" cy="9" rx="2.2" ry="3.5" fill="white" opacity="0.95"/>
+          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(-25 18 13) translate(-4 0)"/>
+          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(25 18 13) translate(4 0)"/>
+          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(-25 18 17) translate(-4.5 0)"/>
+          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(25 18 17) translate(4.5 0)"/>
+          <path d="M7 28 Q12 24 18 26 Q24 24 29 28" stroke="#4ade80" stroke-width="2" stroke-linecap="round" fill="none"/>
+          <path d="M4 31 Q11 27 18 29 Q25 27 32 31" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <div class="logo-text-apk"><span class="brand-base">БАЗА</span><span class="brand-apk">АПК</span></div>
     </a>
     <nav class="nav">
       <button class="nav-tab active" data-page="registry" onclick="showPage('registry')">Реестр</button>
@@ -677,7 +705,7 @@
   <div class="mh"><h3>📄 Пользовательское соглашение</h3><button class="mcl" onclick="closeModal('tosModal')">✕</button></div>
   <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
     <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
-    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «Реестр производителей зерна» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
+    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «База АПК — База сельхозпроизводителей» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
     <p style="margin-bottom:12px"><b>2. Источник данных</b></p>
     <p style="margin-bottom:12px">Все сведения о декларациях соответствия, представленные в Сервисе, получены исключительно из открытого государственного реестра Федеральной службы по аккредитации (Росаккредитация) — официального портала <b>pub.fsa.gov.ru</b>, функционирующего в соответствии с Федеральным законом № 412-ФЗ «Об аккредитации в национальной системе аккредитации».</p>
     <p style="margin-bottom:12px">Указанные данные являются <b>общедоступными</b> и размещены государственным органом в открытом доступе для неограниченного круга лиц. Сервис не является официальным ресурсом Росаккредитации и не аффилирован с ним. Сервис выполняет функцию агрегатора и инструмента удобного поиска по открытым данным.</p>

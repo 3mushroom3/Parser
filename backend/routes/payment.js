@@ -60,7 +60,7 @@ router.post('/create', auth, async (req, res) => {
   try {
     const yPayment = await yukassa.createPayment({
       amount: plan.price,
-      description: `Подписка «${plan.label}» — Реестр производителей ТР ТС 015`,
+      description: `Подписка «${plan.label}» — База АПК — сельхозпроизводители`,
       returnUrl,
       metadata: { paymentId, userId: req.user.id, planId },
     });
