@@ -23,6 +23,17 @@ function parseDadataDate(ms) {
  * компания совмещает выращивание и сбыт. Возвращает текст для пометки в описании
  * карточки или '' если условие не выполняется.
  */
+// Раскрываем специфические сокращения орг.форм которые DaData даёт в short_with_opf
+// но которые неочевидны для чтения (ГКФХ → Глава КФХ и т.п.)
+function normalizeOrgName(name) {
+  if (!name) return name;
+  return name
+    .replace(/^ГКФХ\s+/i,  'Глава КФХ ')
+    .replace(/^ГКХ\s+/i,   'Глава КХ ')
+    .replace(/^КФХ\s+/i,   'КФХ ')       // оставляем как есть — уже понятно
+    .trim();
+}
+
 function buildMixedActivityNote(primary, extras = []) {
   const p = String(primary || '');
   if (!p.startsWith(CROP_GROWING_PREFIX)) return '';
@@ -164,11 +175,12 @@ async function fetchOkvedFromDadata(inn) {
     .filter(o => !o.main)
     .map(o => String(o.code || '').trim())
     .filter(Boolean);
-  const name = data.name?.short_with_opf || data.name?.full_with_opf || '';
+  const rawName = data.name?.short_with_opf || data.name?.full_with_opf || '';
+  const name = normalizeOrgName(rawName);
   const regDate = parseDadataDate(data.state?.registration_date);
 
   if (primary) {
-    console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length})`);
+    console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length}), имя="${name}"`);
   }
   return { name, okved: primary, okveds: extras, inn, regDate };
 }

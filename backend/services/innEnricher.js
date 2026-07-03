@@ -11,6 +11,25 @@ const { lookupInn, lookupByName, classifyOkved, classifyByName, buildMixedActivi
 const CACHE_FILE = path.join(__dirname, '../../data/inn_cache.json');
 const DELAY_MS = 300; // пауза между запросами (dadata допускает быстрее чем itsoft)
 
+// Обновляет официальное название компании по ИНН (только когда поиск идёт по ИНН —
+// это авторитетный источник ФНС через DaData). Особенно важно для ИП и глав КФХ:
+// ФСА хранит их как «Иванов С.А.», а ФНС возвращает «Глава КФХ Иванов Сергей Анатольевич».
+const _updateNameByInnStmt = db.prepare(`
+  UPDATE declarations
+  SET shortName = ?, updatedAt = CURRENT_TIMESTAMP
+  WHERE inn = ?
+    AND TRIM(COALESCE(shortName,'')) != ?
+`);
+
+function updateOfficialNameByInn(inn, officialName) {
+  if (!inn || !officialName) return 0;
+  const r = _updateNameByInnStmt.run(officialName, inn, officialName);
+  if (r.changes > 0) {
+    console.log(`[INN] ✏ Обновлено название (${r.changes} деклараций): "${officialName}"`);
+  }
+  return r.changes;
+}
+
 // Сохраняет дату регистрации/авто-пометку в companies, не трогая ручные description/notes.
 const _upsertCompanyInfoStmt = db.prepare(`
   INSERT INTO companies (id, inn, name, regDate, autoNote)
@@ -75,6 +94,10 @@ async function enrichRecords(records) {
         rec.farmerType = farmerType;
         rec.okved = okved;
         upsertCompanyInfo(inn, inn, rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote);
+        if (data?.name && data.name !== rec.shortName) {
+          updateOfficialNameByInn(inn, data.name);
+          rec.shortName = data.name;
+        }
         newLookups++;
         console.log(`[INN] ${inn} → ${okved || '?'} → ${farmerType}`);
       } catch (e) {
@@ -239,6 +262,13 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
       rec.okved = okved;
       if (foundInn) rec.inn = foundInn;
       upsertCompanyInfo(foundInn || nameKey, foundInn, nameKey || rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote);
+
+      // Обновляем официальное название — только при поиске по ИНН (авторитетный источник).
+      // Поиск по ИНН: cacheKey === inn (число), а не 'name:...'
+      if (inn && data?.name && data.name !== rec.shortName) {
+        updateOfficialNameByInn(foundInn || inn, data.name);
+        rec.shortName = data.name;
+      }
 
       if (i < 20 || farmerType !== 'unknown') {
         console.log(`[INN] [${i+1}/${job.total}] "${(nameKey||inn||'').slice(0,35)}" → ИНН:${foundInn||'?'} ОКВЭД:${okved||'нет'} → ${farmerType}`);
