@@ -39,11 +39,22 @@ router.get('/stats', (req, res) => {
   // Считаем фермеров/трейдеров только среди ДЕЙСТВУЮЩИХ деклараций — иначе
   // эта цифра смешивает две разные оси (тип компании и статус декларации)
   // с "Действуют" и не складывается с ней логически.
-  const producerCountByType = (type) => db.prepare(`
-    SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
-    FROM declarations WHERE farmerType = ? AND status = 'active'
-  `).get(type).c;
-  const declCountByType = (type) => db.prepare("SELECT COUNT(*) as c FROM declarations WHERE farmerType = ? AND status = 'active'").get(type).c;
+  // farmer_trader считается производителем; trader_farmer — трейдером
+  const producerCountByType = (type) => {
+    const types = type === 'farmer' ? "'farmer','farmer_trader'"
+                : type === 'trader' ? "'trader','trader_farmer'"
+                : `'${type}'`;
+    return db.prepare(`
+      SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
+      FROM declarations WHERE farmerType IN (${types}) AND status = 'active'
+    `).get().c;
+  };
+  const declCountByType = (type) => {
+    const types = type === 'farmer' ? "'farmer','farmer_trader'"
+                : type === 'trader' ? "'trader','trader_farmer'"
+                : `'${type}'`;
+    return db.prepare(`SELECT COUNT(*) as c FROM declarations WHERE farmerType IN (${types}) AND status = 'active'`).get().c;
+  };
   const producerCountByStatus = (status) => db.prepare(`
     SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
     FROM declarations WHERE status = ?

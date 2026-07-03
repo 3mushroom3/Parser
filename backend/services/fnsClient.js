@@ -84,7 +84,13 @@ function invalidateSession() { _sessionCookie = null; _sessionExpiry = 0; }
 
 /**
  * Классификация по ОКВЭД.
- * Если основной — торговля, но среди дополнительных есть 01.xx — считаем фермером.
+ *
+ * Возможные значения:
+ *   'farmer'        — основной ОКВЭД производство/выращивание, торговли нет
+ *   'farmer_trader' — основной ОКВЭД производство + есть доп. торговый → «Производитель/Трейдер»
+ *   'trader'        — основной ОКВЭД торговля, производства нет
+ *   'trader_farmer' — основной ОКВЭД торговля + есть доп. производственный → «Трейдер/Производитель»
+ *   'unknown'       — не попадает ни в одну категорию
  */
 function classifyOkved(primaryOkved, extraOkveds = []) {
   const extras = extraOkveds.filter(Boolean).map(s => String(s).trim());
@@ -95,8 +101,9 @@ function classifyOkved(primaryOkved, extraOkveds = []) {
   const isFarmer = c => FARMER_PREFIXES.some(p => c.startsWith(p));
   const isTrader = c => TRADER_PREFIXES.some(p => c.startsWith(p));
 
+  if (isFarmer(primary) && extras.some(isTrader)) return 'farmer_trader';
   if (isFarmer(primary)) return 'farmer';
-  if (isTrader(primary) && all.some(isFarmer)) return 'farmer';
+  if (isTrader(primary) && extras.some(isFarmer)) return 'trader_farmer';
   if (isTrader(primary)) return 'trader';
   if (all.some(isFarmer)) return 'farmer';
   if (all.some(isTrader)) return 'trader';

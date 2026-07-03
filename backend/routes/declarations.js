@@ -47,7 +47,16 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, (req, res) 
   if (product) { baseQuery += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
   if (dateFrom) { baseQuery += ' AND regDate >= ?'; params.push(dateFrom); }
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
-  if (farmerType) { baseQuery += ' AND farmerType = ?'; params.push(farmerType); }
+  if (farmerType) {
+    // Производители = farmer + farmer_trader; Трейдеры = trader + trader_farmer
+    if (farmerType === 'farmer') {
+      baseQuery += " AND farmerType IN ('farmer','farmer_trader')";
+    } else if (farmerType === 'trader') {
+      baseQuery += " AND farmerType IN ('trader','trader_farmer')";
+    } else {
+      baseQuery += ' AND farmerType = ?'; params.push(farmerType);
+    }
+  }
 
   // By default, show producers with the most recently registered declaration
   // first. When searching by manufacturer, rank exact/prefix name matches
@@ -133,8 +142,8 @@ router.get('/map-data', auth, requireSubscription, dataReadLimiter, (req, res) =
       if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
       cityMap[city].count++;
 
-      if (rec.farmerType === 'farmer') cityMap[city].farmers++;
-      else if (rec.farmerType === 'trader') cityMap[city].traders++;
+      if (rec.farmerType === 'farmer' || rec.farmerType === 'farmer_trader') cityMap[city].farmers++;
+      else if (rec.farmerType === 'trader' || rec.farmerType === 'trader_farmer') cityMap[city].traders++;
 
       const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
       if (!cityMap[city].orgs[key]) {
@@ -213,7 +222,15 @@ router.get('/', auth, requireSubscription, dataReadLimiter, (req, res) => {
   if (applicant) { query += ' AND lower_u(applicantName) LIKE ?'; params.push(`%${applicant.toLowerCase()}%`); }
   if (address) { query += ' AND lower_u(address) LIKE ?'; params.push(`%${address.toLowerCase()}%`); }
   if (product) { query += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
-  if (farmerType) { query += ' AND farmerType = ?'; params.push(farmerType); }
+  if (farmerType) {
+    if (farmerType === 'farmer') {
+      query += " AND farmerType IN ('farmer','farmer_trader')";
+    } else if (farmerType === 'trader') {
+      query += " AND farmerType IN ('trader','trader_farmer')";
+    } else {
+      query += ' AND farmerType = ?'; params.push(farmerType);
+    }
+  }
 
   const countQuery = 'SELECT COUNT(*) as total FROM (' + query + ')';
   const { total } = db.prepare(countQuery).get(...params);

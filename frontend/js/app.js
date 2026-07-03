@@ -401,7 +401,13 @@ function renderTable(data) {
     return s;
   }
 
-  const ftLabel = { farmer: '<span class="ft ft-farmer">Фермер</span>', trader: '<span class="ft ft-trader">Трейдер</span>', unknown: '' };
+  const ftLabel = {
+    farmer:        '<span class="ft ft-farmer">Производитель</span>',
+    farmer_trader: '<span class="ft ft-farmer">Производитель/Трейдер</span>',
+    trader:        '<span class="ft ft-trader">Трейдер</span>',
+    trader_farmer: '<span class="ft ft-trader">Трейдер/Производитель</span>',
+    unknown: ''
+  };
 
   tbody.innerHTML = (items || []).map((p, idx) => {
     const hasMany = p.decls.length > 1;
@@ -1389,7 +1395,12 @@ async function openDetail(id, fromCompany = false) {
         <div class="dg">
           <div class="df full"><div class="df-l">Наименование</div><div class="df-v">${r.shortName||'—'}</div></div>
           ${r.inn ? `<div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn}</div></div>` : ''}
-          ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${r.farmerType === 'farmer' ? '<span class="ft ft-farmer">Фермер</span>' : '<span class="ft ft-trader">Трейдер</span>'}</div></div>` : ''}
+          ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${
+            r.farmerType === 'farmer'        ? '<span class="ft ft-farmer">Производитель</span>' :
+            r.farmerType === 'farmer_trader' ? '<span class="ft ft-farmer">Производитель/Трейдер</span>' :
+            r.farmerType === 'trader_farmer' ? '<span class="ft ft-trader">Трейдер/Производитель</span>' :
+                                               '<span class="ft ft-trader">Трейдер</span>'
+          }</div></div>` : ''}
           <div class="df"><div class="df-l">Телефон</div><div class="df-v">${r.phone||'—'}</div></div>
           <div class="df full"><div class="df-l">Адрес</div><div class="df-v">${r.address||'—'}</div></div>
         </div>
