@@ -1974,6 +1974,14 @@ async function importXlsFile() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function abbreviateOrgForms() {
+  if (!confirm('Заменить полные наименования орг.форм на аббревиатуры во всей базе?\n(ООО, АО, ПАО, ЗАО, ОАО, ИП — необратимо)')) return;
+  try {
+    const r = await apiFetch('/api/admin/abbreviate-org-forms', { method: 'POST' });
+    showAlert(`Сокращено: ${r.changed} записей`);
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function runArchiveOld() {
   try {
     const r = await apiFetch('/api/admin/archive-old', { method: 'POST' });

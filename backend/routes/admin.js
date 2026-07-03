@@ -233,4 +233,62 @@ router.post('/import-xlsx', auth, requireAdmin, (req, res) => {
   });
 });
 
+// POST /api/admin/abbreviate-org-forms — сокращает полные наименования орг.форм
+// "ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ" → "ООО" и т.д.
+router.post('/abbreviate-org-forms', auth, requireAdmin, (req, res) => {
+  // Пары: полная форма (в разных регистрах из разных источников) → аббревиатура
+  // Сначала варианты с пробелом в конце (чтобы не оставлять двойной пробел),
+  // затем без пробела. Затем чистим случайные двойные пробелы.
+  const replacements = [
+    ['ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ ', 'ООО '],
+    ['ОБЩЕСТВО С ОГРАНИЧЕННОЙ ОТВЕТСТВЕННОСТЬЮ', 'ООО'],
+    ['Общество с ограниченной ответственностью ', 'ООО '],
+    ['Общество с ограниченной ответственностью', 'ООО'],
+    ['ПУБЛИЧНОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО ', 'ПАО '],
+    ['ПУБЛИЧНОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО', 'ПАО'],
+    ['ОТКРЫТОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО ', 'ОАО '],
+    ['ОТКРЫТОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО', 'ОАО'],
+    ['ЗАКРЫТОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО ', 'ЗАО '],
+    ['ЗАКРЫТОЕ АКЦИОНЕРНОЕ ОБЩЕСТВО', 'ЗАО'],
+    ['АКЦИОНЕРНОЕ ОБЩЕСТВО ', 'АО '],
+    ['АКЦИОНЕРНОЕ ОБЩЕСТВО', 'АО'],
+    ['Акционерное общество ', 'АО '],
+    ['Акционерное общество', 'АО'],
+    ['ИНДИВИДУАЛЬНЫЙ ПРЕДПРИНИМАТЕЛЬ ', 'ИП '],
+    ['ИНДИВИДУАЛЬНЫЙ ПРЕДПРИНИМАТЕЛЬ', 'ИП'],
+    ['Индивидуальный предприниматель ', 'ИП '],
+    ['Индивидуальный предприниматель', 'ИП'],
+  ];
+
+  let totalChanged = 0;
+
+  const doReplace = db.transaction(() => {
+    for (const [from, to] of replacements) {
+      // Замена в начале строки или после пробела/кавычки
+      const cols = ['shortName', 'applicantName'];
+      for (const col of cols) {
+        const r = db.prepare(
+          `UPDATE declarations SET ${col} = REPLACE(${col}, ?, ?) WHERE ${col} LIKE ?`
+        ).run(from, to, `%${from}%`);
+        totalChanged += r.changes;
+      }
+      // companies.name
+      const rc = db.prepare(`UPDATE companies SET name = REPLACE(name, ?, ?) WHERE name LIKE ?`)
+        .run(from, to, `%${from}%`);
+      totalChanged += rc.changes;
+    }
+  });
+
+  doReplace();
+
+  // Финальная чистка оставшихся двойных пробелов
+  const cols = ['shortName', 'applicantName'];
+  for (const col of cols) {
+    db.prepare(`UPDATE declarations SET ${col} = TRIM(REPLACE(${col}, '  ', ' ')) WHERE ${col} LIKE '%  %'`).run();
+  }
+  db.prepare("UPDATE companies SET name = TRIM(REPLACE(name, '  ', ' ')) WHERE name LIKE '%  %'").run();
+
+  res.json({ ok: true, changed: totalChanged });
+});
+
 module.exports = router;

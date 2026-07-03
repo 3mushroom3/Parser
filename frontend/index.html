@@ -241,14 +241,14 @@
               <thead>
                 <tr>
                   <th></th>
-                  <th>Производитель</th>
+                  <th>Компания</th>
                   <th>Адрес</th>
                   <th>Продукция</th>
                   <th style="text-align:center">Записей</th>
                 </tr>
                 <tr class="col-search">
                   <td style="text-align:center"><button class="cs-clear" onclick="clearColSearch()" title="Очистить фильтры колонок">✕</button></td>
-                  <td><input class="cs-inp" placeholder="Производитель…" id="csManuf" autocomplete="off" oninput="applyFiltersDebounced()"></td>
+                  <td><input class="cs-inp" placeholder="Компания…" id="csManuf" autocomplete="off" oninput="applyFiltersDebounced()"></td>
                   <td><input class="cs-inp" placeholder="Адрес…" id="csAddress" autocomplete="off" oninput="applyFiltersDebounced()"></td>
                   <td><input class="cs-inp" placeholder="Продукция…" id="csProduct" autocomplete="off" oninput="applyFiltersDebounced()"></td>
                   <td></td>
@@ -487,6 +487,14 @@
         <button class="btn btn-p btn-sm" onclick="importXlsFile()">Импортировать</button>
       </div>
       <div id="xlsImportResult" style="font-size:12px;display:none"></div>
+    </div>
+
+    <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:4px">Сокращение организационных форм</h3>
+        <p style="font-size:12px;color:var(--muted);margin:0">Заменяет полные наименования на аббревиатуры: «Общество с ограниченной ответственностью» → ООО, «Акционерное общество» → АО и т.д.</p>
+      </div>
+      <button class="btn btn-sm" onclick="abbreviateOrgForms()" style="white-space:nowrap;margin-left:12px">✂ Сократить</button>
     </div>
 
     <div style="margin-top:28px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
