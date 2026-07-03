@@ -58,7 +58,7 @@ const HTTP_DADATA = axios.create({
     'Accept': 'application/json',
     'Authorization': `Token ${DADATA_TOKEN}`,
   },
-  timeout: 10000,
+  timeout: 25000,
   validateStatus: () => true,
 });
 

@@ -382,7 +382,7 @@ function renderTable(data) {
     if (key) State.producerDataCache.set(key, p);
   });
 
-  document.getElementById('tblCount').textContent = (total || 0).toLocaleString('ru') + ' производителей';
+  document.getElementById('tblCount').textContent = (total || 0).toLocaleString('ru') + ' компаний';
   document.getElementById('pgNow').textContent = (page || 0) + 1;
   document.getElementById('pgOf').textContent  = pages || 1;
   document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';

@@ -109,7 +109,7 @@
     </a>
     <nav class="nav">
       <button class="nav-tab active" data-page="registry" onclick="showPage('registry')">Реестр</button>
-      <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта</button>
+      <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта <span style="font-size:10px;opacity:.7">(Бета)</span></button>
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
       <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
@@ -190,7 +190,7 @@
               </svg>
             </div>
             <div class="sc-info">
-              <div class="sc-l">Всего производителей</div>
+              <div class="sc-l">Всего компаний</div>
               <div class="sc-v" id="stTotal">—</div>
               <div class="sc-l" id="stTotalDecls" style="margin-top:2px;margin-bottom:0">— деклараций</div>
             </div>
@@ -304,7 +304,7 @@
     <div class="map-panel">
       <div class="map-panel-title">Статистика карты</div>
       <div class="map-stat"><span class="map-stat-label">Городов на карте</span><span class="map-stat-val" id="mapCityCount">—</span></div>
-      <div class="map-stat"><span class="map-stat-label">Всего производителей</span><span class="map-stat-val" id="mapDeclCount">—</span></div>
+      <div class="map-stat"><span class="map-stat-label">Всего компаний</span><span class="map-stat-val" id="mapDeclCount">—</span></div>
       <div class="map-stat"><span class="map-stat-label">Не распознано</span><span class="map-stat-val" id="mapUnknown" style="color:var(--muted)">—</span></div>
       <div class="map-panel-title" style="margin-top:12px">Фильтр</div>
       <div class="map-filter">

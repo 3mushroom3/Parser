@@ -101,7 +101,8 @@ async function enrichRecords(records) {
         newLookups++;
         console.log(`[INN] ${inn} → ${okved || '?'} → ${farmerType}`);
       } catch (e) {
-        console.warn(`[INN] Ошибка для ИНН ${inn}: ${e.message}`);
+        const isTimeout = e.code === 'ECONNABORTED' || e.message?.includes('timeout');
+        if (!isTimeout) console.warn(`[INN] Ошибка ИНН ${inn}: ${e.message}`);
         cache[inn] = { farmerType: 'unknown', okved: '', checkedAt: new Date().toISOString() };
         rec.farmerType = 'unknown';
         newLookups++;
@@ -140,7 +141,8 @@ async function enrichRecords(records) {
       newLookups++;
       console.log(`[INN] "${nameKey.slice(0,30)}" → ИНН ${foundInn || '?'} → ${okved || '?'} → ${farmerType}`);
     } catch (e) {
-      console.warn(`[INN] Ошибка для "${nameKey.slice(0,30)}": ${e.message}`);
+      const isTimeout = e.code === 'ECONNABORTED' || e.message?.includes('timeout');
+      if (!isTimeout) console.warn(`[INN] Ошибка "${nameKey.slice(0,30)}": ${e.message}`);
       cache[nameCacheKey] = { farmerType: 'unknown', okved: '', checkedAt: new Date().toISOString() };
       rec.farmerType = 'unknown';
       newLookups++;
@@ -274,8 +276,9 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
         console.log(`[INN] [${i+1}/${job.total}] "${(nameKey||inn||'').slice(0,35)}" → ИНН:${foundInn||'?'} ОКВЭД:${okved||'нет'} → ${farmerType}`);
       }
     } catch (e) {
+      const isTimeout = e.code === 'ECONNABORTED' || e.message?.includes('timeout');
+      if (!isTimeout) console.warn(`[INN] [${i+1}] ${e.message}`);
       // Не кэшируем ошибки сети — повторим при следующем запуске
-      // Но пробуем name-fallback прямо сейчас
       const nameFallback = classifyByName(nameKey || rec.shortName || rec.applicantName || rec.lastName || '');
       rec.farmerType = nameFallback;
       if (nameFallback !== 'unknown') {
