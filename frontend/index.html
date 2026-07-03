@@ -86,7 +86,7 @@
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
       <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
       <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
-      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')">🐞 Обращения</button>
+      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')">💬 Поддержка</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
     </nav>
     <div class="hdr-r">
@@ -326,8 +326,8 @@
   <!-- FEEDBACK PAGE -->
   <div class="panel-page" id="pg-feedback">
     <div class="panel-hdr">
-      <h2>🐞 Обращения</h2>
-      <button class="btn btn-p btn-sm" onclick="openFeedbackForm()">+ Сообщить о проблеме</button>
+      <h2>💬 Поддержка</h2>
+      <button class="btn btn-p btn-sm" onclick="openFeedbackForm()">+ Написать в поддержку</button>
     </div>
 
     <div id="feedbackForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:18px">
@@ -347,7 +347,7 @@
       </div>
     </div>
 
-    <div id="feedbackEmpty" class="empty" style="display:none"><div class="ico">🐞</div><p>Обращений пока нет.</p></div>
+    <div id="feedbackEmpty" class="empty" style="display:none"><div class="ico">💬</div><p>Обращений пока нет.</p></div>
     <div class="item-list" id="feedbackList"></div>
   </div>
 
