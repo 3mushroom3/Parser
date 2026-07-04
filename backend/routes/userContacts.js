@@ -22,7 +22,9 @@ router.post('/preview', auth, (req, res) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
     try {
-      const result = await previewUpload(req.user.id, req.file.buffer, req.file.originalname);
+      // Multer получает имя файла как latin1-байты, декодируем в utf8
+      const originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+      const result = await previewUpload(req.user.id, req.file.buffer, originalname);
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });

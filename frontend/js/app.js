@@ -1998,6 +1998,27 @@ async function runArchiveOld() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function setFsaToken() {
+  const token = document.getElementById('fsaTokenInput').value.trim();
+  const msg   = document.getElementById('fsaTokenMsg');
+  if (!token) { msg.style.color = 'var(--err)'; msg.textContent = 'Введите токен'; return; }
+  try {
+    await apiFetch('/api/settoken', { method: 'POST', body: JSON.stringify({ token }) });
+    msg.style.color = '#16a34a';
+    msg.textContent = '✅ Токен установлен. Парсер использует его до перезапуска сервера или сброса.';
+    document.getElementById('fsaTokenInput').value = '';
+  } catch(e) { msg.style.color = 'var(--err)'; msg.textContent = '❌ ' + e.message; }
+}
+
+async function clearFsaToken() {
+  const msg = document.getElementById('fsaTokenMsg');
+  try {
+    await apiFetch('/api/settoken', { method: 'DELETE' });
+    msg.style.color = '#16a34a';
+    msg.textContent = '✅ Ручной токен сброшен — парсер будет логиниться автоматически.';
+  } catch(e) { msg.style.color = 'var(--err)'; msg.textContent = '❌ ' + e.message; }
+}
+
 async function resetParserCheckpoint() {
   if (!confirm('Парсер заново пройдёт всю историю с FSA_DATE_FROM — это надолго. Точно сбросить чекпоинт?')) return;
   try {

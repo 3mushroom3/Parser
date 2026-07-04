@@ -7,10 +7,10 @@ const { sendMessage, loadConfig, saveConfig } = require('../services/telegramBot
 
 // This will be set by server.js
 let runParserFn = null;
+let apiClientRef  = null;
 
-router.setRunParser = (fn) => {
-  runParserFn = fn;
-};
+router.setRunParser = (fn) => { runParserFn = fn; };
+router.setApiClient = (client) => { apiClientRef = client; };
 
 router.get('/status', (req, res) => {
   const status = db.prepare('SELECT * FROM status WHERE id = 1').get();
@@ -104,6 +104,26 @@ router.post('/telegram-config', auth, requireAdmin, (req, res) => {
 router.post('/telegram-test', auth, requireAdmin, async (req, res) => {
   const ok = await sendMessage('✅ Тест уведомлений FSA Parser работает!');
   res.json({ ok });
+});
+
+// POST /api/settoken — установить FSA JWT вручную (без перезапуска сервера)
+router.post('/settoken', auth, requireAdmin, (req, res) => {
+  const { token } = req.body || {};
+  if (!token || typeof token !== 'string' || !token.includes('.')) {
+    return res.status(400).json({ error: 'Передайте поле token с валидным JWT' });
+  }
+  if (!apiClientRef) return res.status(503).json({ error: 'apiClient не инициализирован' });
+  const ok = apiClientRef.setManualToken(token.trim());
+  if (!ok) return res.status(400).json({ error: 'Токен не прошёл проверку формата JWT' });
+  res.json({ ok: true, message: 'FSA токен установлен вручную' });
+});
+
+// DELETE /api/settoken — сбросить ручной токен (вернуться к авто-логину)
+router.delete('/settoken', auth, requireAdmin, (req, res) => {
+  if (!apiClientRef) return res.status(503).json({ error: 'apiClient не инициализирован' });
+  apiClientRef.clearManualToken();
+  apiClientRef.invalidateToken();
+  res.json({ ok: true, message: 'Ручной токен сброшен, следующий парсинг выполнит авто-логин' });
 });
 
 module.exports = router;

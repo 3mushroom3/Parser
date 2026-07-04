@@ -172,6 +172,7 @@ async function safeRunParser() {
 }
 
 systemRoutes.setRunParser(safeRunParser);
+systemRoutes.setApiClient(apiClient);
 
 // Initialization
 if (process.env.NODE_ENV !== 'test') {

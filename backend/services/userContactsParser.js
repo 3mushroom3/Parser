@@ -121,6 +121,14 @@ function normalizePhone(raw) {
   return '';
 }
 
+// Извлекает email из ячейки (даже из смешанного текста)
+function extractEmail(raw) {
+  if (!raw) return '';
+  const s = String(raw).trim();
+  const match = s.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/);
+  return match ? match[0].toLowerCase() : '';
+}
+
 function normalizeInn(raw) {
   const s = String(raw || '').replace(/[^0-9]/g, ' ').trim().split(/\s+/)[0] || '';
   return (s.length === 10 || s.length === 12) ? s : '';
@@ -224,7 +232,7 @@ function processWithMapping(userId, uploadId, mapping) {
       const companyName = String(cols.name    >= 0 ? row[cols.name]    ?? '' : '').trim();
       const phone       = normalizePhone(cols.phone  >= 0 ? row[cols.phone]  : '');
       const phone2      = normalizePhone(cols.phone2 >= 0 ? row[cols.phone2] : '');
-      const email       = String(cols.email   >= 0 ? row[cols.email]   ?? '' : '').trim();
+      const email       = extractEmail(cols.email >= 0 ? row[cols.email] : '');
       const address     = String(cols.address >= 0 ? row[cols.address] ?? '' : '').trim();
 
       if (!phone && !email)     { skipped++; continue; }
