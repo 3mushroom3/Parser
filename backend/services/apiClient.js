@@ -29,6 +29,17 @@ function buildProxyAgent() {
   }
 }
 
+// Превращает сетевую ошибку в читаемое сообщение
+function _friendlyNetErr(e) {
+  const code = e.code || '';
+  if (code === 'ECONNREFUSED')  return `Соединение отклонено (прокси недоступен? ${e.address || ''}:${e.port || ''})`;
+  if (code === 'ETIMEDOUT' || code === 'ECONNABORTED') return `Таймаут соединения (прокси/ФСА не отвечает)`;
+  if (code === 'EHOSTUNREACH')  return `Хост недоступен (нет маршрута до прокси)`;
+  if (code === 'ECONNRESET')    return `Соединение сброшено`;
+  if (code === 'ENOTFOUND')     return `DNS не разрешён`;
+  return e.message || String(e);
+}
+
 /**
  * HTTP-клиент ФГИС: сессия, POST /login, запросы к API с Bearer и retry.
  * Соответствует последовательности SPA (аналог открытия страницы + XHR из scrape.py).
@@ -239,31 +250,45 @@ function createFsaApiClient(cfg) {
       expiresAt = 0;
     },
 
+    lastAuthError: '',
+
     async ensureAuth() {
       if (manualToken) return manualToken;
       if (token && Date.now() < expiresAt) return token;
+      this.lastAuthError = '';
       log.info('auth: Получение сессии и JWT…');
       try {
         await bootstrapSession();
       } catch (e) {
-        log.warn(`auth: GET ${cfg.paths.sessionBootstrap}: ${e.message}`);
+        const msg = _friendlyNetErr(e);
+        log.warn(`auth: GET session: ${msg}`);
+        this.lastAuthError = `Сессия: ${msg}`;
       }
       try {
         if (!extractXsrfToken(cookies)) await ensureXsrfCookie();
       } catch (e) {
-        log.warn(`auth: GET ${cfg.paths.sessionFallback || '/'}: ${e.message}`);
+        const msg = _friendlyNetErr(e);
+        log.warn(`auth: GET XSRF: ${msg}`);
+        if (!this.lastAuthError) this.lastAuthError = `XSRF: ${msg}`;
       }
       if (!extractXsrfToken(cookies)) {
         log.warn('auth: В cookies нет XSRF-TOKEN — POST /login может вернуть 403');
+        if (!this.lastAuthError) this.lastAuthError = 'XSRF-TOKEN не получен (прокси/сеть?)';
       }
       let ok = false;
       try {
         ok = await loginAnonymous();
       } catch (e) {
-        log.error(`auth: POST /login: ${e.message}`);
+        const msg = _friendlyNetErr(e);
+        log.error(`auth: POST /login: ${msg}`);
+        this.lastAuthError = `Логин: ${msg}`;
         ok = false;
       }
-      if (!ok) return null;
+      if (!ok) {
+        if (!this.lastAuthError) this.lastAuthError = 'POST /login вернул не 200';
+        return null;
+      }
+      this.lastAuthError = '';
       log.info(`auth: JWT получен, истекает ${new Date(expiresAt).toLocaleTimeString('ru-RU')}`);
       return token;
     },

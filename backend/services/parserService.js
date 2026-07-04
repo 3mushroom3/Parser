@@ -235,7 +235,8 @@ async function runParser(apiClient, declarationService, config) {
   setStatus('running', 'Авторизация...');
   const token = await apiClient.ensureAuth();
   if (!token) {
-    setStatus('error', 'Не удалось получить токен.');
+    const reason = apiClient.lastAuthError || '';
+    setStatus('error', reason ? `Не удалось получить токен: ${reason}` : 'Не удалось получить токен.');
     return;
   }
 
