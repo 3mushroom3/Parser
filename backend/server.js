@@ -34,7 +34,8 @@ const paymentRoutes = require('./routes/payment');
 const adminRoutes = require('./routes/admin');
 const notesRoutes = require('./routes/notes');
 const externalRoutes = require('./routes/external');
-const feedbackRoutes = require('./routes/feedback');
+const feedbackRoutes    = require('./routes/feedback');
+const userContactRoutes = require('./routes/userContacts');
 const { sendMessageTo, pollCommands } = require('./services/telegramBot');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 
@@ -108,6 +109,7 @@ app.use('/api/enrich', enrichRoutes);
 app.use('/api/notes', notesRoutes);
 app.use('/api/external', externalRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/user/contacts', userContactRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);

@@ -262,4 +262,39 @@ db.exec(`
   );
 `);
 
+// Таблицы пользовательских баз контактов
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_uploads (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    filename TEXT NOT NULL,
+    originalName TEXT NOT NULL,
+    fileSize INTEGER DEFAULT 0,
+    totalRows INTEGER DEFAULT 0,
+    matchedRows INTEGER DEFAULT 0,
+    privateRows INTEGER DEFAULT 0,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS user_contacts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    uploadId INTEGER,
+    inn TEXT,
+    companyName TEXT,
+    phone TEXT,
+    phone2 TEXT,
+    email TEXT,
+    address TEXT,
+    isPrivate INTEGER DEFAULT 0,
+    createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploadId) REFERENCES user_uploads(id) ON DELETE CASCADE
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_uc_userId ON user_contacts(userId);
+  CREATE INDEX IF NOT EXISTS idx_uc_inn ON user_contacts(inn);
+`);
+
 module.exports = db;

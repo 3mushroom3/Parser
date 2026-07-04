@@ -113,6 +113,7 @@
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
       <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
+      <button class="nav-tab" data-page="mydb" onclick="showPage('mydb')">📋 Мои базы</button>
       <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
       <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')">💬 Поддержка</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
@@ -349,6 +350,57 @@
       <p>Нет заметок.<br>Создайте заметку с ссылками на декларации и настройте Telegram-уведомление.</p>
     </div>
     <div class="notes-grid" id="notesGrid"></div>
+  </div>
+
+  <!-- MY DATABASES PAGE -->
+  <div class="panel-page" id="pg-mydb">
+    <div class="panel-hdr">
+      <h2>📋 Мои базы контактов</h2>
+      <button class="btn btn-p btn-sm" onclick="toggleMydbUpload()">+ Загрузить базу</button>
+    </div>
+
+    <!-- Upload zone -->
+    <div id="mydbUploadZone" style="display:none;background:var(--surf2);border:2px dashed var(--border);border-radius:var(--rl);padding:20px;margin-bottom:18px;text-align:center">
+      <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Загрузите XLS/XLSX файл с колонками: <b>ИНН</b>, <b>Телефон</b>, <b>Название</b> (необязательно Email, Адрес).<br>
+        Система автоматически определит колонки и сопоставит компании с базой.
+      </div>
+      <div id="mydbDropArea" style="border:2px dashed #93c5fd;border-radius:var(--r);padding:18px 24px;cursor:pointer;margin-bottom:10px;transition:.2s"
+           onclick="document.getElementById('mydbFileInput').click()"
+           ondragover="event.preventDefault();this.style.background='#EFF6FF'"
+           ondragleave="this.style.background=''"
+           ondrop="event.preventDefault();this.style.background='';handleMydbDrop(event)">
+        <div style="font-size:24px;margin-bottom:6px">📂</div>
+        <div style="font-size:13px;color:var(--muted)">Перетащите файл или нажмите для выбора</div>
+        <input type="file" id="mydbFileInput" accept=".xls,.xlsx,.ods,.csv" style="display:none" onchange="handleMydbFileInput(this)">
+      </div>
+      <div id="mydbUploadProgress" style="display:none;font-size:13px;color:var(--muted)">⏳ Загрузка и обработка...</div>
+      <div id="mydbUploadResult" style="display:none"></div>
+    </div>
+
+    <!-- Upload list -->
+    <div id="mydbEmpty" class="empty" style="display:none">
+      <div class="ico">📋</div>
+      <p>Вы ещё не загружали базы контактов.<br>Нажмите «+ Загрузить базу» чтобы начать.</p>
+    </div>
+    <div id="mydbUploadsList"></div>
+
+    <!-- Private companies -->
+    <div id="mydbPrivateSection" style="display:none;margin-top:24px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <h3 style="margin:0;font-size:15px">🏢 Компании только из ваших баз</h3>
+        <span id="mydbPrivateCount" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        Эти компании не найдены в реестре ФСА. Видны только вам.
+      </div>
+      <div id="mydbPrivateList"></div>
+      <div id="mydbPrivatePager" style="margin-top:10px;text-align:center;display:none">
+        <button class="btn btn-sm" onclick="loadMydbPrivate(State.mydbPrivatePage - 1)">‹ Назад</button>
+        <span id="mydbPrivatePageInfo" style="font-size:12px;color:var(--muted);margin:0 10px"></span>
+        <button class="btn btn-sm" onclick="loadMydbPrivate(State.mydbPrivatePage + 1)">Вперёд ›</button>
+      </div>
+    </div>
   </div>
 
   <!-- FEEDBACK PAGE -->

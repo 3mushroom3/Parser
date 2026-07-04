@@ -25,6 +25,8 @@ const State = {
   // Навигация по декларациям внутри карточки компании
   navDeclIds: [],
   navDeclIndex: -1,
+  // Мои базы
+  mydbPrivatePage: 0,
 };
 
 const CITY_COORDS = {
@@ -272,6 +274,7 @@ function showPage(name) {
   document.getElementById('pg-admin').className         = 'panel-page' + (name === 'admin'     ? ' active' : '');
   document.getElementById('pg-profile').className       = 'panel-page' + (name === 'profile'   ? ' active' : '');
   document.getElementById('pg-feedback').className      = 'panel-page' + (name === 'feedback'  ? ' active' : '');
+  document.getElementById('pg-mydb').className          = 'panel-page' + (name === 'mydb'      ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
@@ -290,6 +293,7 @@ function showPage(name) {
   if (name === 'admin') loadAdminData();
   if (name === 'profile') loadProfile();
   if (name === 'feedback') loadFeedback();
+  if (name === 'mydb') loadMydbPage();
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
@@ -1065,6 +1069,7 @@ async function openCompany(inn, name) {
       ${p.ebRevenue ? `<div class="df"><div class="df-l">Выручка</div><div class="df-v">${escHtml(p.ebRevenue)} тыс. ₽</div></div>` : ''}
       ${p.address ? `<div class="df full"><div class="df-l">Адрес</div><div class="df-v" style="font-size:12px">${p.address}</div></div>` : ''}
     </div>
+    <div id="compUserContacts"></div>
     <div class="dsec">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <h4 style="margin:0">Декларации (${(p.decls||[]).length})</h4>
@@ -1097,6 +1102,7 @@ async function openCompany(inn, name) {
 
   renderCompContacts();
   updateCropTabs();
+  loadUserContactsForCard(p.inn, p.name || name);
 
   const isFav = isFavorite(p.inn, p.name || name);
   const compLabel = (p.name || name || inn || '').replace(/'/g,"\\'").replace(/"/g,'&quot;');
@@ -2309,6 +2315,173 @@ async function atnCreateAndAdd() {
     showAlert('Заметка создана');
     if (_notes.length) loadNotes();
   } catch(e) { showAlert(e.message, 'err'); }
+}
+
+// ── Мои базы контактов ────────────────────────────────────────────────────
+function toggleMydbUpload() {
+  const z = document.getElementById('mydbUploadZone');
+  z.style.display = z.style.display === 'none' ? 'block' : 'none';
+}
+
+function handleMydbDrop(e) {
+  const file = e.dataTransfer?.files?.[0];
+  if (file) uploadMydbFile(file);
+}
+
+function handleMydbFileInput(input) {
+  const file = input.files?.[0];
+  if (file) { uploadMydbFile(file); input.value = ''; }
+}
+
+async function uploadMydbFile(file) {
+  const prog = document.getElementById('mydbUploadProgress');
+  const res  = document.getElementById('mydbUploadResult');
+  prog.style.display = 'block';
+  res.style.display  = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const data = await fetch('/api/user/contacts/upload', {
+      method: 'POST',
+      headers: State.token ? { Authorization: `Bearer ${State.token}` } : {},
+      body: fd,
+    }).then(r => r.json());
+
+    prog.style.display = 'none';
+    if (data.error) {
+      res.style.display = 'block';
+      res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(data.error)}</div>`;
+      return;
+    }
+    res.style.display = 'block';
+    res.innerHTML = `<div style="color:#16a34a;font-size:13px;background:#f0fdf4;padding:10px 14px;border-radius:var(--r)">
+      ✅ Загружено: <b>${data.total}</b> строк &nbsp;·&nbsp;
+      Совпадений: <b>${data.matched}</b> &nbsp;·&nbsp;
+      Приватных компаний: <b>${data.private}</b> &nbsp;·&nbsp;
+      Пропущено: ${data.skipped}
+    </div>`;
+    loadMydbPage();
+  } catch(e) {
+    prog.style.display = 'none';
+    res.style.display = 'block';
+    res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(e.message)}</div>`;
+  }
+}
+
+async function loadMydbPage() {
+  try {
+    const uploads = await apiFetch('/api/user/contacts/uploads');
+    const listEl  = document.getElementById('mydbUploadsList');
+    const emptyEl = document.getElementById('mydbEmpty');
+
+    if (!uploads.length) {
+      emptyEl.style.display = 'flex';
+      listEl.innerHTML = '';
+      document.getElementById('mydbPrivateSection').style.display = 'none';
+      return;
+    }
+    emptyEl.style.display = 'none';
+
+    listEl.innerHTML = uploads.map(u => `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${escHtml(u.originalName)}</div>
+          <div style="font-size:12px;color:var(--muted)">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—'} &nbsp;·&nbsp; ${(u.fileSize/1024).toFixed(0)} КБ</div>
+        </div>
+        <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
+          <div><span style="color:var(--muted)">Всего строк:</span> <b>${u.totalRows}</b></div>
+          <div><span style="color:var(--muted)">Совпало:</span> <b style="color:#16a34a">${u.matchedRows}</b></div>
+          <div><span style="color:var(--muted)">Только у вас:</span> <b style="color:#0a3870">${u.privateRows}</b></div>
+        </div>
+        <button class="btn btn-sm" style="color:var(--err);border-color:var(--err)"
+          onclick="deleteMydbUpload(${u.id})">🗑 Удалить</button>
+      </div>
+    `).join('');
+
+    const totalPrivate = uploads.reduce((s, u) => s + (u.privateRows || 0), 0);
+    if (totalPrivate > 0) {
+      document.getElementById('mydbPrivateSection').style.display = 'block';
+      loadMydbPrivate(0);
+    } else {
+      document.getElementById('mydbPrivateSection').style.display = 'none';
+    }
+  } catch(e) {
+    console.error('loadMydbPage:', e);
+  }
+}
+
+async function deleteMydbUpload(id) {
+  if (!confirm('Удалить эту загрузку и все связанные контакты?')) return;
+  try {
+    await apiFetch(`/api/user/contacts/uploads/${id}`, { method: 'DELETE' });
+    loadMydbPage();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
+async function loadMydbPrivate(page) {
+  page = Math.max(0, page);
+  State.mydbPrivatePage = page;
+  const listEl = document.getElementById('mydbPrivateList');
+  listEl.innerHTML = '<div style="color:var(--muted);font-size:13px">Загрузка...</div>';
+
+  try {
+    const data = await apiFetch(`/api/user/contacts/private?page=${page}`);
+    const { rows, total } = data;
+
+    document.getElementById('mydbPrivateCount').textContent = `${total} компаний`;
+    const pageSize = 50;
+    const totalPages = Math.ceil(total / pageSize);
+
+    listEl.innerHTML = rows.length ? rows.map(r => `
+      <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="flex:1;min-width:120px;font-weight:500">${escHtml(r.companyName || '—')}</div>
+        ${r.inn ? `<div style="color:var(--muted);font-size:12px">ИНН: ${r.inn}</div>` : ''}
+        ${r.phone ? `<div style="color:#0a3870">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
+        ${r.email ? `<div style="color:var(--muted);font-size:12px">✉ ${escHtml(r.email)}</div>` : ''}
+        ${r.address ? `<div style="color:var(--muted);font-size:12px">📍 ${escHtml(r.address).slice(0, 60)}</div>` : ''}
+      </div>
+    `).join('') : '<div style="color:var(--muted);font-size:13px;padding:8px">Нет данных</div>';
+
+    const pager = document.getElementById('mydbPrivatePager');
+    if (totalPages > 1) {
+      pager.style.display = 'block';
+      document.getElementById('mydbPrivatePageInfo').textContent = `${page + 1} / ${totalPages}`;
+      document.querySelector('#mydbPrivatePager button:first-child').disabled = page <= 0;
+      document.querySelector('#mydbPrivatePager button:last-child').disabled = page >= totalPages - 1;
+    } else {
+      pager.style.display = 'none';
+    }
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--err);font-size:13px">${escHtml(e.message)}</div>`;
+  }
+}
+
+// Загружает пользовательские контакты для карточки компании
+async function loadUserContactsForCard(inn, name) {
+  if (!State.token) return;
+  try {
+    const qs = inn ? '?inn=' + encodeURIComponent(inn) : '?name=' + encodeURIComponent(name || '');
+    const data = await apiFetch('/api/user/contacts/for-company' + qs);
+    const el = document.getElementById('compUserContacts');
+    if (!el || !data || !data.length) return;
+
+    const items = data.map(c => {
+      const parts = [];
+      if (c.phone)  parts.push(`<span style="color:#0a3870;font-weight:500">📞 ${escHtml(c.phone)}${c.phone2 ? ' · ' + escHtml(c.phone2) : ''}</span>`);
+      if (c.email)  parts.push(`<span style="color:var(--muted);font-size:12px">✉ ${escHtml(c.email)}</span>`);
+      if (c.address) parts.push(`<span style="color:var(--muted);font-size:12px">📍 ${escHtml(c.address).slice(0, 60)}</span>`);
+      return parts.join(' &nbsp; ');
+    }).filter(Boolean);
+
+    if (!items.length) return;
+    el.innerHTML = `
+      <div class="dsec" style="margin-bottom:16px;background:#f0f9ff;border-color:#bae6fd">
+        <h4 style="color:#0369a1;margin-bottom:8px">📞 Ваши контакты <span style="font-size:11px;color:var(--muted);font-weight:400">(из загруженных баз)</span></h4>
+        ${items.map(i => `<div style="margin-bottom:4px">${i}</div>`).join('')}
+      </div>`;
+  } catch(_) {}
 }
 
 // ── Notes ─────────────────────────────────────────────────────────────────
