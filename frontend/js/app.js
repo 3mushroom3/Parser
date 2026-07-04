@@ -2322,14 +2322,14 @@ async function atnCreateAndAdd() {
 // ── Мои базы контактов ────────────────────────────────────────────────────
 
 // Цвета типов колонок
+// Excel-style цвета (те самые популярные акцентные)
 const MYDB_TYPES = {
-  '':       { label: '— не импортировать —', bg: '',        color: '' },
-  inn:      { label: 'ИНН',                  bg: '#dbeafe', color: '#1e40af' },
-  name:     { label: 'Название компании',     bg: '#f3e8ff', color: '#6d28d9' },
-  phone:    { label: 'Телефон',              bg: '#dcfce7', color: '#15803d' },
-  phone2:   { label: 'Телефон 2',            bg: '#d1fae5', color: '#065f46' },
-  email:    { label: 'Email',                bg: '#fef9c3', color: '#92400e' },
-  address:  { label: 'Адрес',               bg: '#e0f2fe', color: '#075985' },
+  inn:     { label: 'ИНН',           bg: '#C5D9F1', color: '#17375E', icon: '🔵' },
+  name:    { label: 'Название',      bg: '#D8E4BC', color: '#375623', icon: '🟢' },
+  phone:   { label: 'Телефон',      bg: '#FABF8F', color: '#7F2000', icon: '🟠' },
+  phone2:  { label: 'Телефон 2',    bg: '#FFDDC1', color: '#7F2000', icon: '🔶' },
+  email:   { label: 'Email',        bg: '#FFEB9C', color: '#9C5700', icon: '🟡' },
+  address: { label: 'Адрес',        bg: '#E2EFDA', color: '#375623', icon: '🟩' },
 };
 
 function toggleMydbUpload() {
@@ -2401,41 +2401,38 @@ function renderColPickerTable() {
   const { headers, sampleRows } = State.mydbPreview;
   const mapping = State.mydbMapping;
 
-  const typeOptions = Object.entries(MYDB_TYPES)
-    .map(([v, t]) => `<option value="${v}">${t.label}</option>`)
-    .join('');
-
-  // Заголовочная строка
   const thCells = headers.map((h, i) => {
     const type = mapping[i] || '';
-    const t    = MYDB_TYPES[type] || MYDB_TYPES[''];
-    const bg   = t.bg ? `background:${t.bg};` : '';
-    const sel  = Object.entries(MYDB_TYPES)
-      .map(([v, td]) => `<option value="${v}"${v===type?' selected':''}>${td.label}</option>`)
-      .join('');
-    return `<th data-col="${i}" style="${bg}min-width:110px;max-width:160px;padding:6px 8px;border:1px solid var(--border);vertical-align:top;text-align:left">
-      <div style="font-size:12px;font-weight:600;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${escHtml(h)}">${escHtml(h||'(пусто)')}</div>
-      <select data-col="${i}" onchange="setMydbColType(${i},this.value)"
-        style="width:100%;font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer">
-        ${sel}
-      </select>
+    const t    = MYDB_TYPES[type];
+    const bg   = t ? `background:${t.bg};` : 'background:#f8fafc;';
+    const badge = t
+      ? `<div style="margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${t.bg};color:${t.color};border:1px solid ${t.color}40;cursor:pointer">
+           ${t.icon} ${t.label} <span style="opacity:.6;font-size:10px">▾</span>
+         </div>`
+      : `<div style="margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;background:#f1f5f9;color:#94a3b8;border:1px dashed #cbd5e1;cursor:pointer">
+           + выбрать
+         </div>`;
+    return `<th data-col="${i}" onclick="openColTypePicker(event,${i})"
+      style="${bg}min-width:110px;max-width:155px;padding:8px 10px;border:1px solid #d1d5db;vertical-align:top;text-align:left;cursor:pointer;transition:.15s"
+      onmouseenter="this.style.filter='brightness(.96)'" onmouseleave="this.style.filter=''">
+      <div style="font-size:12px;font-weight:600;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px" title="${escHtml(h)}">${escHtml(h||'(пусто)')}</div>
+      ${badge}
     </th>`;
   }).join('');
 
-  // Строки данных
   const bodyRows = sampleRows.map(row => {
     const cells = headers.map((_, i) => {
       const type = mapping[i] || '';
-      const t    = MYDB_TYPES[type] || MYDB_TYPES[''];
-      const bg   = t.bg ? `background:${t.bg};` : '';
+      const t    = MYDB_TYPES[type];
+      const bg   = t ? `background:${t.bg}70;` : '';
       const val  = String(row[i] ?? '');
-      return `<td data-col="${i}" style="${bg}padding:5px 8px;border:1px solid var(--border);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(val)}">${escHtml(val)}</td>`;
+      return `<td data-col="${i}" style="${bg}padding:5px 10px;border:1px solid #e5e7eb;font-size:12px;color:#374151;max-width:155px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(val)}">${escHtml(val)}</td>`;
     }).join('');
     return `<tr>${cells}</tr>`;
   }).join('');
 
   document.getElementById('mydbColTable').innerHTML = `
-    <table style="border-collapse:collapse;min-width:max-content">
+    <table style="border-collapse:collapse;min-width:max-content;font-family:inherit">
       <thead><tr>${thCells}</tr></thead>
       <tbody>${bodyRows}</tbody>
     </table>`;
@@ -2443,54 +2440,119 @@ function renderColPickerTable() {
   updateMydbColStatus();
 }
 
+// Всплывающий пикер типа колонки
+function openColTypePicker(event, colIdx) {
+  event.stopPropagation();
+  document.getElementById('_colPicker')?.remove();
+
+  const picker = document.createElement('div');
+  picker.id = '_colPicker';
+  const headerName = State.mydbPreview?.headers?.[colIdx] || `Колонка ${colIdx + 1}`;
+
+  picker.innerHTML = `
+    <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:500">
+      Тип для «${escHtml(headerName.slice(0, 22))}»:
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
+      ${Object.entries(MYDB_TYPES).map(([v, t]) => `
+        <button onclick="setMydbColType(${colIdx},'${v}');document.getElementById('_colPicker')?.remove()"
+          style="padding:7px 6px;border-radius:7px;border:1.5px solid ${t.color}60;
+                 background:${t.bg};color:${t.color};font-size:12px;font-weight:600;
+                 cursor:pointer;text-align:left;display:flex;align-items:center;gap:5px;
+                 transition:.1s" onmouseenter="this.style.filter='brightness(.94)'" onmouseleave="this.style.filter=''">
+          ${t.icon} ${t.label}
+        </button>`).join('')}
+    </div>
+    <button onclick="setMydbColType(${colIdx},'');document.getElementById('_colPicker')?.remove()"
+      style="width:100%;padding:5px;border-radius:6px;border:1px solid #e5e7eb;
+             background:#f9fafb;color:#9ca3af;font-size:11px;cursor:pointer">
+      ✕ Не импортировать эту колонку
+    </button>`;
+
+  Object.assign(picker.style, {
+    position: 'fixed', zIndex: '99999',
+    background: 'white', border: '1px solid #e5e7eb',
+    borderRadius: '10px', boxShadow: '0 8px 30px rgba(0,0,0,.15)',
+    padding: '12px', minWidth: '230px',
+  });
+
+  // Позиционирование — вписываем в экран
+  document.body.appendChild(picker);
+  const rect = picker.getBoundingClientRect();
+  const x = Math.min(event.clientX, window.innerWidth  - rect.width  - 8);
+  const y = Math.min(event.clientY + 6, window.innerHeight - rect.height - 8);
+  picker.style.left = x + 'px';
+  picker.style.top  = y + 'px';
+
+  // Закрываем по клику снаружи
+  setTimeout(() => document.addEventListener('click', function h() {
+    document.getElementById('_colPicker')?.remove();
+    document.removeEventListener('click', h);
+  }, { once: true }), 50);
+}
+
 function setMydbColType(colIdx, type) {
   const mapping = State.mydbMapping;
 
-  // Снимаем этот тип с других колонок (phone и phone2 могут быть одновременно)
+  // Снимаем этот тип с других колонок (phone + phone2 могут быть оба)
   if (type && type !== 'phone2') {
     for (const [k, v] of Object.entries(mapping)) {
       if (v === type && Number(k) !== colIdx) {
         mapping[k] = '';
         _applyColStyle(Number(k), '');
-        const s = document.querySelector(`#mydbColTable select[data-col="${k}"]`);
-        if (s) s.value = '';
       }
     }
   }
-
   mapping[colIdx] = type;
   _applyColStyle(colIdx, type);
   updateMydbColStatus();
+
+  // Обновляем бейдж в заголовке без полного перерендера
+  const th = document.querySelector(`#mydbColTable th[data-col="${colIdx}"]`);
+  if (th) {
+    const t = MYDB_TYPES[type];
+    th.style.background = t ? t.bg : '#f8fafc';
+    const badgeEl = th.querySelector('div:last-child');
+    if (badgeEl) {
+      if (t) {
+        badgeEl.style.cssText = `margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;background:${t.bg};color:${t.color};border:1px solid ${t.color}40;cursor:pointer`;
+        badgeEl.innerHTML = `${t.icon} ${t.label} <span style="opacity:.6;font-size:10px">▾</span>`;
+      } else {
+        badgeEl.style.cssText = 'margin-top:5px;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;background:#f1f5f9;color:#94a3b8;border:1px dashed #cbd5e1;cursor:pointer';
+        badgeEl.innerHTML = '+ выбрать';
+      }
+    }
+  }
 }
 
 function _applyColStyle(colIdx, type) {
-  const t  = MYDB_TYPES[type] || MYDB_TYPES[''];
-  const bg = t.bg || '';
-  document.querySelectorAll(`#mydbColTable [data-col="${colIdx}"]`).forEach(el => {
+  const t  = MYDB_TYPES[type];
+  const bg = t ? t.bg + '70' : '';
+  document.querySelectorAll(`#mydbColTable td[data-col="${colIdx}"]`).forEach(el => {
     el.style.background = bg;
   });
 }
 
 function updateMydbColStatus() {
-  const m = State.mydbMapping;
+  const m   = State.mydbMapping;
   const has = t => Object.values(m).includes(t);
-  const hasPhone = has('phone') || has('phone2');
-  const hasEmail = has('email');
-  const ok = hasPhone || hasEmail;
+  const ok  = has('phone') || has('phone2') || has('email');
 
   document.getElementById('mydbColConfirmBtn').disabled = !ok;
 
-  const parts = [];
-  for (const [type, td] of Object.entries(MYDB_TYPES)) {
-    if (!type) continue;
-    const idx = Object.entries(m).find(([, v]) => v === type)?.[0];
-    if (idx !== undefined) {
-      parts.push(`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:${td.bg};color:${td.color}">${td.label}: кол. ${Number(idx)+1}</span>`);
-    }
-  }
+  const parts = Object.entries(MYDB_TYPES)
+    .filter(([type]) => {
+      const idx = Object.entries(m).find(([, v]) => v === type)?.[0];
+      return idx !== undefined;
+    })
+    .map(([type, td]) => {
+      const idx = Object.entries(m).find(([, v]) => v === type)[0];
+      return `<span style="padding:2px 10px;border-radius:10px;font-size:11px;background:${td.bg};color:${td.color};border:1px solid ${td.color}40">${td.icon} ${td.label} → кол.${Number(idx)+1}</span>`;
+    });
+
   document.getElementById('mydbColStatus').innerHTML = parts.length
     ? parts.join(' ')
-    : '<span style="color:var(--muted)">Выберите хотя бы Телефон или Email</span>';
+    : '<span style="color:var(--muted)">Нажмите на заголовок колонки чтобы назначить тип</span>';
 }
 
 async function confirmMydbMapping() {
