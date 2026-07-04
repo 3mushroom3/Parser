@@ -2446,10 +2446,19 @@ function openColTypePicker(event, colIdx) {
   picker.id = '_colPicker';
   const headerName = State.mydbPreview?.headers?.[colIdx] || `Колонка ${colIdx + 1}`;
 
+  // Подсказка: есть ли в этой колонке смешанный текст с телефоном?
+  const sampleVals = (State.mydbPreview?.sampleRows || []).map(r => String(r[colIdx] || ''));
+  const looksLongText = sampleVals.some(v => v.length > 30 && /\d/.test(v));
+  const mixedHint = looksLongText
+    ? `<div style="font-size:10px;color:#7F2000;background:#FFDDC1;border-radius:5px;padding:3px 7px;margin-bottom:7px">
+        ⚠ Колонка содержит смешанный текст.<br>Выберите «Телефон» — номер будет извлечён автоматически.
+       </div>` : '';
+
   picker.innerHTML = `
-    <div style="font-size:11px;color:#6b7280;margin-bottom:8px;font-weight:500">
+    <div style="font-size:11px;color:#6b7280;margin-bottom:7px;font-weight:500">
       Тип для «${escHtml(headerName.slice(0, 22))}»:
     </div>
+    ${mixedHint}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px">
       ${Object.entries(MYDB_TYPES).map(([v, t]) => `
         <button onclick="setMydbColType(${colIdx},'${v}');document.getElementById('_colPicker')?.remove()"

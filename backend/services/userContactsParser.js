@@ -89,14 +89,36 @@ function detectColumnsKeyword(headers) {
 }
 
 // ── Нормализация ───────────────────────────────────────────────────────────
+
+// Извлекает телефон из любого текста, включая смешанный
+// (адрес + директор + телефон в одной ячейке)
 function normalizePhone(raw) {
   if (!raw && raw !== 0) return '';
   const s = String(raw).trim();
+  if (!s) return '';
+
+  // Ищем российский номер в тексте (11 цифр начиная с +7 или 8)
+  const RU_PHONE = /(?:\+7|8)[\s\-\(]*\d{3}[\s\-\)]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}/g;
+  const found = s.match(RU_PHONE);
+  if (found) {
+    const digits = found[0].replace(/\D/g, '');
+    return '+7' + digits.slice(1);
+  }
+
+  // Ищем 10-значный номер без кода страны
+  const TEN = /(?<!\d)(?:9\d{2}|[3-8]\d{2})[\s\-]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2}(?!\d)/g;
+  const ten = s.match(TEN);
+  if (ten) {
+    const digits = ten[0].replace(/\D/g, '');
+    if (digits.length === 10) return '+7' + digits;
+  }
+
+  // Если ячейка содержит только цифры — обрабатываем напрямую
   const digits = s.replace(/\D/g, '');
-  if (!digits || digits.length < 7) return '';
   if (digits.length === 11 && (digits[0] === '7' || digits[0] === '8')) return '+7' + digits.slice(1);
   if (digits.length === 10) return '+7' + digits;
-  return s.replace(/[^\d+\-() ]/g, '').trim();
+
+  return '';
 }
 
 function normalizeInn(raw) {
