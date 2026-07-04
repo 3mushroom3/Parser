@@ -2352,7 +2352,7 @@ async function startMydbPreview(file) {
   const res  = document.getElementById('mydbUploadResult');
   prog.style.display = 'block';
   res.style.display  = 'none';
-  prog.textContent   = '⏳ Загружаем файл и анализируем колонки...';
+  prog.textContent   = '⏳ Загружаем файл...';
 
   const fd = new FormData();
   fd.append('file', file);
@@ -2387,11 +2387,8 @@ function openMydbColPicker(previewData) {
     if (idx >= 0) State.mydbMapping[idx] = type;
   }
 
-  const aiHint = previewData.detectionMethod === 'ai'
-    ? '🤖 AI предложил разметку — проверьте и исправьте при необходимости'
-    : 'Разметка по ключевым словам — проверьте и исправьте при необходимости';
   document.getElementById('mydbColModalSub').textContent =
-    `${previewData.originalName} · ${previewData.headers.length} колонок · ${previewData.sampleRows.length} строк примера. ${aiHint}`;
+    `${previewData.originalName} · ${previewData.headers.length} колонок · нажмите на заголовок и выберите цвет`;
 
   renderColPickerTable();
   openModal('mydbColModal');
