@@ -232,8 +232,18 @@ async function runParser(apiClient, declarationService, config) {
     if (skipped > 0) logger.info(`Parser: продолжаем с чекпоинта ${resumeFrom} — пропущено ${skipped} уже пройденных окон`);
   }
 
-  setStatus('running', 'Авторизация...');
-  const token = await apiClient.ensureAuth();
+  // Авторизация с повторами — прокси или FSA WAF могут временно блокировать
+  let token = null;
+  for (let authTry = 1; authTry <= 3; authTry++) {
+    setStatus('running', authTry === 1 ? 'Авторизация...' : `Авторизация (попытка ${authTry}/3)...`);
+    token = await apiClient.ensureAuth();
+    if (token) break;
+    if (authTry < 3) {
+      logger.warn(`Parser: авторизация не удалась (попытка ${authTry}), повтор через 15 сек...`);
+      await new Promise(r => setTimeout(r, 15000));
+      apiClient.invalidateToken();
+    }
+  }
   if (!token) {
     const reason = apiClient.lastAuthError || '';
     setStatus('error', reason ? `Не удалось получить токен: ${reason}` : 'Не удалось получить токен.');

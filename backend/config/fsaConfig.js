@@ -37,10 +37,10 @@ module.exports = {
     maxDelayMs: Number(process.env.FSA_RETRY_MAX_MS) || 8000,
   },
 
-  /** Повторы только для POST /login при сетевых сбоях */
+  /** Повторы только для POST /login при сетевых сбоях (SOCKS5 отказы, таймауты) */
   loginRetry: {
-    maxAttempts: Math.max(1, Number(process.env.FSA_LOGIN_RETRY_MAX) || 2),
-    baseDelayMs: Number(process.env.FSA_LOGIN_RETRY_DELAY_MS) || 1000,
+    maxAttempts: Math.max(1, Number(process.env.FSA_LOGIN_RETRY_MAX) || 5),
+    baseDelayMs: Number(process.env.FSA_LOGIN_RETRY_DELAY_MS) || 3000,
   },
 
   concurrency: Math.max(1, Math.min(20, Number(process.env.FSA_FETCH_CONCURRENCY) || 3)),
