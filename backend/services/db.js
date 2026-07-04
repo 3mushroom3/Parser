@@ -297,4 +297,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_uc_inn ON user_contacts(inn);
 `);
 
+// Миграция: статус загрузки (pending / processed)
+const uploadColNames = db.prepare("PRAGMA table_info(user_uploads)").all().map(c => c.name);
+if (!uploadColNames.includes('status')) {
+  db.exec("ALTER TABLE user_uploads ADD COLUMN status TEXT DEFAULT 'processed'");
+}
+
 module.exports = db;

@@ -3,11 +3,8 @@ const router  = express.Router();
 const multer  = require('multer');
 const auth    = require('../middleware/auth');
 const {
-  processUpload,
-  getUploads,
-  deleteUpload,
-  getContactsForCompany,
-  getPrivateCompanies,
+  previewUpload, processWithMapping,
+  getUploads, deleteUpload, getContactsForCompany, getPrivateCompanies,
 } = require('../services/userContactsParser');
 
 const upload = multer({
@@ -19,18 +16,30 @@ const upload = multer({
   },
 });
 
-// POST /api/user/contacts/upload
-router.post('/upload', auth, (req, res) => {
+// POST /api/user/contacts/preview — шаг 1: загружает файл, возвращает превью колонок
+router.post('/preview', auth, (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
     try {
-      const result = await processUpload(req.user.id, req.file.buffer, req.file.originalname);
+      const result = await previewUpload(req.user.id, req.file.buffer, req.file.originalname);
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
   });
+});
+
+// POST /api/user/contacts/process — шаг 2: обрабатывает с маппингом пользователя
+router.post('/process', auth, (req, res) => {
+  const { uploadId, mapping } = req.body;
+  if (!uploadId || !mapping) return res.status(400).json({ error: 'uploadId и mapping обязательны' });
+  try {
+    const result = processWithMapping(req.user.id, Number(uploadId), mapping);
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 
 // GET /api/user/contacts/uploads

@@ -27,6 +27,8 @@ const State = {
   navDeclIndex: -1,
   // Мои базы
   mydbPrivatePage: 0,
+  mydbPreview: null,   // данные превью от сервера
+  mydbMapping: {},     // colIdx → тип ('inn'|'name'|'phone'|'phone2'|'email'|'address'|'')
 };
 
 const CITY_COORDS = {
@@ -2318,6 +2320,18 @@ async function atnCreateAndAdd() {
 }
 
 // ── Мои базы контактов ────────────────────────────────────────────────────
+
+// Цвета типов колонок
+const MYDB_TYPES = {
+  '':       { label: '— не импортировать —', bg: '',        color: '' },
+  inn:      { label: 'ИНН',                  bg: '#dbeafe', color: '#1e40af' },
+  name:     { label: 'Название компании',     bg: '#f3e8ff', color: '#6d28d9' },
+  phone:    { label: 'Телефон',              bg: '#dcfce7', color: '#15803d' },
+  phone2:   { label: 'Телефон 2',            bg: '#d1fae5', color: '#065f46' },
+  email:    { label: 'Email',                bg: '#fef9c3', color: '#92400e' },
+  address:  { label: 'Адрес',               bg: '#e0f2fe', color: '#075985' },
+};
+
 function toggleMydbUpload() {
   const z = document.getElementById('mydbUploadZone');
   z.style.display = z.style.display === 'none' ? 'block' : 'none';
@@ -2325,25 +2339,25 @@ function toggleMydbUpload() {
 
 function handleMydbDrop(e) {
   const file = e.dataTransfer?.files?.[0];
-  if (file) uploadMydbFile(file);
+  if (file) startMydbPreview(file);
 }
 
 function handleMydbFileInput(input) {
   const file = input.files?.[0];
-  if (file) { uploadMydbFile(file); input.value = ''; }
+  if (file) { startMydbPreview(file); input.value = ''; }
 }
 
-async function uploadMydbFile(file) {
+async function startMydbPreview(file) {
   const prog = document.getElementById('mydbUploadProgress');
   const res  = document.getElementById('mydbUploadResult');
   prog.style.display = 'block';
   res.style.display  = 'none';
+  prog.textContent   = '⏳ Загружаем файл и анализируем колонки...';
 
   const fd = new FormData();
   fd.append('file', file);
-
   try {
-    const data = await fetch('/api/user/contacts/upload', {
+    const data = await fetch('/api/user/contacts/preview', {
       method: 'POST',
       headers: State.token ? { Authorization: `Bearer ${State.token}` } : {},
       body: fd,
@@ -2355,22 +2369,178 @@ async function uploadMydbFile(file) {
       res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(data.error)}</div>`;
       return;
     }
-    const aiLabel = data.detectionMethod === 'ai'
-      ? ' &nbsp;<span style="font-size:11px;color:#0369a1">🤖 колонки определил AI</span>'
-      : ' &nbsp;<span style="font-size:11px;color:var(--muted)">колонки по ключевым словам</span>';
-    res.style.display = 'block';
-    res.innerHTML = `<div style="color:#16a34a;font-size:13px;background:#f0fdf4;padding:10px 14px;border-radius:var(--r)">
-      ✅ Загружено: <b>${data.total}</b> строк &nbsp;·&nbsp;
-      Совпадений: <b>${data.matched}</b> &nbsp;·&nbsp;
-      Приватных: <b>${data.private}</b> &nbsp;·&nbsp;
-      Пропущено: ${data.skipped}${aiLabel}
-    </div>`;
-    loadMydbPage();
+    openMydbColPicker(data);
   } catch(e) {
     prog.style.display = 'none';
     res.style.display = 'block';
     res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(e.message)}</div>`;
   }
+}
+
+function openMydbColPicker(previewData) {
+  State.mydbPreview = previewData;
+  State.mydbMapping = {};
+
+  // Применяем подсказку AI/keyword
+  const sc = previewData.suggestedCols || {};
+  for (const [type, idx] of Object.entries(sc)) {
+    if (idx >= 0) State.mydbMapping[idx] = type;
+  }
+
+  const aiHint = previewData.detectionMethod === 'ai'
+    ? '🤖 AI предложил разметку — проверьте и исправьте при необходимости'
+    : 'Разметка по ключевым словам — проверьте и исправьте при необходимости';
+  document.getElementById('mydbColModalSub').textContent =
+    `${previewData.originalName} · ${previewData.headers.length} колонок · ${previewData.sampleRows.length} строк примера. ${aiHint}`;
+
+  renderColPickerTable();
+  openModal('mydbColModal');
+}
+
+function renderColPickerTable() {
+  const { headers, sampleRows } = State.mydbPreview;
+  const mapping = State.mydbMapping;
+
+  const typeOptions = Object.entries(MYDB_TYPES)
+    .map(([v, t]) => `<option value="${v}">${t.label}</option>`)
+    .join('');
+
+  // Заголовочная строка
+  const thCells = headers.map((h, i) => {
+    const type = mapping[i] || '';
+    const t    = MYDB_TYPES[type] || MYDB_TYPES[''];
+    const bg   = t.bg ? `background:${t.bg};` : '';
+    const sel  = Object.entries(MYDB_TYPES)
+      .map(([v, td]) => `<option value="${v}"${v===type?' selected':''}>${td.label}</option>`)
+      .join('');
+    return `<th data-col="${i}" style="${bg}min-width:110px;max-width:160px;padding:6px 8px;border:1px solid var(--border);vertical-align:top;text-align:left">
+      <div style="font-size:12px;font-weight:600;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px" title="${escHtml(h)}">${escHtml(h||'(пусто)')}</div>
+      <select data-col="${i}" onchange="setMydbColType(${i},this.value)"
+        style="width:100%;font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;background:white;cursor:pointer">
+        ${sel}
+      </select>
+    </th>`;
+  }).join('');
+
+  // Строки данных
+  const bodyRows = sampleRows.map(row => {
+    const cells = headers.map((_, i) => {
+      const type = mapping[i] || '';
+      const t    = MYDB_TYPES[type] || MYDB_TYPES[''];
+      const bg   = t.bg ? `background:${t.bg};` : '';
+      const val  = String(row[i] ?? '');
+      return `<td data-col="${i}" style="${bg}padding:5px 8px;border:1px solid var(--border);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(val)}">${escHtml(val)}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+
+  document.getElementById('mydbColTable').innerHTML = `
+    <table style="border-collapse:collapse;min-width:max-content">
+      <thead><tr>${thCells}</tr></thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
+
+  updateMydbColStatus();
+}
+
+function setMydbColType(colIdx, type) {
+  const mapping = State.mydbMapping;
+
+  // Снимаем этот тип с других колонок (phone и phone2 могут быть одновременно)
+  if (type && type !== 'phone2') {
+    for (const [k, v] of Object.entries(mapping)) {
+      if (v === type && Number(k) !== colIdx) {
+        mapping[k] = '';
+        _applyColStyle(Number(k), '');
+        const s = document.querySelector(`#mydbColTable select[data-col="${k}"]`);
+        if (s) s.value = '';
+      }
+    }
+  }
+
+  mapping[colIdx] = type;
+  _applyColStyle(colIdx, type);
+  updateMydbColStatus();
+}
+
+function _applyColStyle(colIdx, type) {
+  const t  = MYDB_TYPES[type] || MYDB_TYPES[''];
+  const bg = t.bg || '';
+  document.querySelectorAll(`#mydbColTable [data-col="${colIdx}"]`).forEach(el => {
+    el.style.background = bg;
+  });
+}
+
+function updateMydbColStatus() {
+  const m = State.mydbMapping;
+  const has = t => Object.values(m).includes(t);
+  const hasPhone = has('phone') || has('phone2');
+  const hasEmail = has('email');
+  const ok = hasPhone || hasEmail;
+
+  document.getElementById('mydbColConfirmBtn').disabled = !ok;
+
+  const parts = [];
+  for (const [type, td] of Object.entries(MYDB_TYPES)) {
+    if (!type) continue;
+    const idx = Object.entries(m).find(([, v]) => v === type)?.[0];
+    if (idx !== undefined) {
+      parts.push(`<span style="padding:2px 8px;border-radius:10px;font-size:11px;background:${td.bg};color:${td.color}">${td.label}: кол. ${Number(idx)+1}</span>`);
+    }
+  }
+  document.getElementById('mydbColStatus').innerHTML = parts.length
+    ? parts.join(' ')
+    : '<span style="color:var(--muted)">Выберите хотя бы Телефон или Email</span>';
+}
+
+async function confirmMydbMapping() {
+  const { uploadId, originalName } = State.mydbPreview || {};
+  if (!uploadId) return;
+
+  // Строим mapping: тип → индекс колонки
+  const mapping = {};
+  for (const [idx, type] of Object.entries(State.mydbMapping)) {
+    if (type) mapping[type] = Number(idx);
+  }
+
+  document.getElementById('mydbColConfirmBtn').disabled = true;
+  document.getElementById('mydbColConfirmBtn').textContent = '⏳ Обработка...';
+
+  try {
+    const data = await apiFetch('/api/user/contacts/process', {
+      method: 'POST',
+      body: JSON.stringify({ uploadId, mapping }),
+    });
+
+    closeModal('mydbColModal');
+    State.mydbPreview = null;
+    State.mydbMapping = {};
+
+    const res = document.getElementById('mydbUploadResult');
+    res.style.display = 'block';
+    res.innerHTML = `<div style="color:#16a34a;font-size:13px;background:#f0fdf4;padding:10px 14px;border-radius:var(--r)">
+      ✅ <b>${escHtml(originalName || 'Файл')}</b> импортирован: <b>${data.total}</b> строк
+      &nbsp;·&nbsp; Совпало с реестром: <b>${data.matched}</b>
+      &nbsp;·&nbsp; Только у вас: <b>${data.private}</b>
+      &nbsp;·&nbsp; Пропущено: ${data.skipped}
+    </div>`;
+    loadMydbPage();
+  } catch(e) {
+    document.getElementById('mydbColConfirmBtn').disabled = false;
+    document.getElementById('mydbColConfirmBtn').textContent = 'Импортировать';
+    showAlert(e.message, 'err');
+  }
+}
+
+async function cancelMydbUpload() {
+  const uploadId = State.mydbPreview?.uploadId;
+  if (uploadId) {
+    // Удаляем pending-запись с сервера (без confirm, это просто отмена)
+    apiFetch(`/api/user/contacts/uploads/${uploadId}`, { method: 'DELETE' }).catch(() => {});
+  }
+  State.mydbPreview = null;
+  State.mydbMapping = {};
+  closeModal('mydbColModal');
 }
 
 async function loadMydbPage() {

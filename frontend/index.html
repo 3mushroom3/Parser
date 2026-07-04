@@ -906,6 +906,44 @@
 </div>
 </div>
 
+<!-- COLUMN PICKER MODAL -->
+<div class="ov" id="mydbColModal" style="display:none">
+<div class="modal" style="max-width:960px;width:96vw;display:flex;flex-direction:column;max-height:94vh">
+  <div class="mh" style="flex:0 0 auto">
+    <div>
+      <h3>📋 Выберите колонки</h3>
+      <div id="mydbColModalSub" style="font-size:12px;color:var(--muted);margin-top:2px">Загрузка...</div>
+    </div>
+    <button class="mcl" onclick="cancelMydbUpload()">✕</button>
+  </div>
+
+  <!-- Legend -->
+  <div style="flex:0 0 auto;padding:10px 20px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="font-size:12px;color:var(--muted)">Нажмите на заголовок колонки для выбора:</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1e40af">ИНН</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#f3e8ff;color:#6d28d9">Название</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#15803d">Телефон</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#d1fae5;color:#065f46">Телефон 2</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#fef9c3;color:#92400e">Email</span>
+    <span style="font-size:12px;padding:2px 8px;border-radius:10px;background:#e0f2fe;color:#075985">Адрес</span>
+  </div>
+
+  <!-- Table -->
+  <div style="flex:1;overflow:auto;padding:16px 20px">
+    <div id="mydbColTable"></div>
+  </div>
+
+  <!-- Footer -->
+  <div style="flex:0 0 auto;padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:space-between;align-items:center">
+    <div id="mydbColStatus" style="font-size:12px;color:var(--muted)"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-sm" onclick="cancelMydbUpload()">Отмена</button>
+      <button class="btn btn-p btn-sm" id="mydbColConfirmBtn" disabled onclick="confirmMydbMapping()">Импортировать</button>
+    </div>
+  </div>
+</div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/js/app.js"></script>
 </body>
