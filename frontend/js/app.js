@@ -2355,12 +2355,15 @@ async function uploadMydbFile(file) {
       res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(data.error)}</div>`;
       return;
     }
+    const aiLabel = data.detectionMethod === 'ai'
+      ? ' &nbsp;<span style="font-size:11px;color:#0369a1">🤖 колонки определил AI</span>'
+      : ' &nbsp;<span style="font-size:11px;color:var(--muted)">колонки по ключевым словам</span>';
     res.style.display = 'block';
     res.innerHTML = `<div style="color:#16a34a;font-size:13px;background:#f0fdf4;padding:10px 14px;border-radius:var(--r)">
       ✅ Загружено: <b>${data.total}</b> строк &nbsp;·&nbsp;
       Совпадений: <b>${data.matched}</b> &nbsp;·&nbsp;
-      Приватных компаний: <b>${data.private}</b> &nbsp;·&nbsp;
-      Пропущено: ${data.skipped}
+      Приватных: <b>${data.private}</b> &nbsp;·&nbsp;
+      Пропущено: ${data.skipped}${aiLabel}
     </div>`;
     loadMydbPage();
   } catch(e) {

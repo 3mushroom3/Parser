@@ -21,11 +21,11 @@ const upload = multer({
 
 // POST /api/user/contacts/upload
 router.post('/upload', auth, (req, res) => {
-  upload.single('file')(req, res, (err) => {
+  upload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
     try {
-      const result = processUpload(req.user.id, req.file.buffer, req.file.originalname);
+      const result = await processUpload(req.user.id, req.file.buffer, req.file.originalname);
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });
