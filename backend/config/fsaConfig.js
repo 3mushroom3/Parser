@@ -47,4 +47,11 @@ module.exports = {
 
   dataFile: process.env.FSA_DATA_FILE || path.join(__dirname, '..', '..', 'data', 'declarations.json'),
   statusFile: process.env.FSA_STATUS_FILE || path.join(__dirname, '..', '..', 'data', 'status.json'),
+
+  /** Открытые данные РДС (fsa.gov.ru/opendata) — источник полноты/истории, см. opendataService.js */
+  opendata: {
+    pageUrl: process.env.FSA_OPENDATA_URL || 'https://fsa.gov.ru/opendata/7736638268-rds/',
+    cacheDir: process.env.FSA_OPENDATA_DIR || path.join(__dirname, '..', '..', 'data', 'opendata'),
+    cronSchedule: process.env.FSA_OPENDATA_CRON || '15 2 * * *',
+  },
 };

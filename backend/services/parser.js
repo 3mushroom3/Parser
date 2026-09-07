@@ -212,8 +212,19 @@ function mapStatus(raw) {
   }
   const s = (typeof raw === 'object' ? raw.name || raw.shortName || '' : String(raw)).toLowerCase();
   if (s.includes('приостан') || s.includes('suspend')) return 'suspended';
-  if (s.includes('прекращ') || s.includes('аннул') || s.includes('expir')) return 'expired';
+  // "архивный" и "недействителен" — статусы из открытых данных РДС (fsa.gov.ru/opendata),
+  // живой API их не возвращает, но семантически это тоже "не действует".
+  if (s.includes('прекращ') || s.includes('аннул') || s.includes('expir') || s.includes('архив') || s.includes('недействит')) return 'expired';
   return 'active';
+}
+
+/** Дата в формате открытых данных РДС: "ДД.ММ.ГГГГ" → "ГГГГ-ММ-ДД" */
+function fmtDateRu(raw) {
+  if (!raw) return '';
+  const m = String(raw).trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return '';
+  const [, dd, mm, yyyy] = m;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function mapRecordForDb(listItem, detail, fsaBaseUrl) {
@@ -261,6 +272,7 @@ module.exports = {
   mapRecordForDb,
   mapStatus,
   fmtDate,
+  fmtDateRu,
   EMPTY_DECL,
 };
 

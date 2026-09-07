@@ -178,6 +178,14 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
 
+  CREATE TABLE IF NOT EXISTS opendata_imports (
+    filename TEXT PRIMARY KEY,
+    importedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    rowsSeen INTEGER,
+    rowsMatched INTEGER,
+    rowsInserted INTEGER
+  );
+
   CREATE INDEX IF NOT EXISTS idx_contacts_companyId ON contacts(companyId);
   CREATE INDEX IF NOT EXISTS idx_decl_regDate ON declarations(regDate);
   CREATE INDEX IF NOT EXISTS idx_decl_status ON declarations(status);

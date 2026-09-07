@@ -2,6 +2,8 @@ node_modules/
 data/declarations.json
 data/status.json
 data/*.db
+data/*.db-journal
+data/opendata/
 backend/data/
 .env
 *.log

@@ -22,6 +22,7 @@ const { createFsaApiClient } = require('./services/apiClient');
 const { createDeclarationService } = require('./services/declarationService');
 const parser = require('./services/parser');
 const { runParser } = require('./services/parserService');
+const { runOpendataImport } = require('./services/opendataService');
 
 // Routes
 const authRoutes = require('./routes/auth');
@@ -125,6 +126,19 @@ const declarationService = createDeclarationService(apiClient, fsaConfig);
 
 let parserRunning = false;
 
+/**
+ * Открытые данные РДС (opendataService) теперь закрывают историю месячными
+ * архивами без лимита пагинации — живому API больше не нужно вычитывать всё
+ * с DATE_FROM на каждый прогон (это и было "постоянным парсингом"). Если
+ * FSA_DATE_FROM не задан явно (нет ручного бэкафилла в разработке), по
+ * умолчанию сканируем только текущий месяц — этого достаточно для свежести,
+ * а historical gap-fill делает opendataService.
+ */
+function startOfCurrentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
 async function safeRunParser() {
   if (parserRunning) return;
   parserRunning = true;
@@ -152,7 +166,7 @@ async function safeRunParser() {
         try { return process.env.FSA_FILTERS ? JSON.parse(process.env.FSA_FILTERS) : {}; }
         catch { return {}; }
       })(),
-      DATE_FROM: process.env.FSA_DATE_FROM || '',
+      DATE_FROM: process.env.FSA_DATE_FROM || startOfCurrentMonth(),
       DATE_TO: process.env.FSA_DATE_TO || '',
       DATE_CHUNK: (() => {
         const v = (process.env.FSA_DATE_CHUNK || '').toLowerCase().trim();
@@ -161,7 +175,10 @@ async function safeRunParser() {
         if (v === 'month') return 30;
         if (v === 'day') return 1;
         const n = Number(v);
-        return Number.isFinite(n) && n > 0 ? n : 0;
+        if (Number.isFinite(n) && n > 0) return n;
+        // Ручной бэкафилл (FSA_DATE_FROM задан явно) требует своего явного DATE_CHUNK,
+        // как и раньше. Дефолтный режим "текущий месяц" сам себе выставляет неделю.
+        return process.env.FSA_DATE_FROM ? 0 : 7;
       })(),
     });
   } catch (err) {
@@ -173,6 +190,20 @@ async function safeRunParser() {
 
 systemRoutes.setRunParser(safeRunParser);
 systemRoutes.setApiClient(apiClient);
+
+let opendataRunning = false;
+
+async function safeRunOpendataImport() {
+  if (opendataRunning || parserRunning) return;
+  opendataRunning = true;
+  try {
+    await runOpendataImport(fsaConfig);
+  } catch (err) {
+    logger.error('Opendata import error: %s', err.message);
+  } finally {
+    opendataRunning = false;
+  }
+}
 
 // Initialization
 if (process.env.NODE_ENV !== 'test') {
@@ -194,6 +225,11 @@ if (process.env.NODE_ENV !== 'test') {
 
     // Start cron
     cron.schedule(process.env.FSA_CRON_SCHEDULE || '*/30 * * * *', safeRunParser);
+
+    // Открытые данные РДС — раз в сутки доливает то, что живой API (теперь
+    // сканирующий только текущий месяц) не покрывает — предыдущие месяцы,
+    // при необходимости историю с января 2022
+    cron.schedule(fsaConfig.opendata.cronSchedule, safeRunOpendataImport);
 
     // Telegram bot polling — отвечает на /start командой с chatId пользователя
     setInterval(pollCommands, 10000);
