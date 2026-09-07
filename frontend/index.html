@@ -50,7 +50,7 @@
           <label>Пароль</label>
           <div class="pw-wrap">
             <input type="password" id="loginPass" required placeholder="Введите пароль" autocomplete="current-password">
-            <button type="button" class="pw-eye" onclick="togglePw('loginPass',this)" tabindex="-1">👁</button>
+            <button type="button" class="pw-eye" onclick="togglePw('loginPass',this)" tabindex="-1"><svg class="ic ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ic ic-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.2A10.6 10.6 0 0112 5c6.5 0 10 7 10 7a15.6 15.6 0 01-3.2 4.1M6.5 6.6C4 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 004-.8"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg></button>
           </div>
         </div>
         <button type="submit" id="loginBtn" class="btn btn-p auth-submit-btn">Войти</button>
@@ -68,14 +68,14 @@
           <label>Пароль</label>
           <div class="pw-wrap">
             <input type="password" id="regPass" required placeholder="Придумайте пароль" autocomplete="new-password">
-            <button type="button" class="pw-eye" onclick="togglePw('regPass',this)" tabindex="-1">👁</button>
+            <button type="button" class="pw-eye" onclick="togglePw('regPass',this)" tabindex="-1"><svg class="ic ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ic ic-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.2A10.6 10.6 0 0112 5c6.5 0 10 7 10 7a15.6 15.6 0 01-3.2 4.1M6.5 6.6C4 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 004-.8"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg></button>
           </div>
         </div>
         <div class="frow">
           <label>Подтверждение пароля</label>
           <div class="pw-wrap">
             <input type="password" id="regPass2" required placeholder="Повторите пароль" autocomplete="new-password">
-            <button type="button" class="pw-eye" onclick="togglePw('regPass2',this)" tabindex="-1">👁</button>
+            <button type="button" class="pw-eye" onclick="togglePw('regPass2',this)" tabindex="-1"><svg class="ic ic-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg><svg class="ic ic-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.2A10.6 10.6 0 0112 5c6.5 0 10 7 10 7a15.6 15.6 0 01-3.2 4.1M6.5 6.6C4 8.3 2 12 2 12s3.5 7 10 7a9.7 9.7 0 004-.8"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg></button>
           </div>
         </div>
         <button type="submit" id="registerBtn" class="btn btn-p auth-submit-btn">Зарегистрироваться</button>
@@ -110,22 +110,22 @@
     <nav class="nav">
       <button class="nav-tab active" data-page="registry" onclick="showPage('registry')">Реестр</button>
       <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта <span style="font-size:10px;opacity:.7">(Бета)</span></button>
-      <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')">⭐ Избранные</button>
-      <button class="nav-tab" data-page="folders" onclick="showPage('folders')">📁 Папки</button>
-      <button class="nav-tab" data-page="notes" onclick="showPage('notes')">📝 Заметки</button>
-      <button class="nav-tab" data-page="mydb" onclick="showPage('mydb')">📋 Мои базы</button>
-      <button class="nav-tab" data-page="profile" onclick="showPage('profile')">👤 Профиль</button>
-      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')">💬 Поддержка</button>
-      <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none">🛡 Админ</button>
+      <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z"/></svg> Избранные</button>
+      <button class="nav-tab" data-page="folders" onclick="showPage('folders')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg> Папки</button>
+      <button class="nav-tab" data-page="notes" onclick="showPage('notes')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5h6.5L18 7v13a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-16a.5.5 0 01.5-.5z"/><path d="M14 3.5V7h4"/><path d="M9 12h6M9 15.5h6"/></svg> Заметки</button>
+      <button class="nav-tab" data-page="mydb" onclick="showPage('mydb')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6a1 1 0 011 1V6H8V4.5a1 1 0 011-1z"/><path d="M8.5 11h7M8.5 15h7"/></svg> Мои базы</button>
+      <button class="nav-tab" data-page="profile" onclick="showPage('profile')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg> Профиль</button>
+      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a7.5 7.5 0 01-7.9 7.49 8.4 8.4 0 01-3.4-.79L4 19l1.2-4.14A7.5 7.5 0 1121 11.5z"/></svg> Поддержка</button>
+      <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/></svg> Админ</button>
     </nav>
     <div class="hdr-r">
       <span id="hdrStatus" class="admin-only" style="font-size:12px;color:var(--muted)"></span>
       <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
-      <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()">↺ Обновить</button>
-      <button class="btn btn-p btn-sm admin-only" onclick="openAdd()">+ Добавить</button>
-      <a class="btn btn-sm" href="/api/declarations/export/csv" id="exportBtn">⬇ CSV</a>
-      <button class="btn btn-sm admin-only" onclick="openSettings()" title="Настройки">⚙</button>
-      <button class="btn btn-sm" onclick="handleLogout()" title="Выйти">🚪</button>
+      <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5.5 9a7 7 0 0112-3.5L20 8"/><path d="M18.5 15a7 7 0 01-12 3.5L4 16"/></svg> Обновить</button>
+      <button class="btn btn-p btn-sm admin-only" onclick="openAdd()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Добавить</button>
+      <a class="btn btn-sm" href="/api/declarations/export/csv" id="exportBtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 19h16"/></svg> CSV</a>
+      <button class="btn btn-sm admin-only" onclick="openSettings()" title="Настройки"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 000-2l2-1.5-2-3.5-2.4 1a8 8 0 00-1.7-1L15 3h-4l-.3 2.5a8 8 0 00-1.7 1l-2.4-1-2 3.5L6.6 11a7.9 7.9 0 000 2l-2 1.5 2 3.5 2.4-1a8 8 0 001.7 1L11 21h4l.3-2.5a8 8 0 001.7-1l2.4 1 2-3.5-2-1.5z"/></svg></button>
+      <button class="btn btn-sm" onclick="handleLogout()" title="Выйти"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
     </div>
   </div>
 
@@ -151,11 +151,11 @@
           <div class="fs-title">Дата регистрации</div>
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="font-size:12px;color:var(--muted);min-width:20px">От</span>
-            <input type="date" class="fi" id="flDateF" onchange="applyFilters()" style="flex:1">
+            <input type="text" class="fi date-mask" id="flDateF" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off" onchange="applyFilters()" style="flex:1">
           </div>
           <div style="display:flex;align-items:center;gap:6px">
             <span style="font-size:12px;color:var(--muted);min-width:20px">До</span>
-            <input type="date" class="fi" id="flDateT" onchange="applyFilters()" style="flex:1">
+            <input type="text" class="fi date-mask" id="flDateT" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off" onchange="applyFilters()" style="flex:1">
           </div>
         </div>
         <div>
@@ -651,6 +651,18 @@
   </div>
 </div>
 
+<!-- FOOTER -->
+<footer class="site-footer">
+  <span>© <span id="ftrYear"></span> База АПК</span>
+  <span class="ftr-sep">·</span>
+  <span>Агрегатор открытых данных pub.fsa.gov.ru, не аффилирован с Росаккредитацией</span>
+  <span class="ftr-sep">·</span>
+  <a href="#" onclick="openTos();return false">Пользовательское соглашение</a>
+  <span class="ftr-sep">·</span>
+  <a href="#" onclick="openPrivacy();return false">Политика конфиденциальности</a>
+</footer>
+<script>document.getElementById('ftrYear').textContent = new Date().getFullYear();</script>
+
 <!-- MODALS -->
 <div class="ov" id="addModal" style="display:none">
 <div class="modal">
@@ -662,8 +674,8 @@
     <div class="fg">
       <div class="fsec">Основные сведения</div>
       <div class="frow full"><label>Группа продукции ЕАЭС</label><input type="text" id="f_group" placeholder="Зерно пшеницы..."></div>
-      <div class="frow"><label>Дата регистрации</label><input type="date" id="f_regDate"></div>
-      <div class="frow"><label>Дата окончания</label><input type="date" id="f_endDate"></div>
+      <div class="frow"><label>Дата регистрации</label><input type="text" class="date-mask" id="f_regDate" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off"></div>
+      <div class="frow"><label>Дата окончания</label><input type="text" class="date-mask" id="f_endDate" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off"></div>
       <div class="frow full"><label>Заявитель</label><input type="text" id="f_applicantName" placeholder='ООО "Заявитель"'></div>
       <div class="fsec">Изготовитель</div>
       <div class="frow"><label>Фамилия руководителя</label><input type="text" id="f_lastName" placeholder="Иванов"></div>
@@ -791,6 +803,35 @@
   </div>
   <div class="mf">
     <button class="btn btn-p" onclick="closeModal('tosModal')">Понятно</button>
+  </div>
+</div>
+</div>
+
+<!-- PRIVACY POLICY MODAL -->
+<div class="ov" id="privacyModal" style="display:none">
+<div class="modal" style="max-width:600px">
+  <div class="mh"><h3>🔐 Политика конфиденциальности</h3><button class="mcl" onclick="closeModal('privacyModal')">✕</button></div>
+  <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
+    <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
+    <p style="margin-bottom:12px">Настоящая политика определяет порядок обработки персональных данных пользователей сервиса «База АПК» (далее — Сервис) администрацией Сервиса в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+    <p style="margin-bottom:12px"><b>2. Какие данные собираются</b></p>
+    <p style="margin-bottom:12px">При регистрации: логин и пароль (хранится только в виде необратимого хеша, не в открытом виде). По желанию пользователя: Telegram Chat ID — для отправки уведомлений о новых декларациях и напоминаний по заметкам. При оформлении подписки: сведения об оплате обрабатываются платёжным оператором ЮKassa; Сервис не получает и не хранит данные банковских карт. При обращении в поддержку: текст обращения и, при необходимости, приложенный скриншот.</p>
+    <p style="margin-bottom:12px">Отдельно: если пользователь загружает через раздел «Мои базы» собственный файл с контактами компаний, эти сведения — данные о юридических лицах, а не персональные данные пользователя — хранятся в его личном разделе и не передаются другим пользователям Сервиса.</p>
+    <p style="margin-bottom:12px"><b>3. Цели обработки</b></p>
+    <p style="margin-bottom:12px">Аутентификация пользователя, предоставление доступа к функциям Сервиса, отправка уведомлений (только при явном включении пользователем), обработка и учёт подписки, обработка обращений в поддержку.</p>
+    <p style="margin-bottom:12px"><b>4. Хранение и защита данных</b></p>
+    <p style="margin-bottom:12px">Данные хранятся на сервере Сервиса. Пароли хранятся в хешированном виде (bcrypt), восстановлению в исходном виде не подлежат. Доступ к данным ограничен администрацией Сервиса.</p>
+    <p style="margin-bottom:12px"><b>5. Передача третьим лицам</b></p>
+    <p style="margin-bottom:12px">Данные об оплате передаются платёжному оператору ЮKassa в объёме, необходимом для проведения платежа, в соответствии с его собственной политикой конфиденциальности. Иным третьим лицам персональные данные не передаются и не продаются.</p>
+    <p style="margin-bottom:12px"><b>6. Локальное хранилище браузера</b></p>
+    <p style="margin-bottom:12px">Сервис использует localStorage браузера для хранения токена сессии и пользовательских настроек интерфейса. Эти данные хранятся только на устройстве пользователя и не передаются третьим лицам.</p>
+    <p style="margin-bottom:12px"><b>7. Права пользователя</b></p>
+    <p style="margin-bottom:12px">Пользователь вправе в любой момент запросить удаление своего аккаунта и связанных с ним данных, а также уточнение или исправление данных, обратившись к администрации Сервиса.</p>
+    <p style="margin-bottom:12px"><b>8. Изменение политики</b></p>
+    <p>Администрация Сервиса вправе вносить изменения в настоящую политику. Актуальная редакция всегда доступна по ссылке в подвале сайта.</p>
+  </div>
+  <div class="mf">
+    <button class="btn btn-p" onclick="closeModal('privacyModal')">Понятно</button>
   </div>
 </div>
 </div>

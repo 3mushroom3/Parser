@@ -113,6 +113,28 @@ const CITY_COORDS = {
   'Бердянск':[46.7639,36.8058],'Токмак':[47.2667,35.7167],
 };
 
+// ── Date input mask (дд.мм.гггг ↔ ISO yyyy-mm-dd) ──────────────────────────
+// Заменяет нативный <input type="date">, формат которого браузер показывает
+// по своей локали (у части пользователей — mm/dd/yyyy) на текстовое поле с
+// гарантированным российским форматом ввода.
+function isoToRu(iso) {
+  const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
+}
+function ruToIso(ru) {
+  const m = String(ru || '').trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : '';
+}
+function attachDateMask(input) {
+  input.addEventListener('input', () => {
+    const digits = input.value.replace(/\D/g, '').slice(0, 8);
+    let out = digits.slice(0, 2);
+    if (digits.length > 2) out += '.' + digits.slice(2, 4);
+    if (digits.length > 4) out += '.' + digits.slice(4, 8);
+    input.value = out;
+  });
+}
+
 // ── API Helper ────────────────────────────────────────────────────────────
 async function apiFetch(path, opts = {}) {
   const headers = {
@@ -320,8 +342,8 @@ function getFilters() {
     page: State.curPage,
     size: document.getElementById('pgSize').value || 20,
     search: document.getElementById('globalQ').value || '',
-    dateFrom: document.getElementById('flDateF').value || '',
-    dateTo: document.getElementById('flDateT').value || '',
+    dateFrom: ruToIso(document.getElementById('flDateF').value),
+    dateTo: ruToIso(document.getElementById('flDateT').value),
     manufacturer: document.getElementById('csManuf').value || '',
     address: document.getElementById('csAddress').value || '',
     product: document.getElementById('csProduct').value || '',
@@ -1750,17 +1772,24 @@ function closeModal(id) {
 function openAdd(id, record) {
   State.editingId = id || null;
   document.getElementById('modalTitle').textContent = id ? 'Редактировать запись' : 'Добавить запись вручную';
+  const dateFields = ['regDate', 'endDate'];
   ['group','regDate','endDate','applicantName','lastName','firstName','middleName','shortName','address','phone','productName','batchSize','otherInfo'].forEach(f => {
     const el = document.getElementById('f_' + f);
-    if (el) el.value = (record && record[f] != null) ? record[f] : '';
+    if (!el) return;
+    const raw = (record && record[f] != null) ? record[f] : '';
+    el.value = dateFields.includes(f) ? isoToRu(raw) : raw;
   });
   openModal('addModal');
 }
 
 async function saveRecord() {
   const fields = ['group','regDate','endDate','applicantName','lastName','firstName','middleName','shortName','address','phone','productName','batchSize','otherInfo'];
+  const dateFields = ['regDate', 'endDate'];
   const data = {};
-  fields.forEach(f => { data[f] = document.getElementById('f_' + f).value; });
+  fields.forEach(f => {
+    const raw = document.getElementById('f_' + f).value;
+    data[f] = dateFields.includes(f) ? ruToIso(raw) : raw;
+  });
   try {
     if (State.editingId) {
       await apiFetch('/api/declarations/' + State.editingId, { method: 'PUT', body: JSON.stringify(data) });
@@ -1784,7 +1813,7 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','addToFolderModal','addToNoteModal','dedupeModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
@@ -1793,11 +1822,14 @@ function openTos() {
   openModal('tosModal');
 }
 
+function openPrivacy() {
+  openModal('privacyModal');
+}
+
 function togglePw(inputId, btn) {
   const inp = document.getElementById(inputId);
   const show = inp.type === 'password';
   inp.type = show ? 'text' : 'password';
-  btn.textContent = show ? '🙈' : '👁';
   btn.classList.toggle('visible', show);
 }
 
@@ -2274,6 +2306,7 @@ function initApp() {
 
 document.addEventListener('DOMContentLoaded', () => {
   ['csManuf','csAddress','csProduct'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  document.querySelectorAll('.date-mask').forEach(attachDateMask);
   checkAuth();
 });
 
