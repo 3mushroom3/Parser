@@ -2285,7 +2285,12 @@ async function adminDeleteUser(userId, username) {
 // ── Initialization ────────────────────────────────────────────────────────
 function initApp() {
   try {
-    if (localStorage.getItem('sidebarCollapsed') === '1') {
+    const saved = localStorage.getItem('sidebarCollapsed');
+    // На планшете/телефоне сайдбар перекрывает контент (position:absolute,
+    // см. media-запрос в style.css) — по умолчанию сворачиваем его, если
+    // пользователь ещё не выбирал предпочтение явно.
+    const shouldCollapse = saved === '1' || (saved === null && window.innerWidth <= 1024);
+    if (shouldCollapse) {
       const body = document.querySelector('.body');
       document.getElementById('mainSidebar').classList.add('collapsed');
       body.classList.add('sidebar-collapsed');
