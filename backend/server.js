@@ -46,6 +46,10 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 const isProd = process.env.NODE_ENV === 'production';
 
+// upgrade-insecure-requests (Helmet default) forces the browser to fetch CSS/JS over
+// https even when the page loaded over http — breaks IP-only/no-TLS-yet deployments.
+const appUsesHttps = (process.env.APP_URL || '').startsWith('https://');
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -58,6 +62,7 @@ app.use(helmet({
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
+      ...(appUsesHttps ? {} : { upgradeInsecureRequests: null }),
     },
   },
   crossOriginEmbedderPolicy: false,
