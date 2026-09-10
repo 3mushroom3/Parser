@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "test": "jest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "postinstall": "node -e \"try{const{path7za}=require('7zip-bin');if(process.platform!=='win32')require('fs').chmodSync(path7za,0o755)}catch(e){}\""
   },
   "dependencies": {
     "7zip-bin": "^5.2.0",
