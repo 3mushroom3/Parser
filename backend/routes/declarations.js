@@ -130,50 +130,105 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, (req, res) 
   res.json({ items, total, page: p, size: s, pages: Math.ceil(total / s) });
 });
 
-router.get('/map-data', auth, requireSubscription, dataReadLimiter, (req, res) => {
+// Реестр вырос до миллионов записей (opendata-бэкафилл) — полный синхронный
+// проход по всем декларациям на каждый запрос блокирует весь event loop
+// (better-sqlite3 синхронный) и вешает сервер на минуты. Поэтому: считаем
+// только активные декларации, результат кэшируем, а сам проход бьём на чанки
+// через setImmediate, чтобы event loop успевал обслуживать другие запросы.
+const MAP_DATA_CACHE_TTL_MS = 20 * 60 * 1000; // 20 минут
+const MAP_DATA_CHUNK_SIZE = 5000;
+let mapDataCache = null; // { json, computedAt }
+let mapDataComputing = null; // Promise, чтобы не считать параллельно на конкурентные запросы
+
+function computeMapData() {
+  return new Promise((resolve, reject) => {
+    try {
+      const stmt = db.prepare(
+        "SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName " +
+        "FROM declarations WHERE status = 'active' AND address IS NOT NULL AND address != ''"
+      );
+
+      const cityMap = {};
+      const iterator = stmt.iterate();
+
+      const processChunk = () => {
+        try {
+          let n = 0;
+          let step;
+          while (n < MAP_DATA_CHUNK_SIZE && !(step = iterator.next()).done) {
+            const rec = step.value;
+            const city = extractCity(rec.address);
+            n++;
+            if (!city) continue;
+
+            if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
+            cityMap[city].count++;
+
+            if (rec.farmerType === 'farmer' || rec.farmerType === 'farmer_trader') cityMap[city].farmers++;
+            else if (rec.farmerType === 'trader' || rec.farmerType === 'trader_farmer') cityMap[city].traders++;
+
+            const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
+            if (!cityMap[city].orgs[key]) {
+              cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
+            }
+            if (cityMap[city].orgs[key].decls.length < 20) {
+              cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 60) });
+            }
+          }
+
+          if (step && step.done) {
+            const cities = Object.values(cityMap)
+              .map(c => ({
+                city: c.city,
+                count: c.count,
+                farmers: c.farmers,
+                traders: c.traders,
+                orgs: Object.values(c.orgs)
+                  .sort((a, b) => b.decls.length - a.decls.length)
+                  .slice(0, 30)
+                  .map(o => ({
+                    name: o.name,
+                    inn: o.inn,
+                    farmerType: o.farmerType,
+                    count: o.decls.length,
+                    decls: o.decls
+                  })),
+              }))
+              .sort((a, b) => b.count - a.count);
+
+            resolve({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
+          } else {
+            setImmediate(processChunk);
+          }
+        } catch (err) {
+          reject(err);
+        }
+      };
+
+      processChunk();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+router.get('/map-data', auth, requireSubscription, dataReadLimiter, async (req, res) => {
   try {
-    const stmt = db.prepare("SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName FROM declarations WHERE address IS NOT NULL AND address != ''");
-
-    const cityMap = {};
-    for (const rec of stmt.iterate()) {
-      const city = extractCity(rec.address);
-      if (!city) continue;
-
-      if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
-      cityMap[city].count++;
-
-      if (rec.farmerType === 'farmer' || rec.farmerType === 'farmer_trader') cityMap[city].farmers++;
-      else if (rec.farmerType === 'trader' || rec.farmerType === 'trader_farmer') cityMap[city].traders++;
-
-      const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
-      if (!cityMap[city].orgs[key]) {
-        cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
-      }
-      if (cityMap[city].orgs[key].decls.length < 20) {
-        cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 60) });
-      }
+    if (mapDataCache && Date.now() - mapDataCache.computedAt < MAP_DATA_CACHE_TTL_MS) {
+      return res.json(mapDataCache.json);
     }
 
-    const cities = Object.values(cityMap)
-      .map(c => ({
-        city: c.city,
-        count: c.count,
-        farmers: c.farmers,
-        traders: c.traders,
-        orgs: Object.values(c.orgs)
-          .sort((a, b) => b.decls.length - a.decls.length)
-          .slice(0, 30)
-          .map(o => ({
-            name: o.name,
-            inn: o.inn,
-            farmerType: o.farmerType,
-            count: o.decls.length,
-            decls: o.decls
-          })),
-      }))
-      .sort((a, b) => b.count - a.count);
+    if (!mapDataComputing) {
+      mapDataComputing = computeMapData()
+        .then(json => {
+          mapDataCache = { json, computedAt: Date.now() };
+          return json;
+        })
+        .finally(() => { mapDataComputing = null; });
+    }
 
-    res.json({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
+    const json = await mapDataComputing;
+    res.json(json);
   } catch (err) {
     console.error('[map-data]', err.message);
     res.status(500).json({ error: 'Ошибка формирования данных карты: ' + err.message });
