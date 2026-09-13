@@ -5,7 +5,6 @@ const { Worker } = require('worker_threads');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
-const { sendMessage, loadConfig, saveConfig } = require('../services/telegramBot');
 
 // This will be set by server.js
 let runParserFn = null;
@@ -75,22 +74,6 @@ router.post('/parse', auth, requireAdmin, (req, res) => {
   } else {
     res.status(500).json({ error: 'Parser not initialized' });
   }
-});
-
-router.get('/telegram-config', auth, requireAdmin, (req, res) => {
-  res.json(loadConfig());
-});
-
-router.post('/telegram-config', auth, requireAdmin, (req, res) => {
-  const { botToken, chatId } = req.body || {};
-  if (!botToken || !chatId) return res.status(400).json({ error: 'botToken и chatId обязательны' });
-  saveConfig({ botToken: String(botToken).trim(), chatId: String(chatId).trim() });
-  res.json({ ok: true });
-});
-
-router.post('/telegram-test', auth, requireAdmin, async (req, res) => {
-  const ok = await sendMessage('✅ Тест уведомлений FSA Parser работает!');
-  res.json({ ok });
 });
 
 // POST /api/settoken — установить FSA JWT вручную (без перезапуска сервера)

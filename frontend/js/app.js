@@ -590,9 +590,15 @@ function markerColorByType(ft) {
 }
 
 async function initMap() {
-  State.mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: false }).setView([55, 55], 4);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  State.mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: true }).setView([55, 55], 4);
+  // OSM's own tile.openstreetmap.org started 403-blocking this app for not
+  // following their volunteer-run-server usage policy (no attribution shown,
+  // production-level traffic) — CARTO's free basemap CDN redistributes the
+  // same OSM data under terms that allow this kind of usage.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
+    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(State.mapInstance);
 
   setTimeout(() => State.mapInstance.invalidateSize(), 100);
@@ -1624,7 +1630,6 @@ async function loadProfile() {
     document.getElementById('profRole').textContent = me.role === 'admin' ? 'Администратор' : 'Пользователь';
     document.getElementById('profCreatedAt').textContent = me.created_at
       ? new Date(me.created_at).toLocaleDateString('ru-RU') : '—';
-    document.getElementById('profTgChatId').value = me.tgChatId || '';
 
     const subEl = document.getElementById('profileSubStatus');
     if (sub.isAdmin) {
@@ -1656,48 +1661,14 @@ async function changePassword() {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
-async function saveTgChatId() {
-  const tgChatId = document.getElementById('profTgChatId').value.trim();
-  try {
-    await apiFetch('/api/auth/telegram', { method: 'PUT', body: JSON.stringify({ tgChatId }) });
-    showAlert('Chat ID сохранён', 'ok');
-  } catch(e) { showAlert(e.message, 'err'); }
-}
-
-async function testTgNotification() {
-  try {
-    await apiFetch('/api/auth/telegram-test', { method: 'POST' });
-    showAlert('Тестовое сообщение отправлено', 'ok');
-  } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
-}
-
 // ── Settings ──────────────────────────────────────────────────────────────
 let _enrichPollTimer = null;
 
 async function openSettings() {
   try {
-    const cfg = await apiFetch('/api/system/telegram-config');
-    document.getElementById('tgBotToken').value = cfg.botToken || '';
-    document.getElementById('tgChatId').value = cfg.chatId || '';
     openModal('settingsModal');
     refreshEnrichStatus();
     refreshEnrichCacheStats();
-  } catch(e) { showAlert(e.message, 'err'); }
-}
-
-async function saveTelegramConfig() {
-  const botToken = document.getElementById('tgBotToken').value.trim();
-  const chatId = document.getElementById('tgChatId').value.trim();
-  try {
-    await apiFetch('/api/system/telegram-config', { method: 'POST', body: JSON.stringify({ botToken, chatId }) });
-    showAlert('Сохранено');
-  } catch(e) { showAlert(e.message, 'err'); }
-}
-
-async function testTelegram() {
-  try {
-    await apiFetch('/api/system/telegram-test', { method: 'POST' });
-    showAlert('Тест отправлен');
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -2370,7 +2341,7 @@ async function atnCreateAndAdd() {
   if (!title) { document.getElementById('atnNewTitle').focus(); return; }
   try {
     await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify({
-      title, content: '', links: _atnLink ? [_atnLink] : [], notifyTime: null
+      title, content: '', links: _atnLink ? [_atnLink] : []
     })});
     closeModal('addToNoteModal');
     showAlert('Заметка создана');
@@ -2830,15 +2801,12 @@ function renderNotes() {
     const linksHtml = n.links.length
       ? `<span class="note-chip">🔗 ${n.links.length} ссыл.</span>`
       : '';
-    const notifyHtml = n.notifyTime
-      ? `<span class="note-chip notify">🔔 ${n.notifyTime} UTC</span>`
-      : '';
     return `
       <div class="note-card" onclick="openNoteModal(${n.id})">
         <div class="note-card-title">${escHtml(n.title)}</div>
         ${n.content ? `<div class="note-card-body">${escHtml(n.content)}</div>` : ''}
         <div class="note-card-footer">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${linksHtml}${notifyHtml}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${linksHtml}</div>
           <span style="font-size:10px;color:var(--muted)">${new Date(n.updatedAt).toLocaleDateString('ru-RU')}</span>
         </div>
       </div>`;
@@ -2856,11 +2824,6 @@ function openNoteModal(noteId) {
   document.getElementById('noteTitle').value = note ? note.title : '';
   document.getElementById('noteContent').value = note ? (note.content || '') : '';
   document.getElementById('noteDeleteBtn').style.display = note ? '' : 'none';
-
-  const hasNotify = !!(note && note.notifyTime);
-  document.getElementById('noteNotifyToggle').checked = hasNotify;
-  document.getElementById('noteNotifyTime').value = hasNotify ? note.notifyTime : '';
-  document.getElementById('noteNotifyRow').style.display = hasNotify ? 'block' : 'none';
 
   const linksContainer = document.getElementById('noteLinks');
   linksContainer.innerHTML = '';
@@ -2884,10 +2847,6 @@ function addNoteLinkRow(label, url) {
   container.appendChild(row);
 }
 
-function toggleNoteNotify(checked) {
-  document.getElementById('noteNotifyRow').style.display = checked ? 'block' : 'none';
-}
-
 let _savingNote = false;
 async function saveNote() {
   if (_savingNote) return;
@@ -2897,8 +2856,6 @@ async function saveNote() {
   _savingNote = true;
 
   const content = document.getElementById('noteContent').value;
-  const hasNotify = document.getElementById('noteNotifyToggle').checked;
-  const notifyTime = hasNotify ? document.getElementById('noteNotifyTime').value : null;
 
   const linkRows = document.querySelectorAll('#noteLinks .note-link-row');
   const links = [];
@@ -2909,7 +2866,7 @@ async function saveNote() {
   });
 
   try {
-    const body = { title, content, links, notifyTime: notifyTime || null };
+    const body = { title, content, links };
     if (_editingNoteId) {
       const updated = await apiFetch(`/api/notes/${_editingNoteId}`, { method: 'PUT', body: JSON.stringify(body) });
       const idx = _notes.findIndex(n => n.id === _editingNoteId);

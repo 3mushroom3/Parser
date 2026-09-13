@@ -37,7 +37,6 @@ const notesRoutes = require('./routes/notes');
 const externalRoutes = require('./routes/external');
 const feedbackRoutes    = require('./routes/feedback');
 const userContactRoutes = require('./routes/userContacts');
-const { sendMessageTo, pollCommands } = require('./services/telegramBot');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 
 const app = express();
@@ -57,7 +56,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
-      imgSrc: ["'self'", 'data:', '*.tile.openstreetmap.org', '*.openstreetmap.org'],
+      imgSrc: ["'self'", 'data:', '*.basemaps.cartocdn.com'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
@@ -235,40 +234,6 @@ if (process.env.NODE_ENV !== 'test') {
     // сканирующий только текущий месяц) не покрывает — предыдущие месяцы,
     // при необходимости историю с января 2022
     cron.schedule(fsaConfig.opendata.cronSchedule, safeRunOpendataImport);
-
-    // Telegram bot polling — отвечает на /start командой с chatId пользователя
-    setInterval(pollCommands, 10000);
-
-    // Notes Telegram notifications — every minute
-    cron.schedule('* * * * *', async () => {
-      const now = new Date();
-      const hh = now.getHours().toString().padStart(2, '0');
-      const mm = now.getMinutes().toString().padStart(2, '0');
-      const timeStr = `${hh}:${mm}`;
-      const today = now.toISOString().split('T')[0];
-
-      const due = db.prepare(`
-        SELECT n.*, u.tgChatId FROM notes n
-        JOIN users u ON n.userId = u.id
-        WHERE n.notifyTime = ?
-          AND u.tgChatId IS NOT NULL AND u.tgChatId != ''
-          AND (n.notifySentDate IS NULL OR n.notifySentDate != ?)
-      `).all(timeStr, today);
-
-      for (const note of due) {
-        const links = JSON.parse(note.links || '[]');
-        const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        let text = `📝 <b>${esc(note.title)}</b>`;
-        if (note.content) text += `\n\n${esc(note.content.slice(0, 1000))}`;
-        if (links.length > 0) {
-          text += '\n\n<b>Ссылки:</b>';
-          links.forEach(l => { text += `\n• <a href="${esc(l.url)}">${esc(l.label || l.url)}</a>`; });
-        }
-        const ok = await sendMessageTo(note.tgChatId, text);
-        if (ok) db.prepare('UPDATE notes SET notifySentDate = ? WHERE id = ?').run(today, note.id);
-        else logger.warn('Notes TG notification failed for note %d', note.id);
-      }
-    });
 
     // Daily auto-enrichment at 00:05 UTC (limit 9500 API calls/day)
     cron.schedule('5 0 * * *', () => {

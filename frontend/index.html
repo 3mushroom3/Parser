@@ -123,7 +123,6 @@
       <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
       <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5.5 9a7 7 0 0112-3.5L20 8"/><path d="M18.5 15a7 7 0 01-12 3.5L4 16"/></svg> Обновить</button>
       <button class="btn btn-p btn-sm admin-only" onclick="openAdd()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Добавить</button>
-      <a class="btn btn-sm" href="/api/declarations/export/csv" id="exportBtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 19h16"/></svg> CSV</a>
       <button class="btn btn-sm admin-only" onclick="openSettings()" title="Настройки"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 000-2l2-1.5-2-3.5-2.4 1a8 8 0 00-1.7-1L15 3h-4l-.3 2.5a8 8 0 00-1.7 1l-2.4-1-2 3.5L6.6 11a7.9 7.9 0 000 2l-2 1.5 2 3.5 2.4-1a8 8 0 001.7 1L11 21h4l.3-2.5a8 8 0 001.7-1l2.4 1 2-3.5-2-1.5z"/></svg></button>
       <button class="btn btn-sm" onclick="handleLogout()" title="Выйти"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
     </div>
@@ -333,7 +332,6 @@
   <div class="panel-page" id="pg-favorites">
     <div class="panel-hdr">
       <h2>⭐ Избранные компании</h2>
-      <span style="font-size:12px;color:var(--muted)">Уведомления в Telegram при новых декларациях</span>
     </div>
     <div id="favEmpty" class="empty" style="display:none"><div class="ico">⭐</div><p>Нет избранных компаний.<br>Нажмите ⭐ рядом с компанией в реестре, чтобы добавить.</p></div>
     <div class="item-list" id="favList"></div>
@@ -347,7 +345,7 @@
     </div>
     <div id="notesEmpty" class="empty" style="display:none">
       <div class="ico">📝</div>
-      <p>Нет заметок.<br>Создайте заметку с ссылками на декларации и настройте Telegram-уведомление.</p>
+      <p>Нет заметок.<br>Создайте заметку с ссылками на декларации.</p>
     </div>
     <div class="notes-grid" id="notesGrid"></div>
   </div>
@@ -468,41 +466,6 @@
           </div>
         </div>
         <button class="btn btn-p" style="margin-top:12px" onclick="changePassword()">Сменить пароль</button>
-      </div>
-
-      <!-- Telegram card -->
-      <div class="profile-card">
-        <div class="profile-card-header">
-          <div class="profile-card-icon" style="background:#EFF6FF">✈️</div>
-          <h3>Telegram уведомления</h3>
-        </div>
-        <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:14px">
-          Получайте уведомления о новых декларациях от избранных компаний прямо в Telegram.
-        </div>
-        <div class="tg-steps">
-          <div class="tg-step">
-            <div class="tg-step-num">1</div>
-            <div>Откройте <b><a href="https://t.me/zernovik_online_bot" target="_blank" style="color:var(--accent)">@zernovik_online_bot</a></b> в Telegram и нажмите <b>Старт</b></div>
-          </div>
-          <div class="tg-step">
-            <div class="tg-step-num">2</div>
-            <div>Бот ответит вашим <b>Chat ID</b> — скопируйте это число</div>
-          </div>
-          <div class="tg-step">
-            <div class="tg-step-num">3</div>
-            <div>Вставьте Chat ID ниже и нажмите <b>Сохранить</b></div>
-          </div>
-        </div>
-        <div class="fg" style="grid-template-columns:1fr auto;align-items:end;margin-top:14px">
-          <div class="frow" style="margin-bottom:0">
-            <label>Ваш Chat ID</label>
-            <input type="text" id="profTgChatId" class="fi" placeholder="Например: 123456789">
-          </div>
-          <button class="btn btn-p btn-sm" style="margin-bottom:1px" onclick="saveTgChatId()">Сохранить</button>
-        </div>
-        <div style="margin-top:8px">
-          <button class="btn btn-sm" onclick="testTgNotification()">📨 Отправить тестовое сообщение</button>
-        </div>
       </div>
 
       <!-- Account info card -->
@@ -724,17 +687,6 @@
   <div class="mh"><h3>⚙ Настройки</h3><button class="mcl" onclick="closeModal('settingsModal')">✕</button></div>
   <div class="mb">
     <div class="settings-section">
-      <h4>Telegram уведомления</h4>
-      <div class="fg" style="grid-template-columns:1fr">
-        <div class="frow"><label>Bot Token</label><input type="text" id="tgBotToken"></div>
-        <div class="frow"><label>Chat ID</label><input type="text" id="tgChatId"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button class="btn btn-p btn-sm" onclick="saveTelegramConfig()">Сохранить</button>
-        <button class="btn btn-sm" onclick="testTelegram()">Тест</button>
-      </div>
-    </div>
-    <div class="settings-section">
       <h4>Обогащение данных</h4>
       <div id="enrichStatus" style="font-size:12px;color:var(--muted);margin-bottom:6px">Загрузка...</div>
       <div id="enrichCacheStatus" style="font-size:11px;color:var(--muted);margin-bottom:10px"></div>
@@ -815,7 +767,7 @@
     <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
     <p style="margin-bottom:12px">Настоящая политика определяет порядок обработки персональных данных пользователей сервиса «База АПК» (далее — Сервис) администрацией Сервиса в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
     <p style="margin-bottom:12px"><b>2. Какие данные собираются</b></p>
-    <p style="margin-bottom:12px">При регистрации: логин и пароль (хранится только в виде необратимого хеша, не в открытом виде). По желанию пользователя: Telegram Chat ID — для отправки уведомлений о новых декларациях и напоминаний по заметкам. При оформлении подписки: сведения об оплате обрабатываются платёжным оператором ЮKassa; Сервис не получает и не хранит данные банковских карт. При обращении в поддержку: текст обращения и, при необходимости, приложенный скриншот.</p>
+    <p style="margin-bottom:12px">При регистрации: логин и пароль (хранится только в виде необратимого хеша, не в открытом виде). При оформлении подписки: сведения об оплате обрабатываются платёжным оператором ЮKassa; Сервис не получает и не хранит данные банковских карт. При обращении в поддержку: текст обращения и, при необходимости, приложенный скриншот.</p>
     <p style="margin-bottom:12px">Отдельно: если пользователь загружает через раздел «Мои базы» собственный файл с контактами компаний, эти сведения — данные о юридических лицах, а не персональные данные пользователя — хранятся в его личном разделе и не передаются другим пользователям Сервиса.</p>
     <p style="margin-bottom:12px"><b>3. Цели обработки</b></p>
     <p style="margin-bottom:12px">Аутентификация пользователя, предоставление доступа к функциям Сервиса, отправка уведомлений (только при явном включении пользователем), обработка и учёт подписки, обработка обращений в поддержку.</p>
@@ -909,19 +861,6 @@
         <label>Ссылки</label>
         <div id="noteLinks" style="display:flex;flex-direction:column;gap:6px"></div>
         <button type="button" class="btn btn-sm" style="margin-top:6px;width:fit-content" onclick="addNoteLink()">+ Добавить ссылку</button>
-      </div>
-      <div class="frow">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="checkbox" id="noteNotifyToggle" onchange="toggleNoteNotify(this.checked)" style="width:auto">
-          Telegram-уведомление в выбранное время
-        </label>
-        <div id="noteNotifyRow" style="display:none;margin-top:8px;display:none">
-          <div style="display:flex;align-items:center;gap:10px">
-            <input type="time" id="noteNotifyTime" class="fi" style="width:auto">
-            <span style="font-size:12px;color:var(--muted)">ежедневно (UTC)</span>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px">Требуется настроенный Telegram Chat ID в профиле</div>
-        </div>
       </div>
     </div>
   </div>

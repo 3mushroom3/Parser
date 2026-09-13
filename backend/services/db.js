@@ -131,8 +131,6 @@ db.exec(`
     title TEXT NOT NULL,
     content TEXT DEFAULT '',
     links TEXT DEFAULT '[]',
-    notifyTime TEXT,
-    notifySentDate TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
@@ -203,9 +201,6 @@ if (!userCols.includes('subscriptionUntil')) {
 }
 if (!userCols.includes('subscriptionPlan')) {
   db.exec('ALTER TABLE users ADD COLUMN subscriptionPlan TEXT');
-}
-if (!userCols.includes('tgChatId')) {
-  db.exec('ALTER TABLE users ADD COLUMN tgChatId TEXT');
 }
 const statusCols = db.prepare("PRAGMA table_info(status)").all().map(c => c.name);
 if (!statusCols.includes('lastCompletedDate')) {

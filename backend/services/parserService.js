@@ -4,7 +4,6 @@ const parser = require('./parser');
 const { enrichRecords } = require('./innEnricher');
 const { backfillMissingInn } = require('./dedupe');
 const { archiveOldDeclarations } = require('./archiver');
-const telegramBot = require('./telegramBot');
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -288,7 +287,6 @@ async function runParser(apiClient, declarationService, config) {
           }
         });
         transaction(newRecords);
-        await telegramBot.notifyFavorites(newRecords);
       }
 
       const dedupeCount = await backfillMissingInn();
