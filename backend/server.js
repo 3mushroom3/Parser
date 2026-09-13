@@ -56,7 +56,7 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
-      imgSrc: ["'self'", 'data:', '*.basemaps.cartocdn.com'],
+      imgSrc: ["'self'", 'data:', 'server.arcgisonline.com'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],

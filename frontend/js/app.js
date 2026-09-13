@@ -593,12 +593,12 @@ async function initMap() {
   State.mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: true }).setView([55, 55], 4);
   // OSM's own tile.openstreetmap.org started 403-blocking this app for not
   // following their volunteer-run-server usage policy (no attribution shown,
-  // production-level traffic) — CARTO's free basemap CDN redistributes the
-  // same OSM data under terms that allow this kind of usage.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  // production-level traffic). CARTO's basemaps (tried first) now require an
+  // API key too. Esri's World_Street_Map basemap is still usable embedded in
+  // a web app like this without a developer key/account.
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution: 'Tiles &copy; Esri — Source: Esri, DeLorme, NAVTEQ',
   }).addTo(State.mapInstance);
 
   setTimeout(() => State.mapInstance.invalidateSize(), 100);
