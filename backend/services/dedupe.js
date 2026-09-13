@@ -19,6 +19,14 @@ function extractPostalCode(address) {
   return m ? m[1] : '';
 }
 
+// Строк-кандидатов (см. ниже) всё ещё сотни тысяч — один синхронный
+// stmt.all() над ними держит единственный поток Node дольше минуты и вешает
+// (504) весь сайт на время выполнения (better-sqlite3 синхронный). Поэтому,
+// как и в /map-data (routes/declarations.js), читаем через .iterate() и
+// разбиваем обработку на чанки через setImmediate, чтобы event loop успевал
+// обслуживать остальные запросы между чанками.
+const SCAN_CHUNK_SIZE = 5000;
+
 function backfillMissingInn() {
   // Полный SELECT * FROM declarations раньше грузил все строки (несколько
   // миллионов после подключения открытых данных) в JS-память разом — на
@@ -27,65 +35,84 @@ function backfillMissingInn() {
   // хотя бы одной "безИННовой" записью гарантированно не влияет на
   // результат — тянем только строки нужных nameKey (обычно на порядки
   // меньше всей таблицы).
-  const rows = db.prepare(`
-    WITH keyed AS (
-      SELECT id, NULLIF(TRIM(inn), '') as inn,
-        lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
-        lower_u(TRIM(address)) as addrKey,
-        address
-      FROM declarations
-    ),
-    missingNames AS (
-      SELECT DISTINCT nameKey FROM keyed WHERE nameKey != '' AND inn IS NULL
-    )
-    SELECT k.id, k.inn, k.nameKey, k.addrKey, k.address
-    FROM keyed k
-    JOIN missingNames m ON m.nameKey = k.nameKey
-  `).all();
+  return new Promise((resolve, reject) => {
+    const iterator = db.prepare(`
+      WITH keyed AS (
+        SELECT id, NULLIF(TRIM(inn), '') as inn,
+          lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
+          lower_u(TRIM(address)) as addrKey,
+          address
+        FROM declarations
+      ),
+      missingNames AS (
+        SELECT DISTINCT nameKey FROM keyed WHERE nameKey != '' AND inn IS NULL
+      )
+      SELECT k.id, k.inn, k.nameKey, k.addrKey, k.address
+      FROM keyed k
+      JOIN missingNames m ON m.nameKey = k.nameKey
+    `).iterate();
 
-  const exactGroups = new Map();
-  const postalGroups = new Map();
-  for (const r of rows) {
-    if (!r.nameKey) continue;
-    const inn = (r.inn || '').trim();
+    const exactGroups = new Map();
+    const postalGroups = new Map();
 
-    const exactKey = r.nameKey + '||' + (r.addrKey || '');
-    if (!exactGroups.has(exactKey)) exactGroups.set(exactKey, { innSet: new Set(), missingIds: [] });
-    const eg = exactGroups.get(exactKey);
-    if (inn) eg.innSet.add(inn); else eg.missingIds.push(r.id);
+    const scanChunk = () => {
+      try {
+        let n = 0;
+        let step;
+        while (n < SCAN_CHUNK_SIZE && !(step = iterator.next()).done) {
+          n++;
+          const r = step.value;
+          if (!r.nameKey) continue;
+          const inn = (r.inn || '').trim();
 
-    const postal = extractPostalCode(r.address);
-    if (postal) {
-      const postalKey = r.nameKey + '||' + postal;
-      if (!postalGroups.has(postalKey)) postalGroups.set(postalKey, { innSet: new Set(), missingIds: [] });
-      const pg = postalGroups.get(postalKey);
-      if (inn) pg.innSet.add(inn); else pg.missingIds.push(r.id);
-    }
-  }
+          const exactKey = r.nameKey + '||' + (r.addrKey || '');
+          if (!exactGroups.has(exactKey)) exactGroups.set(exactKey, { innSet: new Set(), missingIds: [] });
+          const eg = exactGroups.get(exactKey);
+          if (inn) eg.innSet.add(inn); else eg.missingIds.push(r.id);
 
-  const update = db.prepare('UPDATE declarations SET inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
-  let updated = 0;
-  const resolvedIds = new Set();
-  const tx = db.transaction(() => {
-    for (const g of exactGroups.values()) {
-      if (g.innSet.size === 1 && g.missingIds.length > 0) {
-        const [inn] = g.innSet;
-        for (const id of g.missingIds) { update.run(inn, id); resolvedIds.add(id); updated++; }
+          const postal = extractPostalCode(r.address);
+          if (postal) {
+            const postalKey = r.nameKey + '||' + postal;
+            if (!postalGroups.has(postalKey)) postalGroups.set(postalKey, { innSet: new Set(), missingIds: [] });
+            const pg = postalGroups.get(postalKey);
+            if (inn) pg.innSet.add(inn); else pg.missingIds.push(r.id);
+          }
+        }
+
+        if (step && step.done) {
+          const update = db.prepare('UPDATE declarations SET inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
+          let updated = 0;
+          const resolvedIds = new Set();
+          const tx = db.transaction(() => {
+            for (const g of exactGroups.values()) {
+              if (g.innSet.size === 1 && g.missingIds.length > 0) {
+                const [inn] = g.innSet;
+                for (const id of g.missingIds) { update.run(inn, id); resolvedIds.add(id); updated++; }
+              }
+            }
+            for (const g of postalGroups.values()) {
+              if (g.innSet.size !== 1) continue;
+              const [inn] = g.innSet;
+              for (const id of g.missingIds) {
+                if (resolvedIds.has(id)) continue;
+                update.run(inn, id);
+                resolvedIds.add(id);
+                updated++;
+              }
+            }
+          });
+          tx();
+          resolve(updated);
+        } else {
+          setImmediate(scanChunk);
+        }
+      } catch (err) {
+        reject(err);
       }
-    }
-    for (const g of postalGroups.values()) {
-      if (g.innSet.size !== 1) continue;
-      const [inn] = g.innSet;
-      for (const id of g.missingIds) {
-        if (resolvedIds.has(id)) continue;
-        update.run(inn, id);
-        resolvedIds.add(id);
-        updated++;
-      }
-    }
+    };
+
+    scanChunk();
   });
-  tx();
-  return updated;
 }
 
 // Группы, где одно и то же название+адрес встречается с несколькими РАЗНЫМИ
@@ -98,54 +125,75 @@ function findAmbiguousInnGroups() {
     db.prepare('SELECT nameKey, addrKey FROM dedupe_ignored').all().map(r => r.nameKey + '||' + r.addrKey)
   );
 
-  // Как и в backfillMissingInn — не тянем всю таблицу в JS, а сначала находим
-  // в SQL ключи (nameKey+addrKey), где встречается больше одного различного
-  // ИНН, и только для них забираем строки.
-  const rows = db.prepare(`
-    WITH keyed AS (
-      SELECT id, TRIM(inn) as inn, declNumber,
-        TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) as name,
-        TRIM(address) as address,
-        lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
-        lower_u(TRIM(address)) as addrKey
-      FROM declarations
-      WHERE inn != '' AND inn IS NOT NULL
-    ),
-    ambiguousKeys AS (
-      SELECT nameKey, addrKey FROM keyed
-      WHERE nameKey != ''
-      GROUP BY nameKey, addrKey
-      HAVING COUNT(DISTINCT inn) > 1
-    )
-    SELECT k.id, k.inn, k.declNumber, k.name, k.address, k.nameKey, k.addrKey
-    FROM keyed k
-    JOIN ambiguousKeys a ON a.nameKey = k.nameKey AND a.addrKey = k.addrKey
-  `).all();
+  // Как и в backfillMissingInn — не тянем всю таблицу в JS разом (это
+  // держало бы event loop дольше минуты и вешало бы сайт для всех
+  // пользователей на время выполнения), а сначала находим в SQL ключи
+  // (nameKey+addrKey), где встречается больше одного различного ИНН, и
+  // только для них читаем строки чанками через .iterate()/setImmediate.
+  return new Promise((resolve, reject) => {
+    const iterator = db.prepare(`
+      WITH keyed AS (
+        SELECT id, TRIM(inn) as inn, declNumber,
+          TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) as name,
+          TRIM(address) as address,
+          lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
+          lower_u(TRIM(address)) as addrKey
+        FROM declarations
+        WHERE inn != '' AND inn IS NOT NULL
+      ),
+      ambiguousKeys AS (
+        SELECT nameKey, addrKey FROM keyed
+        WHERE nameKey != ''
+        GROUP BY nameKey, addrKey
+        HAVING COUNT(DISTINCT inn) > 1
+      )
+      SELECT k.id, k.inn, k.declNumber, k.name, k.address, k.nameKey, k.addrKey
+      FROM keyed k
+      JOIN ambiguousKeys a ON a.nameKey = k.nameKey AND a.addrKey = k.addrKey
+    `).iterate();
 
-  const groups = new Map();
-  for (const r of rows) {
-    if (!r.nameKey) continue;
-    const key = r.nameKey + '||' + (r.addrKey || '');
-    if (ignored.has(key)) continue;
-    if (!groups.has(key)) groups.set(key, { nameKey: r.nameKey, addrKey: r.addrKey || '', name: r.name, address: r.address, innCounts: new Map() });
-    const g = groups.get(key);
-    const inn = r.inn.trim();
-    g.innCounts.set(inn, (g.innCounts.get(inn) || 0) + 1);
-  }
+    const groups = new Map();
 
-  const ambiguous = [];
-  for (const g of groups.values()) {
-    if (g.innCounts.size > 1) {
-      ambiguous.push({
-        nameKey: g.nameKey,
-        addrKey: g.addrKey,
-        name: g.name,
-        address: g.address,
-        inns: [...g.innCounts.entries()].map(([inn, count]) => ({ inn, count })).sort((a, b) => b.count - a.count),
-      });
-    }
-  }
-  return ambiguous.sort((a, b) => b.inns.length - a.inns.length);
+    const scanChunk = () => {
+      try {
+        let n = 0;
+        let step;
+        while (n < SCAN_CHUNK_SIZE && !(step = iterator.next()).done) {
+          n++;
+          const r = step.value;
+          if (!r.nameKey) continue;
+          const key = r.nameKey + '||' + (r.addrKey || '');
+          if (ignored.has(key)) continue;
+          if (!groups.has(key)) groups.set(key, { nameKey: r.nameKey, addrKey: r.addrKey || '', name: r.name, address: r.address, innCounts: new Map() });
+          const g = groups.get(key);
+          const inn = r.inn.trim();
+          g.innCounts.set(inn, (g.innCounts.get(inn) || 0) + 1);
+        }
+
+        if (step && step.done) {
+          const ambiguous = [];
+          for (const g of groups.values()) {
+            if (g.innCounts.size > 1) {
+              ambiguous.push({
+                nameKey: g.nameKey,
+                addrKey: g.addrKey,
+                name: g.name,
+                address: g.address,
+                inns: [...g.innCounts.entries()].map(([inn, count]) => ({ inn, count })).sort((a, b) => b.count - a.count),
+              });
+            }
+          }
+          resolve(ambiguous.sort((a, b) => b.inns.length - a.inns.length));
+        } else {
+          setImmediate(scanChunk);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    scanChunk();
+  });
 }
 
 // Админ вручную выбрал, какой ИНН правильный для группы имя+адрес —

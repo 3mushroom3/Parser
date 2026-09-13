@@ -131,14 +131,22 @@ router.delete('/api-keys/:id', auth, requireAdmin, (req, res) => {
 
 // POST /api/admin/dedupe-inn — проставить ИНН записям без него, если у того же
 // имя+адрес есть ровно один известный ИНН (объединяет "размножившиеся" карточки)
-router.post('/dedupe-inn', auth, requireAdmin, (req, res) => {
-  const updated = backfillMissingInn();
-  res.json({ ok: true, updated });
+router.post('/dedupe-inn', auth, requireAdmin, async (req, res, next) => {
+  try {
+    const updated = await backfillMissingInn();
+    res.json({ ok: true, updated });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // GET /api/admin/dedupe-ambiguous — отчёт по группам имя+адрес с несколькими разными ИНН
-router.get('/dedupe-ambiguous', auth, requireAdmin, (req, res) => {
-  res.json(findAmbiguousInnGroups());
+router.get('/dedupe-ambiguous', auth, requireAdmin, async (req, res, next) => {
+  try {
+    res.json(await findAmbiguousInnGroups());
+  } catch (err) {
+    next(err);
+  }
 });
 
 // POST /api/admin/dedupe-resolve — вручную выбрать правильный ИНН для спорной группы

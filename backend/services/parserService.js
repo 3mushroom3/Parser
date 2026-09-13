@@ -291,7 +291,7 @@ async function runParser(apiClient, declarationService, config) {
         await telegramBot.notifyFavorites(newRecords);
       }
 
-      const dedupeCount = backfillMissingInn();
+      const dedupeCount = await backfillMissingInn();
       if (dedupeCount > 0) logger.info('[DEDUPE] Проставлен ИНН по совпадению имя+адрес: %d записей', dedupeCount);
 
       const archivedCount = archiveOldDeclarations();
