@@ -17,7 +17,46 @@ function extractCity(address) {
   return null;
 }
 
-router.get('/producers', auth, requireSubscription, dataReadLimiter, (req, res) => {
+// Группировка по producerKey требует прохода по всей (отфильтрованной) части
+// таблицы — на 4.9M строк один синхронный db.prepare(...).all() занимает
+// 60+ секунд и блокирует event loop (better-sqlite3 синхронный), давая 504
+// всем остальным пользователям одновременно. Кэшируем результат по сигнатуре
+// фильтров/сортировки (без page/size — постранично режем уже готовый массив)
+// и, как в /map-data, читаем через .iterate() чанками через setImmediate,
+// чтобы промах кэша не вешал сервер целиком на время подсчёта.
+const PRODUCERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 минут — живой парсер обновляет данные раз в ~30 мин
+const PRODUCERS_SCAN_CHUNK_SIZE = 5000;
+const producersCache = new Map(); // key -> { rows, computedAt }
+const producersComputing = new Map(); // key -> Promise<rows>, чтобы не считать параллельно на конкурентные запросы
+
+function computeAllProducers(dataQuery, params, orderParams) {
+  return new Promise((resolve, reject) => {
+    const iterator = db.prepare(dataQuery).iterate(...params, ...orderParams);
+    const rows = [];
+
+    const scanChunk = () => {
+      try {
+        let n = 0;
+        let step;
+        while (n < PRODUCERS_SCAN_CHUNK_SIZE && !(step = iterator.next()).done) {
+          n++;
+          rows.push(step.value);
+        }
+        if (step && step.done) {
+          resolve(rows);
+        } else {
+          setImmediate(scanChunk);
+        }
+      } catch (err) {
+        reject(err);
+      }
+    };
+
+    scanChunk();
+  });
+}
+
+router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req, res, next) => {
   const {
     page = 0,
     size = 50,
@@ -101,33 +140,51 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, (req, res) 
   // делалось для всех ~40k групп на каждый запрос (N+1), что было и узким
   // местом производительности, и готовым DoS-вектором вне зависимости от
   // лимита size.
-  const allProducers = db.prepare(dataQuery).all(...params, ...orderParams);
+  try {
+    const cacheKey = JSON.stringify({ dataQuery, params, orderParams });
+    let allProducers;
+    const cached = producersCache.get(cacheKey);
+    if (cached && Date.now() - cached.computedAt < PRODUCERS_CACHE_TTL_MS) {
+      allProducers = cached.rows;
+    } else {
+      let inFlight = producersComputing.get(cacheKey);
+      if (!inFlight) {
+        inFlight = computeAllProducers(dataQuery, params, orderParams)
+          .then(rows => { producersCache.set(cacheKey, { rows, computedAt: Date.now() }); return rows; })
+          .finally(() => producersComputing.delete(cacheKey));
+        producersComputing.set(cacheKey, inFlight);
+      }
+      allProducers = await inFlight;
+    }
 
-  const total = allProducers.length;
-  const p = parseInt(page) || 0;
-  const s = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(size) || 50));
-  const pageRows = allProducers.slice(p * s, (p + 1) * s);
+    const total = allProducers.length;
+    const p = parseInt(page) || 0;
+    const s = Math.min(MAX_PAGE_SIZE, Math.max(1, parseInt(size) || 50));
+    const pageRows = allProducers.slice(p * s, (p + 1) * s);
 
-  const items = pageRows.map(row => {
-    const ids = row.declIds.split(',');
-    const decls = db.prepare(`SELECT id, regDate, endDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
+    const items = pageRows.map(row => {
+      const ids = row.declIds.split(',');
+      const decls = db.prepare(`SELECT id, regDate, endDate, productName, batchSize, productGroup as "group", declNumber, fsaUrl, status FROM declarations WHERE id IN (${ids.map(() => '?').join(',')}) ORDER BY regDate DESC`).all(...ids);
 
-    const daysSinceLastDecl = row.lastRegDate ? Math.floor((Date.now() - new Date(row.lastRegDate).getTime()) / 86400000) : null;
+      const daysSinceLastDecl = row.lastRegDate ? Math.floor((Date.now() - new Date(row.lastRegDate).getTime()) / 86400000) : null;
 
-    return {
-      inn: row.inn || '',
-      name: (row.shortName || row.applicantName || row.lastName || '—').trim(),
-      address: row.address || '',
-      phone: row.phone || '',
-      farmerType: row.farmerType || 'unknown',
-      okved: row.okved || '',
-      lastDeclDate: row.lastRegDate || '',
-      dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
-      decls
-    };
-  });
+      return {
+        inn: row.inn || '',
+        name: (row.shortName || row.applicantName || row.lastName || '—').trim(),
+        address: row.address || '',
+        phone: row.phone || '',
+        farmerType: row.farmerType || 'unknown',
+        okved: row.okved || '',
+        lastDeclDate: row.lastRegDate || '',
+        dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,
+        decls
+      };
+    });
 
-  res.json({ items, total, page: p, size: s, pages: Math.ceil(total / s) });
+    res.json({ items, total, page: p, size: s, pages: Math.ceil(total / s) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Реестр вырос до миллионов записей (opendata-бэкафилл) — полный синхронный
