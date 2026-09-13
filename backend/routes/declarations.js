@@ -5,7 +5,6 @@ const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const requireAdmin = require('../middleware/requireAdmin');
 const { dataReadLimiter, exportLimiter } = require('../middleware/rateLimiters');
-const exportFromJSON = require('json-to-csv-export');
 
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
 const MAX_PAGE_SIZE = 100; // совпадает с максимумом в UI (см. #pgSize) — больше там никогда не запрашивается
@@ -446,33 +445,54 @@ router.delete('/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+function csvEscape(v) {
+  if (v === null || v === undefined) return '';
+  const s = String(v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+const EXPORT_CSV_CHUNK_SIZE = 2000;
+const EXPORT_CSV_HEADERS = [
+  'ID', 'Номер декларации', 'Заявитель', 'Источник', 'Статус', 'Группа продукции',
+  'Тех.регламент', 'Дата регистрации', 'Дата окончания', 'Фамилия', 'Имя',
+  'Краткое наим.', 'Адрес', 'Телефон', 'Наименование продукции', 'Партия', 'Ссылка FSA'
+];
+
+// SELECT * .all() без LIMIT на 4.9M строк (+ сборка CSV-строки в память для
+// всех них разом) — самый тяжёлый вариант той же проблемы, что и в
+// /producers и dedupe.js: синхронный вызов на минуты, блокирующий event
+// loop целиком, вдобавок с риском OOM на самой строке CSV. Тут не только
+// чанкуем через .iterate()/setImmediate, но и стримим строки прямо в ответ
+// по мере готовности, вместо накопления всего файла в памяти.
 router.get('/export/csv', auth, requireSubscription, exportLimiter, (req, res) => {
-  const records = db.prepare('SELECT * FROM declarations ORDER BY regDate DESC').all();
-  const data = records.map(r => ({
-    ID: r.id,
-    'Номер декларации': r.declNumber || '',
-    Заявитель: r.applicantName || '',
-    Источник: r.source,
-    Статус: r.status || 'active',
-    'Группа продукции': r.productGroup || '',
-    'Тех.регламент': r.technicalReglament || '',
-    'Дата регистрации': r.regDate,
-    'Дата окончания': r.endDate,
-    Фамилия: r.lastName,
-    Имя: r.firstName,
-    'Краткое наим.': r.shortName,
-    Адрес: r.address,
-    Телефон: r.phone,
-    'Наименование продукции': r.productName,
-    Партия: r.batchSize,
-    'Ссылка FSA': r.fsaUrl || ''
-  }));
-
-  const csv = exportFromJSON({ data, fileName: 'export', exportType: 'csv', returnType: 'txt' });
-
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="fsa_export_${new Date().toISOString().slice(0, 10)}.csv"`);
-  res.send('\uFEFF' + csv);
+  res.write('\uFEFF' + EXPORT_CSV_HEADERS.map(csvEscape).join(',') + '\r\n');
+
+  const iterator = db.prepare('SELECT * FROM declarations ORDER BY regDate DESC').iterate();
+
+  const writeChunk = () => {
+    let n = 0;
+    let step;
+    while (n < EXPORT_CSV_CHUNK_SIZE && !(step = iterator.next()).done) {
+      n++;
+      const r = step.value;
+      const line = [
+        r.id, r.declNumber || '', r.applicantName || '', r.source, r.status || 'active',
+        r.productGroup || '', r.technicalReglament || '', r.regDate, r.endDate,
+        r.lastName, r.firstName, r.shortName, r.address, r.phone,
+        r.productName, r.batchSize, r.fsaUrl || ''
+      ].map(csvEscape).join(',');
+      res.write(line + '\r\n');
+    }
+    if (step && step.done) {
+      res.end();
+    } else {
+      setImmediate(writeChunk);
+    }
+  };
+
+  writeChunk();
 });
 
 module.exports = router;
