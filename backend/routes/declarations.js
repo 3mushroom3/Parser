@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const { Worker } = require('worker_threads');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
@@ -17,41 +19,35 @@ function extractCity(address) {
 }
 
 // Группировка по producerKey требует прохода по всей (отфильтрованной) части
-// таблицы — на 4.9M строк один синхронный db.prepare(...).all() занимает
-// 60+ секунд и блокирует event loop (better-sqlite3 синхронный), давая 504
-// всем остальным пользователям одновременно. Кэшируем результат по сигнатуре
-// фильтров/сортировки (без page/size — постранично режем уже готовый массив)
-// и, как в /map-data, читаем через .iterate() чанками через setImmediate,
-// чтобы промах кэша не вешал сервер целиком на время подсчёта.
+// таблицы — на 4.9M строк db.prepare(...).all() занимает от десятков секунд
+// до нескольких минут. GROUP BY в SQLite не может отдавать строки потоково
+// (все группы материализуются до того, как вернётся первая), поэтому
+// .iterate()/setImmediate тут не спасает — весь расчёт всё равно блокирует
+// единственный поток Node целиком на всё это время, давая 504 всем
+// остальным пользователям одновременно (подтверждено на проде: 60+ секунд
+// полного простоя сайта на один запрос реестра). Поэтому сам запрос
+// выполняется в отдельном worker-потоке (см. workers/producersQueryWorker.js)
+// — сколько бы он ни считал, event loop основного процесса свободен для
+// всех остальных запросов. Результат ещё и кэшируется по сигнатуре
+// фильтров/сортировки (без page/size — постранично режем уже готовый
+// массив), чтобы повторные заходы не гоняли воркер заново.
 const PRODUCERS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 минут — живой парсер обновляет данные раз в ~30 мин
-const PRODUCERS_SCAN_CHUNK_SIZE = 5000;
+const PRODUCERS_WORKER_PATH = path.join(__dirname, '../workers/producersQueryWorker.js');
 const producersCache = new Map(); // key -> { rows, computedAt }
 const producersComputing = new Map(); // key -> Promise<rows>, чтобы не считать параллельно на конкурентные запросы
 
 function computeAllProducers(dataQuery, params, orderParams) {
   return new Promise((resolve, reject) => {
-    const iterator = db.prepare(dataQuery).iterate(...params, ...orderParams);
-    const rows = [];
-
-    const scanChunk = () => {
-      try {
-        let n = 0;
-        let step;
-        while (n < PRODUCERS_SCAN_CHUNK_SIZE && !(step = iterator.next()).done) {
-          n++;
-          rows.push(step.value);
-        }
-        if (step && step.done) {
-          resolve(rows);
-        } else {
-          setImmediate(scanChunk);
-        }
-      } catch (err) {
-        reject(err);
-      }
-    };
-
-    scanChunk();
+    const worker = new Worker(PRODUCERS_WORKER_PATH, { workerData: { dataQuery, params, orderParams } });
+    worker.once('message', (msg) => {
+      worker.terminate();
+      if (msg.error) reject(new Error(msg.error));
+      else resolve(msg.rows);
+    });
+    worker.once('error', (err) => {
+      worker.terminate();
+      reject(err);
+    });
   });
 }
 
