@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const { Worker } = require('worker_threads');
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 const requireAdmin = require('../middleware/requireAdmin');
@@ -24,61 +26,46 @@ router.get('/status', (req, res) => {
   });
 });
 
-router.get('/stats', (req, res) => {
-  const { uniqueProducers } = db.prepare(`
-    SELECT COUNT(DISTINCT CASE
-      WHEN inn IS NOT NULL AND inn != '' THEN inn
-      ELSE COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName)
-    END) as uniqueProducers
-    FROM declarations
-  `).get();
+// 8 агрегатов (COUNT(DISTINCT CASE/COALESCE...), GROUP BY) по всей таблице —
+// на 4.9M строк синхронно это отнимало у event loop десятки секунд разом,
+// блокируя заодно и все остальные запросы. Считаем в отдельном потоке
+// (см. workers/statsQueryWorker.js — там же и комментарий про
+// farmer_trader/trader_farmer) и кэшируем на 5 минут: у эндпоинта нет
+// параметров, поэтому кэш всего один, без сигнатур фильтров.
+const STATS_CACHE_TTL_MS = 5 * 60 * 1000;
+const STATS_WORKER_PATH = path.join(__dirname, '../workers/statsQueryWorker.js');
+let statsCache = null; // { stats, computedAt }
+let statsComputing = null; // Promise, чтобы не считать параллельно на конкурентные запросы
 
-  const statusStats = db.prepare('SELECT status, COUNT(*) as count FROM declarations GROUP BY status').all();
-  const sourceStats = db.prepare('SELECT source, COUNT(*) as count FROM declarations GROUP BY source').all();
+function computeStats() {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(STATS_WORKER_PATH);
+    worker.once('message', (msg) => {
+      worker.terminate();
+      if (msg.error) reject(new Error(msg.error));
+      else resolve(msg.stats);
+    });
+    worker.once('error', (err) => {
+      worker.terminate();
+      reject(err);
+    });
+  });
+}
 
-  // Считаем фермеров/трейдеров только среди ДЕЙСТВУЮЩИХ деклараций — иначе
-  // эта цифра смешивает две разные оси (тип компании и статус декларации)
-  // с "Действуют" и не складывается с ней логически.
-  // farmer_trader считается производителем; trader_farmer — трейдером
-  const producerCountByType = (type) => {
-    const types = type === 'farmer' ? "'farmer','farmer_trader'"
-                : type === 'trader' ? "'trader','trader_farmer'"
-                : `'${type}'`;
-    return db.prepare(`
-      SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
-      FROM declarations WHERE farmerType IN (${types}) AND status = 'active'
-    `).get().c;
-  };
-  const declCountByType = (type) => {
-    const types = type === 'farmer' ? "'farmer','farmer_trader'"
-                : type === 'trader' ? "'trader','trader_farmer'"
-                : `'${type}'`;
-    return db.prepare(`SELECT COUNT(*) as c FROM declarations WHERE farmerType IN (${types}) AND status = 'active'`).get().c;
-  };
-  const producerCountByStatus = (status) => db.prepare(`
-    SELECT COUNT(DISTINCT COALESCE(NULLIF(inn, ''), COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName))) as c
-    FROM declarations WHERE status = ?
-  `).get(status).c;
-
-  const activeDecls = statusStats.find(s => s.status === 'active')?.count || 0;
-  const totalDecls = statusStats.reduce((sum, s) => sum + s.count, 0);
-
-  const stats = {
-    total: uniqueProducers,
-    totalDecls,
-    active: activeDecls,
-    activeProducers: producerCountByStatus('active'),
-    suspended: statusStats.find(s => s.status === 'suspended')?.count || 0,
-    expired: statusStats.find(s => s.status === 'expired')?.count || 0,
-    manual: sourceStats.find(s => s.source === 'manual')?.count || 0,
-    fsa: sourceStats.find(s => s.source === 'fsa')?.count || 0,
-    farmerProducers: producerCountByType('farmer'),
-    traderProducers: producerCountByType('trader'),
-    farmerDecls: declCountByType('farmer'),
-    traderDecls: declCountByType('trader'),
-  };
-
-  res.json(stats);
+router.get('/stats', async (req, res, next) => {
+  try {
+    if (statsCache && Date.now() - statsCache.computedAt < STATS_CACHE_TTL_MS) {
+      return res.json(statsCache.stats);
+    }
+    if (!statsComputing) {
+      statsComputing = computeStats()
+        .then(stats => { statsCache = { stats, computedAt: Date.now() }; return stats; })
+        .finally(() => { statsComputing = null; });
+    }
+    res.json(await statsComputing);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.post('/parse', auth, requireAdmin, (req, res) => {
