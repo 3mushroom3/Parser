@@ -20,12 +20,27 @@ function extractPostalCode(address) {
 }
 
 function backfillMissingInn() {
+  // Полный SELECT * FROM declarations раньше грузил все строки (несколько
+  // миллионов после подключения открытых данных) в JS-память разом — на
+  // проде с 2ГБ RAM это валило процесс в OOM каждый цикл парсера. Группы
+  // всегда ключуются по nameKey, поэтому строка без совпадения nameKey с
+  // хотя бы одной "безИННовой" записью гарантированно не влияет на
+  // результат — тянем только строки нужных nameKey (обычно на порядки
+  // меньше всей таблицы).
   const rows = db.prepare(`
-    SELECT id, inn,
-      lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
-      lower_u(TRIM(address)) as addrKey,
-      address
-    FROM declarations
+    WITH keyed AS (
+      SELECT id, NULLIF(TRIM(inn), '') as inn,
+        lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
+        lower_u(TRIM(address)) as addrKey,
+        address
+      FROM declarations
+    ),
+    missingNames AS (
+      SELECT DISTINCT nameKey FROM keyed WHERE nameKey != '' AND inn IS NULL
+    )
+    SELECT k.id, k.inn, k.nameKey, k.addrKey, k.address
+    FROM keyed k
+    JOIN missingNames m ON m.nameKey = k.nameKey
   `).all();
 
   const exactGroups = new Map();
@@ -83,14 +98,28 @@ function findAmbiguousInnGroups() {
     db.prepare('SELECT nameKey, addrKey FROM dedupe_ignored').all().map(r => r.nameKey + '||' + r.addrKey)
   );
 
+  // Как и в backfillMissingInn — не тянем всю таблицу в JS, а сначала находим
+  // в SQL ключи (nameKey+addrKey), где встречается больше одного различного
+  // ИНН, и только для них забираем строки.
   const rows = db.prepare(`
-    SELECT id, inn, declNumber,
-      TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) as name,
-      TRIM(address) as address,
-      lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
-      lower_u(TRIM(address)) as addrKey
-    FROM declarations
-    WHERE inn != '' AND inn IS NOT NULL
+    WITH keyed AS (
+      SELECT id, TRIM(inn) as inn, declNumber,
+        TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName)) as name,
+        TRIM(address) as address,
+        lower_u(TRIM(COALESCE(NULLIF(shortName,''), NULLIF(applicantName,''), lastName))) as nameKey,
+        lower_u(TRIM(address)) as addrKey
+      FROM declarations
+      WHERE inn != '' AND inn IS NOT NULL
+    ),
+    ambiguousKeys AS (
+      SELECT nameKey, addrKey FROM keyed
+      WHERE nameKey != ''
+      GROUP BY nameKey, addrKey
+      HAVING COUNT(DISTINCT inn) > 1
+    )
+    SELECT k.id, k.inn, k.declNumber, k.name, k.address, k.nameKey, k.addrKey
+    FROM keyed k
+    JOIN ambiguousKeys a ON a.nameKey = k.nameKey AND a.addrKey = k.addrKey
   `).all();
 
   const groups = new Map();
