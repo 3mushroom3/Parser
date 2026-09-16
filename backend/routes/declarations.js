@@ -202,6 +202,7 @@ function computeMapData() {
 
       const cityMap = {};
       const iterator = stmt.iterate();
+      const MAX_ORGS_PER_CITY = 50; // hard cap during accumulation to prevent OOM
 
       const processChunk = () => {
         try {
@@ -213,7 +214,7 @@ function computeMapData() {
             n++;
             if (!city) continue;
 
-            if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {} };
+            if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {}, orgCount: 0 };
             cityMap[city].count++;
 
             if (rec.farmerType === 'farmer' || rec.farmerType === 'farmer_trader') cityMap[city].farmers++;
@@ -221,7 +222,9 @@ function computeMapData() {
 
             const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
             if (!cityMap[city].orgs[key]) {
+              if (cityMap[city].orgCount >= MAX_ORGS_PER_CITY) continue;
               cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
+              cityMap[city].orgCount++;
             }
             if (cityMap[city].orgs[key].decls.length < 20) {
               cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 60) });
