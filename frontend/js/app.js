@@ -2017,7 +2017,7 @@ async function setFsaToken() {
   const msg   = document.getElementById('fsaTokenMsg');
   if (!token) { msg.style.color = 'var(--err)'; msg.textContent = 'Введите токен'; return; }
   try {
-    await apiFetch('/api/settoken', { method: 'POST', body: JSON.stringify({ token }) });
+    await apiFetch('/api/system/settoken', { method: 'POST', body: JSON.stringify({ token }) });
     msg.style.color = '#16a34a';
     msg.textContent = '✅ Токен установлен. Парсер использует его до перезапуска сервера или сброса.';
     document.getElementById('fsaTokenInput').value = '';
@@ -2027,7 +2027,7 @@ async function setFsaToken() {
 async function clearFsaToken() {
   const msg = document.getElementById('fsaTokenMsg');
   try {
-    await apiFetch('/api/settoken', { method: 'DELETE' });
+    await apiFetch('/api/system/settoken', { method: 'DELETE' });
     msg.style.color = '#16a34a';
     msg.textContent = '✅ Ручной токен сброшен — парсер будет логиниться автоматически.';
   } catch(e) { msg.style.color = 'var(--err)'; msg.textContent = '❌ ' + e.message; }
