@@ -245,7 +245,11 @@ if (process.env.NODE_ENV !== 'test') {
       // parserRunning намеренно не блокирует: парсер работает почти постоянно
       // во время бэкфилла и ранее из-за этого обогащение пропускалось каждый день.
       const MAX_DAILY = parseInt(process.env.ENRICH_DAILY_LIMIT || '9500');
-      const records = db.prepare("SELECT * FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown'").all();
+      // Загружаем только столько записей, сколько успеем обработать за день —
+      // не весь массив целиком: на 4M+ строках это вызывает OOM.
+      const records = db.prepare(
+        "SELECT * FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown' LIMIT ?"
+      ).all(MAX_DAILY);
       if (!records.length) {
         logger.info('[AUTO-ENRICH] Нет записей для обогащения');
         return;
