@@ -2416,6 +2416,14 @@ async function startMydbPreview(file) {
     } catch {
       throw new Error(`Ошибка сервера (${r.status}). Попробуйте ещё раз.`);
     }
+    if (r.status === 401) {
+      handleLogout();
+      throw new Error('Сессия истекла. Войдите снова.');
+    }
+    if (r.status === 403 && data?.code === 'SUBSCRIPTION_REQUIRED') {
+      openModal('noAccessModal');
+      throw new Error('Требуется подписка');
+    }
     if (!r.ok || data.error) {
       throw new Error(data.error || `Ошибка сервера (${r.status})`);
     }
