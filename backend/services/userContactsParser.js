@@ -142,9 +142,14 @@ function findHeaderRow(rows) {
   return 0;
 }
 
+const MAX_ROWS = 100_000;
+
 // ── Шаг 1: загрузка файла и превью для выбора колонок ─────────────────────
 async function previewUpload(userId, buffer, originalName) {
-  const wb = XLSX.read(buffer, { type: 'buffer' });
+  // Быстрая проверка до тяжёлого парсинга
+  if (buffer.length < 8) throw new Error('Файл пустой или повреждён');
+
+  const wb = XLSX.read(buffer, { type: 'buffer', sheetRows: MAX_ROWS + 10 });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
@@ -155,6 +160,9 @@ async function previewUpload(userId, buffer, originalName) {
   const dataRows  = rows.slice(headerIdx + 1);
 
   if (!dataRows.length) throw new Error('Нет строк с данными после заголовка');
+  if (dataRows.length > MAX_ROWS) {
+    throw new Error(`Файл содержит более ${MAX_ROWS.toLocaleString('ru')} строк. Разбейте базу на части и загружайте по частям.`);
+  }
 
   // Первые 5 строк для превью (обрезаем ячейки до 25 символов)
   const sampleRows = dataRows.slice(0, 5).map(row =>

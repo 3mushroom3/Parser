@@ -27,8 +27,9 @@ const State = {
   navDeclIndex: -1,
   // Мои базы
   mydbPrivatePage: 0,
-  mydbPreview: null,   // данные превью от сервера
-  mydbMapping: {},     // colIdx → тип ('inn'|'name'|'phone'|'phone2'|'email'|'address'|'')
+  mydbPreview: null,    // данные превью от сервера
+  mydbMapping: {},      // colIdx → тип ('inn'|'name'|'phone'|'phone2'|'email'|'address'|'')
+  mydbUploading: false, // блокировка повторной загрузки
 };
 
 const CITY_COORDS = {
@@ -1784,10 +1785,13 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal'].forEach(id => {
+['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal','noAccessModal','noteModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
+// mydbColModal закрывается с отменой pending-загрузки
+const _mydbColModalEl = document.getElementById('mydbColModal');
+if (_mydbColModalEl) _mydbColModalEl.addEventListener('click', function(e) { if (e.target === this) cancelMydbUpload(); });
 
 function openTos() {
   openModal('tosModal');
@@ -2363,6 +2367,7 @@ const MYDB_TYPES = {
 };
 
 function toggleMydbUpload() {
+  if (State.mydbUploading) return; // не скрывать зону во время загрузки
   const z = document.getElementById('mydbUploadZone');
   z.style.display = z.style.display === 'none' ? 'block' : 'none';
 }
@@ -2378,8 +2383,21 @@ function handleMydbFileInput(input) {
 }
 
 async function startMydbPreview(file) {
+  if (State.mydbUploading) return;
+
+  const MAX_MB = 10;
+  if (file.size > MAX_MB * 1024 * 1024) {
+    const prog = document.getElementById('mydbUploadProgress');
+    const res  = document.getElementById('mydbUploadResult');
+    prog.style.display = 'none';
+    res.style.display  = 'block';
+    res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ Файл слишком большой (${(file.size/1024/1024).toFixed(1)} МБ). Максимум ${MAX_MB} МБ. Разбейте базу на части.</div>`;
+    return;
+  }
+
   const prog = document.getElementById('mydbUploadProgress');
   const res  = document.getElementById('mydbUploadResult');
+  State.mydbUploading = true;
   prog.style.display = 'block';
   res.style.display  = 'none';
   prog.textContent   = '⏳ Загружаем файл...';
@@ -2387,23 +2405,29 @@ async function startMydbPreview(file) {
   const fd = new FormData();
   fd.append('file', file);
   try {
-    const data = await fetch('/api/user/contacts/preview', {
+    const r = await fetch('/api/user/contacts/preview', {
       method: 'POST',
       headers: State.token ? { Authorization: `Bearer ${State.token}` } : {},
       body: fd,
-    }).then(r => r.json());
+    });
+    let data;
+    try {
+      data = await r.json();
+    } catch {
+      throw new Error(`Ошибка сервера (${r.status}). Попробуйте ещё раз.`);
+    }
+    if (!r.ok || data.error) {
+      throw new Error(data.error || `Ошибка сервера (${r.status})`);
+    }
 
     prog.style.display = 'none';
-    if (data.error) {
-      res.style.display = 'block';
-      res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(data.error)}</div>`;
-      return;
-    }
     openMydbColPicker(data);
   } catch(e) {
     prog.style.display = 'none';
     res.style.display = 'block';
     res.innerHTML = `<div style="color:var(--err);font-size:13px">❌ ${escHtml(e.message)}</div>`;
+  } finally {
+    State.mydbUploading = false;
   }
 }
 

@@ -2,14 +2,16 @@ const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
 const auth    = require('../middleware/auth');
+const requireSubscription = require('../middleware/subscription');
 const {
   previewUpload, processWithMapping,
   getUploads, deleteUpload, getContactsForCompany, getPrivateCompanies,
 } = require('../services/userContactsParser');
 
+const MAX_FILE_MB = 10;
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ok = /\.(xls|xlsx|ods|csv)$/i.test(file.originalname);
     cb(ok ? null : new Error('Поддерживаются только файлы XLS, XLSX, CSV'), ok);
@@ -17,9 +19,14 @@ const upload = multer({
 });
 
 // POST /api/user/contacts/preview — шаг 1: загружает файл, возвращает превью колонок
-router.post('/preview', auth, (req, res) => {
+router.post('/preview', auth, requireSubscription, (req, res) => {
   upload.single('file')(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? `Файл слишком большой. Максимум ${MAX_FILE_MB} МБ.`
+        : err.message;
+      return res.status(400).json({ error: msg });
+    }
     if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
     try {
       // Multer получает имя файла как latin1-байты, декодируем в utf8
@@ -33,7 +40,7 @@ router.post('/preview', auth, (req, res) => {
 });
 
 // POST /api/user/contacts/process — шаг 2: обрабатывает с маппингом пользователя
-router.post('/process', auth, (req, res) => {
+router.post('/process', auth, requireSubscription, (req, res) => {
   const { uploadId, mapping } = req.body;
   if (!uploadId || !mapping) return res.status(400).json({ error: 'uploadId и mapping обязательны' });
   try {

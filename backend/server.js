@@ -119,6 +119,7 @@ app.use('/api/user/contacts', userContactRoutes);
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);
 app.use('/api/stats', systemRoutes);
+app.use('/api/settoken', systemRoutes);
 app.use('/api/producers', declarationRoutes);
 app.use('/api/map-data', declarationRoutes);
 app.use('/api/company', businessRoutes);
