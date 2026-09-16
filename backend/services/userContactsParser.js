@@ -193,7 +193,7 @@ async function previewUpload(userId, buffer, originalName) {
   fs.writeFileSync(path.join(userDir, filename), buffer);
   db.prepare('UPDATE user_uploads SET filename = ? WHERE id = ?').run(filename, uploadId);
 
-  return { uploadId, headers, sampleRows, suggestedCols, detectionMethod };
+  return { uploadId, originalName, headers, sampleRows, suggestedCols, detectionMethod };
 }
 
 // ── Шаг 2: обработка файла с маппингом выбранным пользователем ────────────

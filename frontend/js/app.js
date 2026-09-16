@@ -1872,7 +1872,14 @@ async function openSubscription() {
   ]);
 
   const statusEl = document.getElementById('subCurrentStatus');
-  if (sub.active) {
+  if (sub.isAdmin) {
+    statusEl.innerHTML = `<div class="sub-status-ok">👑 Администратор — неограниченный доступ</div>`;
+    document.getElementById('subPlans').innerHTML = '';
+    openModal('subscriptionModal');
+    return;
+  }
+
+  if (sub.active && sub.subscriptionUntil) {
     const d = new Date(sub.subscriptionUntil);
     statusEl.innerHTML = `<div class="sub-status-ok">✓ Подписка активна до <b>${d.toLocaleDateString('ru-RU')}</b></div>`;
   } else {
