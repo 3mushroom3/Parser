@@ -500,8 +500,9 @@
       <h2>🛡 Администрирование</h2>
     </div>
     <div class="admin-stats" id="adminStats"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:20px;gap:12px;flex-wrap:wrap">
       <h3 style="font-size:14px;font-weight:700">Пользователи</h3>
+      <input type="search" id="adminUserSearch" placeholder="🔍 Поиск по логину..." oninput="filterAdminUsers()" style="flex:1;max-width:280px;padding:6px 10px;font-size:13px;border:1px solid var(--brd,#ddd);border-radius:6px">
     </div>
     <div class="admin-table-wrap">
       <table class="admin-table">

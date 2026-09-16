@@ -9,7 +9,11 @@ const db = require('./db');
 const { lookupInn, lookupByName, classifyOkved, classifyByName, buildMixedActivityNote, RATE_LIMITED } = require('./fnsClient');
 
 const CACHE_FILE = path.join(__dirname, '../../data/inn_cache.json');
-const DELAY_MS = 300; // пауза между запросами (dadata допускает быстрее чем itsoft)
+// Пауза между запросами. Ранее 300ms — на 9500 записях процесс висел 47+ мин
+// при 100% CPU и полностью забивал event loop синхронными SQL-апдейтами,
+// из-за чего HTTP-запросы (map-data, upload) получали Gateway Timeout.
+// 1500ms снижает пик CPU до ~15-25% и оставляет event loop свободным.
+const DELAY_MS = parseInt(process.env.ENRICH_DELAY_MS || '1500');
 
 // Обновляет официальное название компании по ИНН (только когда поиск идёт по ИНН —
 // это авторитетный источник ФНС через DaData). Особенно важно для ИП и глав КФХ:

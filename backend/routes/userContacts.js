@@ -8,7 +8,7 @@ const {
   getUploads, deleteUpload, getContactsForCompany, getPrivateCompanies,
 } = require('../services/userContactsParser');
 
-const MAX_FILE_MB = 10;
+const MAX_FILE_MB = 50;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_MB * 1024 * 1024 },

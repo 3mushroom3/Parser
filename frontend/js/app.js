@@ -592,14 +592,14 @@ function markerColorByType(ft) {
 
 async function initMap() {
   State.mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: true }).setView([55, 55], 4);
-  // OSM's own tile.openstreetmap.org started 403-blocking this app for not
-  // following their volunteer-run-server usage policy (no attribution shown,
-  // production-level traffic). CARTO's basemaps (tried first) now require an
-  // API key too. Esri's World_Street_Map basemap is still usable embedded in
-  // a web app like this without a developer key/account.
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+  // CartoDB Voyager: чистая нейтральная стилистика, показывает границы без
+  // мелких флажков-иконок для спорных территорий (в отличие от Esri World_Street_Map,
+  // где над Крымом висит украинский флаг). Свободное анонимное использование,
+  // рендер работает из России без API-ключа.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: 'Tiles &copy; Esri — Source: Esri, DeLorme, NAVTEQ',
+    subdomains: 'abcd',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(State.mapInstance);
 
   setTimeout(() => State.mapInstance.invalidateSize(), 100);
@@ -1907,6 +1907,41 @@ async function buyPlan(planId) {
 }
 
 // ── Admin Panel ───────────────────────────────────────────────────────────
+let _adminUsersCache = [];
+function renderAdminUsersTable(users) {
+  const planLabel = { month1: '1 мес', month3: '3 мес', month12: '12 мес', manual: 'Вручную' };
+  const tbody = document.getElementById('adminUsersTbody');
+  if (!tbody) return;
+  if (!users.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:14px">Ничего не найдено</td></tr>';
+    return;
+  }
+  tbody.innerHTML = users.map(u => {
+    const until = u.subscriptionUntil ? new Date(u.subscriptionUntil) : null;
+    const active = until && until > new Date();
+    const subStr = until ? `<span class="${active ? 'sub-ok' : 'sub-exp'}">${until.toLocaleDateString('ru-RU')}</span>` : '<span style="color:var(--muted)">—</span>';
+    return `<tr>
+      <td><b>${u.username}</b></td>
+      <td><span class="role-badge role-${u.role}">${u.role}</span></td>
+      <td>${subStr}</td>
+      <td style="font-size:12px;color:var(--muted)">${planLabel[u.subscriptionPlan] || u.subscriptionPlan || '—'}</td>
+      <td style="font-size:12px">${u.paymentCount || 0} / ${(u.totalPaid || 0).toLocaleString('ru-RU')} ₽</td>
+      <td style="font-size:12px;color:var(--muted)">${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
+      <td class="admin-actions">
+        <button class="btn btn-sm" onclick="adminAddDays(${u.id},'${u.username}')" title="Продлить подписку">+Дни</button>
+        <button class="btn btn-sm btn-warn" onclick="adminRevokeSub(${u.id},'${u.username}')" title="Отозвать подписку">✕</button>
+        <button class="btn btn-sm" onclick="adminChangeRole(${u.id},'${u.username}','${u.role}')" title="Роль">👤</button>
+        <button class="btn btn-sm btn-dng" onclick="adminDeleteUser(${u.id},'${u.username}')" title="Удалить">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function filterAdminUsers() {
+  const q = (document.getElementById('adminUserSearch')?.value || '').trim().toLowerCase();
+  if (!q) return renderAdminUsersTable(_adminUsersCache);
+  renderAdminUsersTable(_adminUsersCache.filter(u => (u.username || '').toLowerCase().includes(q)));
+}
+
 async function loadAdminData() {
   try {
     const [stats, users, payments, apiKeys] = await Promise.all([
@@ -1926,25 +1961,8 @@ async function loadAdminData() {
 
     const planLabel = { month1: '1 мес', month3: '3 мес', month12: '12 мес', manual: 'Вручную' };
 
-    document.getElementById('adminUsersTbody').innerHTML = users.map(u => {
-      const until = u.subscriptionUntil ? new Date(u.subscriptionUntil) : null;
-      const active = until && until > new Date();
-      const subStr = until ? `<span class="${active ? 'sub-ok' : 'sub-exp'}">${until.toLocaleDateString('ru-RU')}</span>` : '<span style="color:var(--muted)">—</span>';
-      return `<tr>
-        <td><b>${u.username}</b></td>
-        <td><span class="role-badge role-${u.role}">${u.role}</span></td>
-        <td>${subStr}</td>
-        <td style="font-size:12px;color:var(--muted)">${planLabel[u.subscriptionPlan] || u.subscriptionPlan || '—'}</td>
-        <td style="font-size:12px">${u.paymentCount || 0} / ${(u.totalPaid || 0).toLocaleString('ru-RU')} ₽</td>
-        <td style="font-size:12px;color:var(--muted)">${new Date(u.created_at).toLocaleDateString('ru-RU')}</td>
-        <td class="admin-actions">
-          <button class="btn btn-sm" onclick="adminAddDays(${u.id},'${u.username}')" title="Продлить подписку">+Дни</button>
-          <button class="btn btn-sm btn-warn" onclick="adminRevokeSub(${u.id},'${u.username}')" title="Отозвать подписку">✕</button>
-          <button class="btn btn-sm" onclick="adminChangeRole(${u.id},'${u.username}','${u.role}')" title="Роль">👤</button>
-          <button class="btn btn-sm btn-dng" onclick="adminDeleteUser(${u.id},'${u.username}')" title="Удалить">🗑</button>
-        </td>
-      </tr>`;
-    }).join('');
+    _adminUsersCache = users;
+    filterAdminUsers();
 
     const statusLabel = { succeeded: '✅ Успешно', pending: '⏳ Ожидание', canceled: '❌ Отменён' };
     document.getElementById('adminPaymentsTbody').innerHTML = payments.map(p => `
