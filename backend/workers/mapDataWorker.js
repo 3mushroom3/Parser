@@ -1,60 +1,72 @@
+/**
+ * Агрегаты для карты: сколько деклараций в каждом населённом пункте.
+ *
+ * Раньше воркер сам разбирал адреса регуляркой «г. Название» и складывал в
+ * память ещё и список компаний с декларациями по каждому городу. Из-за этого
+ * на карту попадало 15% реестра, а ответ раздувался. Теперь НП размечены в
+ * declarations.placeKey (workers/geoParseWorker.js), координаты лежат в
+ * geo_places, и здесь остаётся один GROUP BY по индексу — памяти почти не
+ * требуется. Список компаний отдаётся отдельным запросом при клике по маркеру
+ * (GET /api/declarations/map-place).
+ */
 const { parentPort } = require('worker_threads');
 const db = require('../services/db');
 
-const MAX_ORGS_PER_CITY = 50;
-const CHUNK = 5000;
-
-function extractCity(address) {
-  if (!address) return null;
-  const m = address.match(/(?:^|[,;\s])([Гг])(?:\.о?\.?\s*|\s+)([А-ЯЁа-яё][А-ЯЁа-яё\-]+(?:\s+[А-ЯЁа-яё][А-ЯЁа-яё\-]+)*)/);
-  if (m) return m[2].split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-  return null;
-}
-
 try {
-  const stmt = db.prepare(
-    "SELECT id, address, shortName, applicantName, lastName, inn, farmerType, productName " +
-    "FROM declarations WHERE status = 'active' AND address IS NOT NULL AND address != ''"
-  );
+  const places = db.prepare(`
+    SELECT
+      g.id       AS id,
+      g.label    AS label,
+      g.lat      AS lat,
+      g.lon      AS lon,
+      COUNT(*)   AS count,
+      SUM(CASE WHEN d.farmerType IN ('farmer', 'farmer_trader') THEN 1 ELSE 0 END) AS farmers,
+      SUM(CASE WHEN d.farmerType IN ('trader', 'trader_farmer') THEN 1 ELSE 0 END) AS traders
+    FROM declarations d
+    JOIN geo_places g ON g.key = d.placeKey
+    WHERE d.status = 'active' AND d.placeKey IS NOT NULL AND d.placeKey != ''
+      AND g.lat IS NOT NULL
+    GROUP BY d.placeKey
+    ORDER BY count DESC
+  `).all();
 
-  const cityMap = {};
-  let processed = 0;
+  const totals = db.prepare(`
+    SELECT
+      COUNT(*) AS totalActive,
+      SUM(CASE WHEN placeKey IS NULL THEN 1 ELSE 0 END) AS unparsed,
+      SUM(CASE WHEN placeKey = ''    THEN 1 ELSE 0 END) AS noPlace
+    FROM declarations WHERE status = 'active'
+  `).get();
 
-  for (const rec of stmt.iterate()) {
-    const city = extractCity(rec.address);
-    if (!city) continue;
+  const queue = db.prepare(`
+    SELECT
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
+      SUM(CASE WHEN status = 'failed'  THEN 1 ELSE 0 END) AS failed
+    FROM geo_places
+  `).get();
 
-    if (!cityMap[city]) cityMap[city] = { city, count: 0, farmers: 0, traders: 0, orgs: {}, orgCount: 0 };
-    cityMap[city].count++;
+  const mapped = places.reduce((sum, p) => sum + p.count, 0);
 
-    if (rec.farmerType === 'farmer' || rec.farmerType === 'farmer_trader') cityMap[city].farmers++;
-    else if (rec.farmerType === 'trader' || rec.farmerType === 'trader_farmer') cityMap[city].traders++;
-
-    const key = (rec.shortName || rec.applicantName || rec.lastName || '—').trim();
-    if (!cityMap[city].orgs[key]) {
-      if (cityMap[city].orgCount >= MAX_ORGS_PER_CITY) continue;
-      cityMap[city].orgs[key] = { name: key, inn: rec.inn || '', farmerType: rec.farmerType || 'unknown', decls: [] };
-      cityMap[city].orgCount++;
-    }
-    if (cityMap[city].orgs[key].decls.length < 20) {
-      cityMap[city].orgs[key].decls.push({ id: rec.id, product: (rec.productName || '').slice(0, 60) });
-    }
-  }
-
-  const cities = Object.values(cityMap)
-    .map(c => ({
-      city: c.city,
-      count: c.count,
-      farmers: c.farmers,
-      traders: c.traders,
-      orgs: Object.values(c.orgs)
-        .sort((a, b) => b.decls.length - a.decls.length)
-        .slice(0, 30)
-        .map(o => ({ name: o.name, inn: o.inn, farmerType: o.farmerType, count: o.decls.length, decls: o.decls })),
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  parentPort.postMessage({ cities, total: cities.reduce((s, c) => s + c.count, 0) });
+  parentPort.postMessage({
+    places: places.map(p => ({
+      id: p.id,
+      label: p.label,
+      // до 5 знаков (~1 м) — дальше только раздувать ответ
+      lat: Math.round(p.lat * 1e5) / 1e5,
+      lon: Math.round(p.lon * 1e5) / 1e5,
+      count: p.count,
+      farmers: p.farmers,
+      traders: p.traders,
+    })),
+    mapped,
+    totalActive: totals.totalActive || 0,
+    // «не на карте»: адрес без НП, ещё не разобранные и НП без координат
+    unplaced: (totals.totalActive || 0) - mapped,
+    noPlace: totals.noPlace || 0,
+    unparsed: totals.unparsed || 0,
+    placesPending: queue.pending || 0,
+    placesFailed: queue.failed || 0,
+  });
 } catch (err) {
   parentPort.postMessage({ error: err.message });
 }

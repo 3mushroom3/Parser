@@ -316,4 +316,36 @@ if (!contactColNames.includes('contactName')) {
   db.exec('ALTER TABLE user_contacts ADD COLUMN contactName TEXT');
 }
 
+// Миграция: населённый пункт декларации для карты. Ключ считает
+// services/addressPlace.js, координаты к ключу подбирает services/geoEnricher.js —
+// раньше карта знала координаты 233 городов из словаря в app.js и теряла
+// остальные 90% реестра (села, хутора, станицы).
+const declColNames = db.prepare("PRAGMA table_info(declarations)").all().map(c => c.name);
+if (!declColNames.includes('placeKey')) {
+  db.exec('ALTER TABLE declarations ADD COLUMN placeKey TEXT');
+}
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_decl_placeKey ON declarations(placeKey);
+
+  CREATE TABLE IF NOT EXISTS geo_places (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE NOT NULL,
+    region TEXT,
+    district TEXT,
+    type TEXT,
+    name TEXT,
+    label TEXT,
+    query TEXT,
+    accuracy TEXT,
+    lat REAL,
+    lon REAL,
+    status TEXT DEFAULT 'pending',
+    source TEXT,
+    attempts INTEGER DEFAULT 0,
+    declCount INTEGER DEFAULT 0,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_geo_status ON geo_places(status, declCount DESC);
+`);
+
 module.exports = db;

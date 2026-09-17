@@ -6,8 +6,8 @@ const State = {
   editingId: null,
   mapInstance: null,
   mapInitialized: false,
-  mapAllCities: [],
-  mapCityInfo: new Map(),
+  mapPlaces: [],
+  mapStats: null,
   mapPopup: null,
   mapFilter: '',
   curFarmerFilter: '',
@@ -32,88 +32,6 @@ const State = {
   mydbPreview: null,    // данные превью от сервера
   mydbMapping: {},      // colIdx → тип ('inn'|'name'|'phone'|'phone2'|'email'|'address'|'')
   mydbUploading: false, // блокировка повторной загрузки
-};
-
-const CITY_COORDS = {
-  'Москва':[55.7558,37.6176],'Санкт-Петербург':[59.9343,30.3351],'Новосибирск':[54.9924,82.8138],
-  'Екатеринбург':[56.8519,60.6122],'Казань':[55.7887,49.1221],'Нижний Новгород':[56.2965,43.9361],
-  'Челябинск':[55.1644,61.4368],'Самара':[53.2038,50.15],'Уфа':[54.7388,55.9721],
-  'Ростов-на-Дону':[47.2357,39.7015],'Краснодар':[45.0355,38.9753],'Воронеж':[51.672,39.1843],
-  'Пермь':[58.0104,56.2502],'Волгоград':[48.708,44.5133],'Красноярск':[56.0153,92.8672],
-  'Саратов':[51.5462,46.0154],'Тюмень':[57.1553,68.9683],'Тольятти':[53.5303,49.3461],
-  'Омск':[54.9885,73.3242],'Барнаул':[53.3547,83.7695],'Ижевск':[56.8527,53.2116],
-  'Иркутск':[52.2869,104.289],'Хабаровск':[48.4802,135.0719],'Ярославль':[57.6261,39.8845],
-  'Владивосток':[43.1332,131.9113],'Махачкала':[42.9849,47.5047],'Томск':[56.4977,84.9744],
-  'Оренбург':[51.7883,55.1023],'Кемерово':[55.3904,86.0427],'Новокузнецк':[53.7596,87.1152],
-  'Рязань':[54.6296,39.743],'Астрахань':[46.3497,48.0408],'Набережные Челны':[55.7391,52.4049],
-  'Пенза':[53.1959,45.0186],'Липецк':[52.6031,39.5708],'Тула':[54.1961,37.6182],
-  'Киров':[58.5977,49.6583],'Чебоксары':[56.1439,47.2489],'Улан-Удэ':[51.8279,107.6063],
-  'Курск':[51.7373,36.1873],'Ставрополь':[45.05,41.9734],'Белгород':[50.5956,36.5872],
-  'Мурманск':[68.9585,33.0827],'Архангельск':[64.5405,40.5154],'Калининград':[54.7104,20.4522],
-  'Сочи':[43.5855,39.7231],'Волжский':[48.7883,44.7636],'Чита':[52.0336,113.4994],
-  'Орёл':[52.9651,36.0785],'Владимир':[56.129,40.407],'Брянск':[53.2434,34.3634],
-  'Магнитогорск':[53.4153,58.9946],'Тверь':[56.8587,35.9176],'Иваново':[57.0005,40.9739],
-  'Калуга':[54.5293,36.2754],'Нижнекамск':[55.6374,51.816],'Смоленск':[54.7818,32.0401],
-  'Тамбов':[52.7212,41.4525],'Сургут':[61.2501,73.4201],'Симферополь':[44.9521,34.1024],
-  'Грозный':[43.3178,45.6984],'Кострома':[57.7678,40.9268],'Шахты':[47.7094,40.2149],
-  'Сыктывкар':[61.6689,50.8365],'Нижний Тагил':[57.9214,59.9707],'Петрозаводск':[61.7849,34.3469],
-  'Элиста':[46.3072,44.2552],'Нальчик':[43.4846,43.6029],'Владикавказ':[43.0362,44.6677],
-  'Черкесск':[44.2286,42.0578],'Майкоп':[44.6088,40.1073],'Новороссийск':[44.723,37.7694],
-  'Таганрог':[47.209,38.9371],'Батайск':[47.1395,39.7538],'Новочеркасск':[47.4182,40.0939],
-  'Волгодонск':[47.5168,42.162],'Армавир':[44.9936,41.1261],'Пятигорск':[44.0417,43.0631],
-  'Кисловодск':[43.9054,42.731],'Ессентуки':[44.0465,42.8602],'Минеральные Воды':[44.2185,43.1398],
-  'Кропоткин':[45.4354,40.5779],'Тихорецк':[45.8531,40.1218],'Темрюк':[45.2796,37.3835],
-  'Ейск':[46.71,38.2716],'Анапа':[44.8879,37.3195],'Геленджик':[44.5558,38.0747],
-  'Абинск':[44.8626,38.1615],'Крымск':[44.9264,37.9899],'Тимашевск':[45.6136,38.9441],
-  'Зерноград':[46.8497,40.3172],'Сальск':[46.4797,41.5394],'Белая Калитва':[48.1826,40.8017],
-  'Гулькевичи':[45.3586,40.6916],'Усть-Лабинск':[45.2166,39.6913],'Лабинск':[44.6339,40.7288],
-  'Апшеронск':[44.4647,39.731],'Лиски':[50.9889,39.5142],'Борисоглебск':[51.3723,42.0806],
-  'Острогожск':[50.8643,39.0695],'Россошь':[50.1972,39.5731],'Старый Оскол':[51.2974,37.8416],
-  'Губкин':[51.2808,37.5372],'Алексеевка':[50.627,38.6973],'Мичуринск':[52.9,40.5],
-  'Моршанск':[53.4281,41.8148],'Котовск':[52.5927,41.5023],'Уварово':[51.9853,42.2545],
-  'Балаково':[51.9956,47.8026],'Вольск':[52.0469,47.3869],'Энгельс':[51.5009,46.1237],
-  'Балашов':[51.5519,43.168],'Аткарск':[51.87,44.9905],'Орск':[51.229,58.4696],
-  'Бузулук':[52.788,52.2576],'Бугуруслан':[53.654,52.431],'Бугульма':[54.5384,52.797],
-  'Альметьевск':[54.9001,52.3019],'Курган':[55.4484,65.3391],'Шадринск':[56.0832,63.6326],
-  'Миасс':[54.9881,60.1112],'Троицк':[54.0803,61.5669],'Копейск':[55.1177,61.6254],
-  'Новотроицк':[51.2014,60.0821],'Бийск':[52.5408,85.2092],'Рубцовск':[51.5,81.2],
-  'Ачинск':[56.2697,90.4996],'Абакан':[53.7209,91.4424],'Бердск':[54.7603,82.981],
-  'Псков':[57.8194,28.332],'Великий Новгород':[58.5241,31.2699],'Вологда':[59.2181,39.8886],
-  'Череповец':[59.1257,37.9059],'Ухта':[63.5593,53.6831],'Нижневартовск':[60.9347,76.5696],
-  'Стерлитамак':[53.6254,55.9376],'Чебаркуль':[54.9849,60.3624],'Октябрьский':[54.4755,53.4671],
-  'Туапсе':[44.1073,39.0815],'Новоалтайск':[53.3835,83.9412],'Заринск':[53.7019,84.9309],
-  'Куйбышев':[55.4614,78.3239],'Северск':[56.6012,84.8802],'Искитим':[54.6325,83.3043],
-  'Камышин':[50.0989,45.4018],'Михайловка':[50.0608,43.2436],'Урюпинск':[50.7957,42.0124],
-  'Николаевск':[50.0235,45.4485],'Фролово':[49.7697,43.6629],'Новоаннинский':[50.5272,42.6822],
-  'Серпухов':[54.9158,37.4167],'Подольск':[55.431,37.5444],'Коломна':[55.0833,38.7667],
-  'Электросталь':[55.7935,38.4455],'Мытищи':[55.9135,37.7306],'Химки':[55.8883,37.4304],
-  'Балашиха':[55.7959,37.9385],'Люберцы':[55.6792,37.8931],'Домодедово':[55.4406,37.7715],
-  'Одинцово':[55.6728,37.2797],'Красногорск':[55.8244,37.3484],'Пушкино':[56.0146,37.8609],
-  'Щёлково':[55.9183,38.0211],'Раменское':[55.5702,38.2294],'Орехово-Зуево':[55.8058,38.9844],
-  'Ногинск':[55.8573,38.4396],'Воскресенск':[55.3246,38.6744],'Клин':[56.3348,36.7275],
-  'Дмитров':[56.3441,37.5241],'Наро-Фоминск':[55.3896,36.7298],'Жуковский':[55.5975,38.1167],
-  'Реутов':[55.7611,37.8619],'Королёв':[55.9226,37.8423],'Долгопрудный':[55.9383,37.5126],
-  'Фрязево':[55.8711,38.2239],'Ивантеевка':[55.9747,37.922],'Видное':[55.5562,37.7022],
-  'Дзержинск':[56.2346,43.4601],'Арзамас':[55.3897,43.8401],'Саров':[54.9267,35.8389],
-  'Выкса':[55.3205,42.1735],'Кстово':[56.1451,44.1987],'Бор':[56.3594,44.0671],
-  'Бузулук':[52.788,52.2576],'Соль-Илецк':[51.1587,55.0013],'Медногорск':[51.4082,57.5875],
-  'Ртищево':[52.2639,43.7919],'Павловск':[50.4567,40.1318],'Новый Оскол':[50.7614,37.8784],
-  'Валуйки':[50.2118,38.1061],'Бирюч':[50.6279,38.3988],'Обоянь':[51.2127,36.2725],
-  'Льгов':[51.6674,35.2642],'Железногорск':[52.3353,35.3639],'Дмитриев':[52.1271,35.0813],
-  'Рыльск':[51.5705,34.6845],'Суджа':[51.1911,35.2683],'Щигры':[51.8664,36.9012],
-  'Фатеж':[52.0874,36.0624],'Конотоп':[51.2367,33.1988],'Путивль':[51.3344,33.8722],
-  'Сумы':[50.9077,34.7981],'Харьков':[49.9808,36.2527],'Белгород-Днестровский':[46.1925,30.3478],
-  'Семилуки':[51.6847,39.0264],'Иланский':[56.2397,96.0417],
-  'Горняк':[50.9869,81.4556],'Ершов':[51.3628,48.2814],'Новокубанск':[45.1178,41.0333],
-  'Тетюши':[54.9278,48.8408],'Гурьевск':[54.3019,85.9453],'Новопавловск':[43.9572,43.6253],
-  'Мелеуз':[52.9608,55.9217],'Зарайск':[54.7653,38.8731],'Дигора':[43.1526,44.1597],
-  'Красный Сулин':[47.8903,40.0731],'Ялта':[44.4980,34.1558],
-  'Донецк':[48.0059,37.8028],'Луганск':[48.5740,39.3070],'Мариуполь':[47.0966,37.5494],
-  'Макеевка':[47.9961,37.9603],'Горловка':[48.2954,37.9728],'Енакиево':[48.2306,38.1986],
-  'Алчевск':[48.4757,38.7971],'Краснодон':[48.2898,39.7348],'Стаханов':[48.5586,38.6563],
-  'Херсон':[46.6354,32.6169],'Скадовск':[46.1111,32.9111],'Геническ':[46.1694,34.8264],
-  'Запорожье':[47.8388,35.1396],'Мелитополь':[46.8481,35.3617],'Энергодар':[47.5014,34.6553],
-  'Бердянск':[46.7639,36.8058],'Токмак':[47.2667,35.7167],
 };
 
 // ── Date input mask (дд.мм.гггг ↔ ISO yyyy-mm-dd) ──────────────────────────
@@ -571,21 +489,6 @@ async function triggerParse() {
 }
 
 // ── Map ───────────────────────────────────────────────────────────────────
-function getCityCoords(name) {
-  if (!name) return null;
-  if (CITY_COORDS[name]) return CITY_COORDS[name];
-  const low = name.toLowerCase();
-  const found = Object.keys(CITY_COORDS).find(k => k.toLowerCase() === low);
-  return found ? CITY_COORDS[found] : null;
-}
-
-function markerColor(count) {
-  if (count >= 200) return '#0C3B7A';
-  if (count >= 51)  return '#185FA5';
-  if (count >= 11)  return '#378ADD';
-  return '#7DB9E8';
-}
-
 function markerColorByType(ft) {
   if (ft === 'farmer') return '#2d6a0f';
   if (ft === 'trader') return '#A32D2D';
@@ -616,25 +519,76 @@ function initMap() {
 
   let loaded = false;
   map.once('load', () => { loaded = true; onMapLoad(map); });
-  // подложка тянется со сторонней CDN — если её не отдали, не оставляем
-  // пользователя с вечным «Загрузка данных...»
-  setTimeout(() => {
-    if (loaded) return;
+  // Подложка тянется со сторонней CDN — если её не отдали, не оставляем
+  // пользователя с вечным «Загрузка данных...». Но MapLibre рисует по
+  // requestAnimationFrame, а в скрытой вкладке кадров нет: карта там честно
+  // ждёт, пока вкладку откроют, и ругаться на это нельзя — отсчёт начинаем
+  // заново, когда вкладка стала видимой.
+  const warnIfStuck = () => {
+    if (loaded || document.hidden) return;
     const loaderEl = document.getElementById('mapLoader');
     loaderEl.style.display = 'block';
     loaderEl.innerHTML = 'Подложка карты не загрузилась. Проверьте доступ в интернет и обновите страницу.';
-  }, 20000);
+  };
+  setTimeout(warnIfStuck, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (!loaded && !document.hidden) setTimeout(warnIfStuck, 20000);
+  });
 }
 
 function onMapLoad(map) {
-  map.addSource('cities', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  // Кластеризация обязательна: точек теперь не 145 городов, а десятки тысяч
+  // населённых пунктов — без группировки на обзорном зуме карта превращается
+  // в кашу из перекрывающихся кружков.
+  map.addSource('places', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+    cluster: true,
+    clusterRadius: 48,
+    clusterMaxZoom: 10,
+    clusterProperties: { total: ['+', ['get', 'count']] },
+  });
+
+  const colorByCount = field => ['step', ['get', field], '#7DB9E8', 11, '#378ADD', 51, '#185FA5', 200, '#0C3B7A'];
+
   map.addLayer({
-    id: 'cities-circle',
+    id: 'places-cluster',
     type: 'circle',
-    source: 'cities',
+    source: 'places',
+    filter: ['has', 'point_count'],
     paint: {
-      'circle-radius': ['get', 'r'],
-      'circle-color': ['get', 'color'],
+      'circle-radius': ['min', 46, ['+', 13, ['*', 2.2, ['sqrt', ['get', 'total']]]]],
+      'circle-color': colorByCount('total'),
+      'circle-opacity': 0.8,
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': 2.5,
+    },
+  });
+  map.addLayer({
+    id: 'places-cluster-count',
+    type: 'symbol',
+    source: 'places',
+    filter: ['has', 'point_count'],
+    layout: {
+      // тысячи сокращаем до «12к», иначе подпись не влезает в кружок
+      'text-field': ['case',
+        ['>=', ['get', 'total'], 1000],
+        ['concat', ['to-string', ['round', ['/', ['get', 'total'], 1000]]], 'к'],
+        ['to-string', ['get', 'total']]],
+      'text-font': ['Noto Sans Bold'],
+      'text-size': ['step', ['get', 'total'], 10, 100, 11, 1000, 12],
+      'text-allow-overlap': true,
+    },
+    paint: { 'text-color': '#fff' },
+  });
+  map.addLayer({
+    id: 'places-point',
+    type: 'circle',
+    source: 'places',
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-radius': ['min', 40, ['+', 8, ['*', 2.8, ['sqrt', ['get', 'count']]]]],
+      'circle-color': colorByCount('count'),
       'circle-opacity': 0.75,
       'circle-stroke-color': '#fff',
       'circle-stroke-width': 2.5,
@@ -642,29 +596,51 @@ function onMapLoad(map) {
   });
 
   const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'map-tip' });
-  map.on('mousemove', 'cities-circle', e => {
+  const hover = html => (e) => {
     map.getCanvas().style.cursor = 'pointer';
-    const f = e.features[0];
-    tip.setLngLat(f.geometry.coordinates)
-       .setHTML(`<b>${escHtml(f.properties.city)}</b>: ${f.properties.count} декл.`)
-       .addTo(map);
+    tip.setLngLat(e.features[0].geometry.coordinates).setHTML(html(e.features[0].properties)).addTo(map);
+  };
+  const unhover = () => { map.getCanvas().style.cursor = ''; tip.remove(); };
+
+  map.on('mousemove', 'places-point', hover(p => `<b>${escHtml(p.label)}</b>: ${p.count} декл.`));
+  map.on('mouseleave', 'places-point', unhover);
+  map.on('mousemove', 'places-cluster', hover(p => `${p.total} декл. в ${p.point_count} НП — нажмите, чтобы приблизить`));
+  map.on('mouseleave', 'places-cluster', unhover);
+
+  map.on('click', 'places-cluster', e => {
+    const feature = e.features[0];
+    map.getSource('places').getClusterExpansionZoom(feature.properties.cluster_id)
+      .then(zoom => map.easeTo({ center: feature.geometry.coordinates, zoom }))
+      .catch(() => {});
   });
-  map.on('mouseleave', 'cities-circle', () => { map.getCanvas().style.cursor = ''; tip.remove(); });
-  map.on('click', 'cities-circle', e => {
+  map.on('click', 'places-point', e => {
     tip.remove();
-    const f = e.features[0];
-    // в свойствах точки лежит только название города: вложенные объекты
-    // GeoJSON-источник сериализует в строки, поэтому список компаний держим рядом
-    const info = State.mapCityInfo.get(f.properties.city);
-    if (!info) return;
-    if (State.mapPopup) State.mapPopup.remove();
-    State.mapPopup = new maplibregl.Popup({ maxWidth: '340px', className: 'map-popup' })
-      .setLngLat(f.geometry.coordinates)
-      .setHTML(buildMapPopup(info))
-      .addTo(map);
+    openPlacePopup(map, e.features[0]);
   });
 
   loadMapData();
+}
+
+// Список компаний по НП тянем по клику: в общем ответе карты его больше нет —
+// на 17 тыс. населённых пунктов это были бы десятки мегабайт на каждое открытие.
+async function openPlacePopup(map, feature) {
+  const { id, label, count } = feature.properties;
+  if (State.mapPopup) State.mapPopup.remove();
+  State.mapPopup = new maplibregl.Popup({ maxWidth: '340px', className: 'map-popup' })
+    .setLngLat(feature.geometry.coordinates)
+    .setHTML(`<div style="min-width:220px"><div style="font-size:16px;font-weight:700">${escHtml(label)}</div>
+      <div style="font-size:12px;color:#6b7280;margin-top:4px">${count} деклараций · загрузка компаний...</div></div>`)
+    .addTo(map);
+  const popup = State.mapPopup;
+  try {
+    const data = await apiFetch('/api/declarations/map-place?id=' + encodeURIComponent(id));
+    if (State.mapPopup === popup) popup.setHTML(buildMapPopup(data));
+  } catch (e) {
+    if (State.mapPopup === popup) {
+      popup.setHTML(`<div style="min-width:220px"><div style="font-size:16px;font-weight:700">${escHtml(label)}</div>
+        <div style="font-size:12px;color:#A32D2D;margin-top:6px">Не удалось загрузить компании: ${escHtml(e.message || '')}</div></div>`);
+    }
+  }
 }
 
 async function loadMapData(retry = 0) {
@@ -673,12 +649,13 @@ async function loadMapData(retry = 0) {
   loaderEl.style.display = 'block';
   try {
     const data = await apiFetch('/api/declarations/map-data');
-    State.mapAllCities = data.cities || [];
-    renderMarkers(State.mapAllCities, data.total);
+    State.mapPlaces = data.places || [];
+    State.mapStats = data;
+    renderPlaces();
     loaderEl.style.display = 'none';
   } catch(e) {
     console.error('[map-data]', e.message);
-    if (State.mapAllCities.length > 0) {
+    if (State.mapPlaces.length > 0) {
       loaderEl.style.display = 'none';
       return;
     }
@@ -697,75 +674,70 @@ function setMapFilter(btn, ft) {
     b.className = 'map-fc' + (b === btn ? (ft === 'farmer' ? ' farmer-act' : ft === 'trader' ? ' trader-act' : ' act') : '');
   });
   if (State.mapPopup) { State.mapPopup.remove(); State.mapPopup = null; }
-  if (State.mapInstance) {
-    const total = State.mapAllCities.reduce((s, c) => s + c.count, 0);
-    renderMarkers(State.mapAllCities, total);
-  }
+  renderPlaces();
 }
 
-function renderMarkers(cities, totalDecl) {
+function renderPlaces() {
   const map = State.mapInstance;
+  if (!map || !map.getSource('places')) return;
+
+  const ft = State.mapFilter;
   const features = [];
-  State.mapCityInfo = new Map();
-  let mapped = 0, mappedDecl = 0;
-
-  for (const c of cities) {
-    const coords = getCityCoords(c.city);
-    if (!coords) continue;
-
-    let orgs = c.orgs;
-    let count = c.count;
-    if (State.mapFilter === 'farmer') {
-      orgs = orgs.filter(o => o.farmerType === 'farmer');
-      count = c.farmers || orgs.reduce((s, o) => s + o.count, 0);
-    } else if (State.mapFilter === 'trader') {
-      orgs = orgs.filter(o => o.farmerType === 'trader');
-      count = c.traders || orgs.reduce((s, o) => s + o.count, 0);
-    }
-    if (State.mapFilter && count === 0) continue;
-
-    mapped++;
-    mappedDecl += count;
-    State.mapCityInfo.set(c.city, { ...c, orgs, count });
+  let mapped = 0;
+  for (const p of State.mapPlaces) {
+    const count = ft === 'farmer' ? p.farmers : ft === 'trader' ? p.traders : p.count;
+    if (!count) continue;
+    mapped += count;
     features.push({
       type: 'Feature',
-      properties: {
-        city: c.city,
-        count,
-        r: Math.max(8, Math.min(40, 8 + Math.sqrt(count) * 2.8)),
-        color: State.mapFilter ? markerColorByType(State.mapFilter) : markerColor(count),
-      },
-      geometry: { type: 'Point', coordinates: [coords[1], coords[0]] },
+      properties: { id: p.id, label: p.label, count },
+      geometry: { type: 'Point', coordinates: [p.lon, p.lat] },
     });
   }
+  map.getSource('places').setData({ type: 'FeatureCollection', features });
 
-  if (map && map.getSource('cities')) {
-    map.getSource('cities').setData({ type: 'FeatureCollection', features });
+  // при фильтре по типу цвет фиксированный, иначе — по числу деклараций
+  const color = ft ? markerColorByType(ft) : null;
+  for (const [layer, field] of [['places-point', 'count'], ['places-cluster', 'total']]) {
+    map.setPaintProperty(layer, 'circle-color',
+      color || ['step', ['get', field], '#7DB9E8', 11, '#378ADD', 51, '#185FA5', 200, '#0C3B7A']);
   }
 
-  document.getElementById('mapCityCount').textContent = mapped;
-  document.getElementById('mapDeclCount').textContent = mappedDecl.toLocaleString('ru');
-  document.getElementById('mapUnknown').textContent = (totalDecl - mappedDecl).toLocaleString('ru');
-  document.getElementById('mapEmpty').style.display = mapped === 0 ? 'block' : 'none';
+  const stats = State.mapStats || {};
+  document.getElementById('mapCityCount').textContent = features.length.toLocaleString('ru');
+  document.getElementById('mapDeclCount').textContent = mapped.toLocaleString('ru');
+  document.getElementById('mapUnknown').textContent = Math.max(0, (stats.totalActive || mapped) - mapped).toLocaleString('ru');
+
+  // пока фоновое геокодирование не прошло весь справочник, честно показываем,
+  // что часть реестра ещё не на карте
+  const noteEl = document.getElementById('mapGeoNote');
+  if (noteEl) {
+    const pending = stats.placesPending || 0;
+    noteEl.style.display = pending ? 'block' : 'none';
+    noteEl.textContent = pending ? `Определяются координаты: осталось ${pending.toLocaleString('ru')} НП` : '';
+  }
+  document.getElementById('mapEmpty').style.display = features.length === 0 ? 'block' : 'none';
 }
 
-function buildMapPopup(c) {
-  const orgsHtml = (c.orgs || []).map(o => {
+function buildMapPopup(place) {
+  const orgsHtml = (place.orgs || []).map(o => {
     const declsHtml = (o.decls || []).map(d => {
       const label = escHtml(d.product || 'Декларация');
-      const safeId = d.id.replace(/'/g, '');
+      const safeId = String(d.id).replace(/'/g, '');
       return `<div onclick="mapOpenDecl('${safeId}')" style="cursor:pointer;padding:3px 8px;margin:2px 0;border-radius:4px;font-size:11px;color:#185FA5;background:#eef4ff;line-height:1.4" onmouseover="this.style.background='#d9e8ff'" onmouseout="this.style.background='#eef4ff'">${label}</div>`;
     }).join('');
     return `
       <div style="padding:7px 0;border-bottom:1px solid #f0f2f5">
-        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${escHtml(o.name)} <span style="font-weight:400;color:#6b7280">${o.count > 1 ? '(' + o.count + ')' : ''}</span></div>
+        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${escHtml(o.name)} <span style="font-weight:400;color:#6b7280">${o.decls.length > 1 ? '(' + o.decls.length + ')' : ''}</span></div>
         ${declsHtml}
       </div>`;
   }).join('');
+  const where = [place.district && place.district + ' р-н', place.region].filter(Boolean).join(', ');
   return `
     <div style="font-family:'Segoe UI',system-ui,sans-serif;min-width:280px">
-      <div style="font-size:16px;font-weight:700;margin-bottom:2px">${c.city}</div>
-      <div style="font-size:12px;color:#6b7280;margin-bottom:10px;padding-bottom:10px;border-bottom:2px solid #185FA5">${c.count} деклараций</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:2px">${escHtml(place.label || '')}</div>
+      <div style="font-size:11px;color:#6b7280">${escHtml(where)}</div>
+      <div style="font-size:12px;color:#6b7280;margin:6px 0 10px;padding-bottom:10px;border-bottom:2px solid #185FA5">${place.count} деклараций</div>
       <div style="max-height:340px;overflow-y:auto;padding-right:2px">${orgsHtml}</div>
     </div>`;
 }

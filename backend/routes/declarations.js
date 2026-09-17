@@ -11,13 +11,6 @@ const { dataReadLimiter, exportLimiter } = require('../middleware/rateLimiters')
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
 const MAX_PAGE_SIZE = 100; // совпадает с максимумом в UI (см. #pgSize) — больше там никогда не запрашивается
 
-function extractCity(address) {
-  if (!address) return null;
-  const m = address.match(/(?:^|[,;\s])([Гг])(?:\.о?\.?\s*|\s+)([А-ЯЁа-яё][А-ЯЁа-яё\-]+(?:\s+[А-ЯЁа-яё][А-ЯЁа-яё\-]+)*)/);
-  if (m) return m[2].split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-  return null;
-}
-
 // Группировка по producerKey требует прохода по всей (отфильтрованной) части
 // таблицы — на 4.9M строк db.prepare(...).all() занимает от десятков секунд
 // до нескольких минут. GROUP BY в SQLite не может отдавать строки потоково
@@ -232,6 +225,54 @@ router.get('/map-data', auth, requireSubscription, dataReadLimiter, async (req, 
     console.error('[map-data]', err.message);
     res.status(500).json({ error: 'Ошибка формирования данных карты: ' + err.message });
   }
+});
+
+// GET /api/declarations/map-place?key=… — компании одного населённого пункта.
+// Раньше список компаний ехал в общем ответе map-data по всем городам; с полным
+// реестром (17 тыс. НП вместо 145 городов) это были бы десятки мегабайт, поэтому
+// popup маркера запрашивает свой НП отдельно — это индексный запрос по placeKey.
+const MAP_PLACE_ORGS = 30;
+const MAP_PLACE_DECLS = 20;
+
+router.get('/map-place', auth, requireSubscription, dataReadLimiter, (req, res) => {
+  const id = Number(req.query.id);
+  if (!Number.isInteger(id)) return res.status(400).json({ error: 'Не указан населённый пункт' });
+
+  const place = db.prepare('SELECT id, key, label, region, district FROM geo_places WHERE id = ?').get(id);
+  if (!place) return res.status(404).json({ error: 'Населённый пункт не найден' });
+  const key = place.key;
+
+  const total = db.prepare("SELECT COUNT(*) c FROM declarations WHERE placeKey = ? AND status = 'active'").get(key).c;
+  // для popup хватит первых записей: показываем не больше 30 компаний
+  const rows = db.prepare(`
+    SELECT id, shortName, applicantName, lastName, inn, farmerType, productName
+    FROM declarations
+    WHERE placeKey = ? AND status = 'active'
+    ORDER BY COALESCE(shortName, applicantName, lastName), regDate DESC
+    LIMIT 2000
+  `).all(key);
+
+  const orgs = new Map();
+  for (const row of rows) {
+    const name = (row.shortName || row.applicantName || row.lastName || '—').trim();
+    if (!orgs.has(name)) {
+      if (orgs.size >= MAP_PLACE_ORGS) continue;
+      orgs.set(name, { name, inn: row.inn || '', farmerType: row.farmerType || 'unknown', decls: [] });
+    }
+    const org = orgs.get(name);
+    if (org.decls.length < MAP_PLACE_DECLS) {
+      org.decls.push({ id: row.id, product: (row.productName || '').slice(0, 60) });
+    }
+  }
+
+  res.json({
+    id: place.id,
+    label: place.label,
+    region: place.region,
+    district: place.district,
+    count: total,
+    orgs: [...orgs.values()].sort((a, b) => b.decls.length - a.decls.length),
+  });
 });
 
 router.get('/', auth, requireSubscription, dataReadLimiter, (req, res) => {

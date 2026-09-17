@@ -38,6 +38,7 @@ const externalRoutes = require('./routes/external');
 const feedbackRoutes    = require('./routes/feedback');
 const userContactRoutes = require('./routes/userContacts');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
+const { runGeoJob } = require('./services/geoEnricher');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -272,6 +273,15 @@ if (process.env.NODE_ENV !== 'test') {
       );
       logger.info(`[AUTO-ENRICH] Запущено: ${records.length} записей без типа, лимит ${MAX_DAILY} запросов/день`);
     });
+
+    // Карта: разметка адресов по населённым пунктам + геокодирование очереди.
+    // Раз в сутки в 00:40 (после обогащения ОКВЭД в 00:05, оба берут из одного
+    // суточного лимита DaData) и один раз через 2 минуты после старта, чтобы
+    // свежие декларации попадали на карту без ожидания ночного прогона.
+    cron.schedule(process.env.GEO_CRON_SCHEDULE || '40 0 * * *', () => {
+      runGeoJob().catch(() => {});
+    });
+    setTimeout(() => runGeoJob().catch(() => {}), 2 * 60 * 1000);
 
     // Run parser after 5 seconds
     setTimeout(safeRunParser, 5000);
