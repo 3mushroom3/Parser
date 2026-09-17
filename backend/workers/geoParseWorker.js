@@ -19,7 +19,10 @@ const CITY_SEED = require('../services/cityCoordsSeed');
 // «РОСТОВ-НА-ДОНУ», и «Ростов-на-Дону».
 const SEED_BY_NAME = new Map(Object.entries(CITY_SEED).map(([name, coords]) => [norm(name), coords]));
 
-const BATCH = 2000;
+// Пачка небольшая намеренно: транзакция держит блокировку записи, а в базу в
+// это же время пишет живой парсер. На 2000 строках блокировка держалась
+// секундами, и параллельные задания ловили «database is locked».
+const BATCH = 500;
 
 const selectStmt = db.prepare(`
   SELECT id, address FROM declarations

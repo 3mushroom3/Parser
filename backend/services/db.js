@@ -11,6 +11,13 @@ if (!fs.existsSync(path.dirname(dbPath))) {
 
 const db = new Database(dbPath);
 
+// По умолчанию better-sqlite3 ждёт освобождения блокировки 5 секунд и падает с
+// «database is locked». Живой парсер, доливка открытых данных, обогащение ОКВЭД
+// и разметка НП пишут в базу параллельно (каждый поток — своё соединение), и на
+// базе в 860 МБ транзакции столько и занимают. 15 секунд хватает, чтобы они
+// дожидались друг друга, а не роняли задание.
+db.pragma('busy_timeout = 15000');
+
 // SQLite's built-in LOWER() only handles ASCII and leaves Cyrillic unchanged —
 // register a JS-backed lowercasing function so case-insensitive search works for Cyrillic text.
 db.function('lower_u', (s) => (s == null ? s : String(s).toLowerCase()));
