@@ -54,10 +54,13 @@ const updateFailStmt = db.prepare(`
       updatedAt = CURRENT_TIMESTAMP
   WHERE key = ?
 `);
+// declCount > 0 — только те НП, что реально есть на карте: разметка идёт по
+// всему реестру, включая недействующие декларации, и без этого условия в
+// очереди оказывается вдвое больше НП, чем карта когда-либо покажет.
 const pendingStmt = db.prepare(`
   SELECT key, query, region, district, name, type
   FROM geo_places
-  WHERE status = 'pending'
+  WHERE status = 'pending' AND declCount > 0
   ORDER BY declCount DESC, key
   LIMIT ?
 `);
