@@ -246,6 +246,87 @@ function parseSettlementToken(token, { deep = false } = {}) {
   return null;
 }
 
+// Улица/дом: дальше НП уже не встречается, а вот ложных совпадений полно
+// («ул Московская» → Московская область). Берём только однозначные маркеры:
+// «д.» тут нет намеренно — это и дом, и деревня.
+const STREET_CUT_RE = /(?:^|[\s,])(?:ул|улица|пер|переулок|пр-?кт|пр-?т|проспект|просп|ш|шоссе|б-?р|бульвар|наб|набережная|пл|площадь|проезд|тракт|аллея|тупик|дом|двлд|влд|владение|зд|здание|корп|корпус|литер|оф|офис|кв|квартира|помещ|пом|соор|сооружение|бокс|этаж|комн|каб|а\/я)\.?(?=[\s,]|$)/i;
+
+// Все типы НП, длинные впереди — иначе «ст-ца» съест «ст».
+const TYPE_ALT = [...SETTLEMENT_TYPES.keys(), ...WEAK_TYPES.keys()]
+  .sort((a, b) => b.length - a.length)
+  .map(t => t.replace(/[.\/]/g, m => '\\' + m))
+  .join('|');
+const NAME_PART = '[А-ЯЁа-яё][А-ЯЁа-яё-]*';
+const SETTLEMENT_SCAN_RE = new RegExp(
+  `(?:^|[\\s,])(${TYPE_ALT})\\.?[\\s,]+(${NAME_PART})((?:\\s+${NAME_PART})?)`, 'gi');
+
+// Слова, которые не могут быть частью названия НП: «с Шила ул Ленина» —
+// второе слово тут улица, а не вторая половина названия.
+const MARKER_WORDS = new Set([
+  ...SETTLEMENT_TYPES.keys(), ...WEAK_TYPES.keys(),
+  'обл', 'область', 'край', 'респ', 'республика', 'ао', 'р-н', 'рн', 'район',
+  'ул', 'улица', 'пер', 'переулок', 'проспект', 'шоссе', 'наб', 'площадь',
+  'проезд', 'дом', 'зд', 'здание', 'стр', 'строение', 'корп', 'офис', 'кв',
+  'помещение', 'участок', 'уч', 'сооружение', 'литер', 'вн', 'тер', 'гп', 'г.п',
+]);
+
+function cutAtStreet(s) {
+  const m = STREET_CUT_RE.exec(s);
+  return m && m.index > 0 ? s.slice(0, m.index) : s;
+}
+
+// Регион ищем по всей «головной» части и берём самый левый — в адресе он идёт
+// перед районом и НП.
+function findRegionInText(text) {
+  const t = norm(text);
+  let best = null;
+  for (const [re, label] of REGION_RES) {
+    const m = re.exec(t);
+    if (m && (best === null || m.index < best.index)) best = { index: m.index, label };
+  }
+  return best ? best.label : '';
+}
+
+/**
+ * Район: «р-н Константиновский» и «АЛЕКСЕЕВСКИЙ Р-Н» / «ТЕМРЮКСКИЙ м.р-н» /
+ * «БЕЛОВОДСКИЙ м.о.». Сначала пробуем форму с типом впереди: в записи
+ * «обл Ростовская р-н Константиновский» обратный шаблон дал бы «Ростовская».
+ */
+function findDistrictInText(text, region) {
+  const lead = text.match(/(?:^|[\s,])(?:м\.?\s?)?(?:р-?н|район)\.?[\s,]+([А-ЯЁа-яё][А-ЯЁа-яё-]{3,})/i);
+  const tail = text.match(/(?:^|[\s,])([А-ЯЁа-яё][А-ЯЁа-яё-]{3,})\s+(?:м\.?\s?)?(?:р-?н|район|м\.?\s?о|г\.?\s?о)\.?(?=[\s,]|$)/i);
+  for (const m of [lead, tail]) {
+    if (!m) continue;
+    const name = m[1].replace(/[.,]+$/, '');
+    // «обл Ростовская р-н ...» — не принимать сам регион за район. Но район
+    // часто называется как своя же область («Белгородский р-н» в Белгородской
+    // обл.), поэтому мужское прилагательное не отбрасываем: у регионов оно
+    // женского рода («Белгородская»).
+    if (findRegionInText(name) === region && !/(ский|цкий|ской|ый|ий)$/i.test(name)) continue;
+    return titleCase(name);
+  }
+  return '';
+}
+
+/** Первое совпадение типа НП с названием: оно и есть населённый пункт. */
+function findSettlementInText(text) {
+  SETTLEMENT_SCAN_RE.lastIndex = 0;
+  let strong = null, weak = null, m;
+  while ((m = SETTLEMENT_SCAN_RE.exec(text)) !== null) {
+    const rawType = norm(m[1]).replace(/\.+$/, '');
+    const type = SETTLEMENT_TYPES.get(rawType) || WEAK_TYPES.get(rawType);
+    if (!type) continue;
+    let name = m[2];
+    const second = (m[3] || '').trim();
+    if (second && !MARKER_WORDS.has(norm(second).replace(/\.+$/, ''))) name += ' ' + second;
+    if (MARKER_WORDS.has(norm(name)) || findRegionInText(name)) continue;
+    const place = { type, name, weak: WEAK_TYPES.has(rawType) };
+    if (!place.weak) { strong = place; break; }
+    if (!weak) weak = place;
+  }
+  return strong || weak;
+}
+
 /**
  * Возвращает null, если в адресе не нашлось региона или населённого пункта
  * (иностранные адреса — их в реестре сотни — отсекаются именно здесь).
@@ -254,15 +335,24 @@ function parseSettlementToken(token, { deep = false } = {}) {
  */
 function parseAddress(address) {
   if (!address) return null;
-  const tokens = String(address).split(',').map(s => s.trim()).filter(Boolean);
+  const raw = String(address).replace(/\s+/g, ' ').trim();
+  if (!raw) return null;
+  const tokens = raw.split(',').map(s => s.trim()).filter(Boolean);
   if (!tokens.length) return null;
 
-  const region = findRegion(tokens);
+  // Часть реестра (то, что пришло из открытых данных РДС) записана вообще без
+  // запятых: «347277 РОССИЯ обл Ростовская р-н Константиновский х Лисичкин ул
+  // Солнечная дом 7». Поэтому основной разбор идёт шаблонами по всей строке, а
+  // разбор по запятым остаётся вторым подходом — он берёт формы вроде
+  // «Кульбаково с», где тип стоит после названия.
+  const head = cutAtStreet(raw);
+  const region = findRegionInText(head) || findRegion(tokens);
   if (!region) return null;
 
-  let district = '';
-  let best = null;      // настоящий НП
-  let fallback = null;  // слабый (СНТ, мкр, с/п) — если настоящего нет
+  let district = findDistrictInText(head, region);
+  let scanned = findSettlementInText(head);
+  let best = scanned && !scanned.weak ? scanned : null;
+  let fallback = scanned && scanned.weak ? scanned : null;
   const rest = [];      // токены, в которых НП не нашёлся с первого подхода
 
   for (const token of tokens) {
