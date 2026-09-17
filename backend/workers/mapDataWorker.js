@@ -38,11 +38,14 @@ try {
     FROM declarations WHERE status = 'active'
   `).get();
 
+  // Считаем только НП, которые реально ждут места на карте: в справочнике
+  // есть и точки от недействующих деклараций, и показывать их в счётчике
+  // «осталось определить» — врать пользователю.
   const queue = db.prepare(`
     SELECT
       SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending,
       SUM(CASE WHEN status = 'failed'  THEN 1 ELSE 0 END) AS failed
-    FROM geo_places
+    FROM geo_places WHERE declCount > 0
   `).get();
 
   const mapped = places.reduce((sum, p) => sum + p.count, 0);
