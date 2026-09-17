@@ -98,14 +98,20 @@ const PHONE_CHUNK_RE = /\+?\(?\d[\d\s\-.()]*/g;
 // Ищет российские телефоны в произвольном тексте. Номер собирается из
 // «кусков» цифр, разделённых пробелами/дефисами/скобками, пока не наберётся
 // 10 или 11 цифр: так разбираются и «(86342) 6-55-04», и «+7959 222 62 99»,
-// и два номера подряд через пробел.
+// и два номера подряд через пробел. Короткий номер с дефисами после
+// городского («(863) 255-85-85, ф. 261-85-79») получает тот же код города.
 function findPhoneSpans(raw, { skipBareInn = false } = {}) {
   if (isEmptyCell(raw)) return [];
-  const s = String(raw).replace(REQUISITES_RE, m => ' '.repeat(m.length));
+  const blank = m => ' '.repeat(m.length);
+  const s = String(raw).replace(REQUISITES_RE, blank).replace(EMAIL_RE, blank).replace(URL_RE, blank);
   const spans = [];
+  let lastNational = '';
   let chunk;
   PHONE_CHUNK_RE.lastIndex = 0;
   while ((chunk = PHONE_CHUNK_RE.exec(s)) !== null) {
+    // цифры, прилипшие к латинице («id123456», «c015mn»), — не телефон
+    if (/[a-z]/i.test(s[chunk.index - 1] || '')) continue;
+    const found = spans.length;
     const tokens = [];
     const TOKEN_RE = /\d+/g;
     let t;
@@ -131,8 +137,18 @@ function findPhoneSpans(raw, { skipBareInn = false } = {}) {
         // «+» перед номером тоже часть телефона — чтобы вырезать его из адреса
         const from = s[start - 1] === '+' ? start - 1 : (s[start - 2] === '+' && s[start - 1] === '(' ? start - 2 : start);
         spans.push({ start: from, end, phone: '+7' + national });
+        lastNational = national;
       }
       i = best.j + 1;
+    }
+    const local = chunk[0].trim();
+    const localDigits = local.replace(/\D/g, '');
+    if (spans.length === found && lastNational && !lastNational.startsWith('9') &&
+        localDigits.length >= 5 && localDigits.length <= 7 && /^\d[\d\-]*\d$/.test(local) && local.includes('-') &&
+        !/доб\.?\s*$/i.test(s.slice(Math.max(0, chunk.index - 6), chunk.index))) {
+      const national = lastNational.slice(0, 10 - localDigits.length) + localDigits;
+      const start = chunk.index + chunk[0].indexOf(local);
+      spans.push({ start, end: start + local.length, phone: '+7' + national });
     }
   }
   return spans;
@@ -144,6 +160,7 @@ function extractPhones(raw, opts) {
 
 const KNOWN_TLDS = ['ru', 'com', 'net', 'org', 'su', 'info', 'biz', 'pro', 'рф'];
 const EMAIL_RE = /[a-z0-9._%+\-]+@[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.[a-z]{2,}/gi;
+const URL_RE = /(?:https?:\/\/|www\.)[^\s,;]+/gi;
 
 function extractEmails(raw) {
   if (isEmptyCell(raw)) return [];
@@ -207,6 +224,16 @@ const CONTACT_LABEL_RE = /(?:^|[^а-яёa-z])(?:тел(?:ефон[ыа]?)?|тл�
 function cleanAddress(raw, { person = '' } = {}) {
   if (isEmptyCell(raw)) return '';
   let s = String(raw);
+  // Формат справочников: «346770, …, Советская, 83 моб.…8-919-… e-mail: …» —
+  // всё после первой метки с «…» (моб./тел./бух./дир./глава…) это контакты
+  const ellipsis = s.indexOf('…');
+  if (ellipsis > 0) {
+    const tokens = s.slice(0, ellipsis).trimEnd().split(/\s+/);
+    if (/[а-яёa-z]/i.test(tokens[tokens.length - 1] || '')) tokens.pop();
+    while (tokens.length > 1 && /^(?:[а-яё]{1,6}\.|по|и)$/i.test(tokens[tokens.length - 1])) tokens.pop();
+    s = tokens.join(' ');
+  }
+  s = s.replace(URL_RE, ' ');
   const cut = [];
   for (const p of findPhoneSpans(s)) cut.push([p.start, p.end]);
   s = cut.sort((a, b) => b[0] - a[0]).reduce((acc, [a, b]) => acc.slice(0, a) + ' ' + acc.slice(b), s);
@@ -520,7 +547,8 @@ function suggestMapping(cols, types) {
     c => h(c, 'name') + cols[c].org - (cols[c].address >= 0.5 ? 1 : 0) - c * 0.001);
 
   pick('address',
-    c => c !== nameCol && cols[c].email < 0.5 && cols[c].innValid < 0.5 &&
+    // колонка с email подходит под адрес, только если в ней есть и сам адрес
+    c => c !== nameCol && !(cols[c].email >= 0.5 && cols[c].address < 0.3) && cols[c].innValid < 0.5 &&
       (h(c, 'address') === 1 || cols[c].address >= 0.3 || (h(c, 'address') && cols[c].numeric < 0.5)),
     c => h(c, 'address') + cols[c].address - c * 0.001);
   const addressCol = map.address;
@@ -732,7 +760,21 @@ function nameKey(name) {
  * проходом по индексу shortName: ключи реестра не копятся в памяти, сверяются
  * с небольшим набором ключей из файла. Раньше был LIKE '%…%' с JS-функцией
  * на каждую строку файла — полный скан таблицы на строку.
+ * Названия вроде «Восход»/«Маяк» есть в десятках регионов, поэтому если у
+ * записи известен индекс или регион — компания из реестра должна быть оттуда же.
  */
+function regionHints(text) {
+  const t = String(text || '').toLowerCase().replace(/ё/g, 'е');
+  const hints = new Set();
+  for (const m of t.matchAll(/(?:^|\D)(\d{6})(?!\d)/g)) hints.add('#' + m[1].slice(0, 2));
+  for (const m of t.matchAll(/([а-я]{4,}(?:ская|ский|ской|ская))\s+(?:обл|край|респ)|(?:обл(?:асть|\.)?|край|респ(?:ублика|\.)?)\s+([а-я]{4,})/g)) {
+    hints.add((m[1] || m[2]).slice(0, 6));
+  }
+  if (/(?:^|[^а-я])лнр(?:[^а-я]|$)|луганская\s+народная/.test(t)) hints.add('луганс');
+  if (/(?:^|[^а-я])днр(?:[^а-я]|$)|донецкая\s+народная/.test(t)) hints.add('донецк');
+  return hints;
+}
+
 function findInRegistry(db, records) {
   const inns = new Set();
   const innList = [...new Set(records.map(r => r.inn).filter(Boolean))];
@@ -741,16 +783,41 @@ function findInRegistry(db, records) {
     db.prepare(`SELECT DISTINCT inn FROM declarations WHERE inn IN (${part.map(() => '?').join(',')})`)
       .all(...part).forEach(r => inns.add(r.inn));
   }
+
   const wanted = new Set(records.filter(r => !r.inn && r.name).map(r => nameKey(r.name)).filter(k => k.length >= 3));
-  const names = new Set();
+  const shortNamesByKey = new Map();
   if (wanted.size) {
     const stmt = db.prepare("SELECT DISTINCT shortName FROM declarations WHERE shortName IS NOT NULL AND shortName != ''");
     for (const { shortName } of stmt.iterate()) {
       const key = nameKey(shortName);
-      if (wanted.has(key)) names.add(key);
+      if (!wanted.has(key)) continue;
+      if (!shortNamesByKey.has(key)) shortNamesByKey.set(key, []);
+      shortNamesByKey.get(key).push(shortName);
     }
   }
-  return rec => (rec.inn ? inns.has(rec.inn) : !!rec.name && names.has(nameKey(rec.name)));
+  // регионы компаний-тёзок из реестра (по индексу shortName)
+  const regionsByKey = new Map();
+  const allShortNames = [...shortNamesByKey.values()].flat();
+  const keyOf = new Map([...shortNamesByKey].flatMap(([k, list]) => list.map(n => [n, k])));
+  for (let i = 0; i < allShortNames.length; i += 500) {
+    const part = allShortNames.slice(i, i + 500);
+    const rows = db.prepare(`SELECT DISTINCT shortName, address FROM declarations WHERE shortName IN (${part.map(() => '?').join(',')})`).all(...part);
+    for (const { shortName, address } of rows) {
+      const key = keyOf.get(shortName);
+      if (!regionsByKey.has(key)) regionsByKey.set(key, new Set());
+      for (const h of regionHints(address)) regionsByKey.get(key).add(h);
+    }
+  }
+
+  return rec => {
+    if (rec.inn) return inns.has(rec.inn);
+    const key = rec.name ? nameKey(rec.name) : '';
+    if (!shortNamesByKey.has(key)) return false;
+    const own = regionHints(rec.address);
+    if (!own.size) return true;
+    const theirs = regionsByKey.get(key) || new Set();
+    return [...own].some(h => theirs.has(h));
+  };
 }
 
 module.exports = {
