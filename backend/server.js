@@ -56,8 +56,13 @@ app.use(helmet({
       scriptSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
       scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'unpkg.com'],
-      imgSrc: ["'self'", 'data:', 'server.arcgisonline.com'],
-      connectSrc: ["'self'"],
+      // blob: — MapLibre рисует тайлы через worker и OffscreenCanvas;
+      // tiles.openfreemap.org — векторные тайлы и шрифты подписей карты
+      // (грузятся через fetch, поэтому именно connect-src, а не font-src)
+      imgSrc: ["'self'", 'data:', 'blob:'],
+      connectSrc: ["'self'", 'https://tiles.openfreemap.org'],
+      workerSrc: ["'self'", 'blob:'],
+      childSrc: ["'self'", 'blob:'],
       fontSrc: ["'self'", 'data:'],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],

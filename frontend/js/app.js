@@ -7,6 +7,8 @@ const State = {
   mapInstance: null,
   mapInitialized: false,
   mapAllCities: [],
+  mapCityInfo: new Map(),
+  mapPopup: null,
   mapFilter: '',
   curFarmerFilter: '',
   curFolderOpen: null,
@@ -308,7 +310,7 @@ function showPage(name) {
       State.mapInitialized = true;
       setTimeout(initMap, 150);
     } else if (State.mapInstance) {
-      setTimeout(() => State.mapInstance.invalidateSize(), 50);
+      setTimeout(() => State.mapInstance.resize(), 50);
     }
   }
 
@@ -590,20 +592,79 @@ function markerColorByType(ft) {
   return '#378ADD';
 }
 
-async function initMap() {
-  State.mapInstance = L.map('map', { zoomControl: true, preferCanvas: true, attributionControl: true }).setView([55, 55], 4);
-  // CartoDB Voyager: чистая нейтральная стилистика, показывает границы без
-  // мелких флажков-иконок для спорных территорий (в отличие от Esri World_Street_Map,
-  // где над Крымом висит украинский флаг). Свободное анонимное использование,
-  // рендер работает из России без API-ключа.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(State.mapInstance);
+// MapLibre + векторные тайлы OpenFreeMap (OSM) со своим стилем map/style-ru.json:
+// подписи только по-русски, Крым, Севастополь, ДНР, ЛНР, Запорожская и Херсонская
+// области — в составе РФ. Растровые подложки для этого не годятся: язык подписей и
+// линии границ впечатаны в картинку (у Esri над Крымом висел флаг Украины, у
+// CartoDB области Донбасса подписаны по-украински).
+function initMap() {
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'map/style-ru.json',
+    center: [55, 55],   // MapLibre принимает [долгота, широта], а не [широта, долгота]
+    zoom: 3,            // зум MapLibre на единицу «крупнее» лифлетовского
+    minZoom: 2,
+    maxZoom: 15,
+    dragRotate: false,
+    pitchWithRotate: false,
+    attributionControl: { compact: true },
+  });
+  State.mapInstance = map;
+  map.touchZoomRotate.disableRotation();
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+  map.on('error', e => console.warn('[map]', (e.error && e.error.message) || e.type));
 
-  setTimeout(() => State.mapInstance.invalidateSize(), 100);
-  await loadMapData();
+  let loaded = false;
+  map.once('load', () => { loaded = true; onMapLoad(map); });
+  // подложка тянется со сторонней CDN — если её не отдали, не оставляем
+  // пользователя с вечным «Загрузка данных...»
+  setTimeout(() => {
+    if (loaded) return;
+    const loaderEl = document.getElementById('mapLoader');
+    loaderEl.style.display = 'block';
+    loaderEl.innerHTML = 'Подложка карты не загрузилась. Проверьте доступ в интернет и обновите страницу.';
+  }, 20000);
+}
+
+function onMapLoad(map) {
+  map.addSource('cities', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'cities-circle',
+    type: 'circle',
+    source: 'cities',
+    paint: {
+      'circle-radius': ['get', 'r'],
+      'circle-color': ['get', 'color'],
+      'circle-opacity': 0.75,
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': 2.5,
+    },
+  });
+
+  const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: 'map-tip' });
+  map.on('mousemove', 'cities-circle', e => {
+    map.getCanvas().style.cursor = 'pointer';
+    const f = e.features[0];
+    tip.setLngLat(f.geometry.coordinates)
+       .setHTML(`<b>${escHtml(f.properties.city)}</b>: ${f.properties.count} декл.`)
+       .addTo(map);
+  });
+  map.on('mouseleave', 'cities-circle', () => { map.getCanvas().style.cursor = ''; tip.remove(); });
+  map.on('click', 'cities-circle', e => {
+    tip.remove();
+    const f = e.features[0];
+    // в свойствах точки лежит только название города: вложенные объекты
+    // GeoJSON-источник сериализует в строки, поэтому список компаний держим рядом
+    const info = State.mapCityInfo.get(f.properties.city);
+    if (!info) return;
+    if (State.mapPopup) State.mapPopup.remove();
+    State.mapPopup = new maplibregl.Popup({ maxWidth: '340px', className: 'map-popup' })
+      .setLngLat(f.geometry.coordinates)
+      .setHTML(buildMapPopup(info))
+      .addTo(map);
+  });
+
+  loadMapData();
 }
 
 async function loadMapData(retry = 0) {
@@ -635,19 +696,22 @@ function setMapFilter(btn, ft) {
   document.querySelectorAll('.map-fc').forEach(b => {
     b.className = 'map-fc' + (b === btn ? (ft === 'farmer' ? ' farmer-act' : ft === 'trader' ? ' trader-act' : ' act') : '');
   });
+  if (State.mapPopup) { State.mapPopup.remove(); State.mapPopup = null; }
   if (State.mapInstance) {
-    State.mapInstance.eachLayer(l => { if (l instanceof L.CircleMarker) State.mapInstance.removeLayer(l); });
     const total = State.mapAllCities.reduce((s, c) => s + c.count, 0);
     renderMarkers(State.mapAllCities, total);
   }
 }
 
 function renderMarkers(cities, totalDecl) {
-  let mapped = 0, unmapped = 0, mappedDecl = 0;
+  const map = State.mapInstance;
+  const features = [];
+  State.mapCityInfo = new Map();
+  let mapped = 0, mappedDecl = 0;
 
   for (const c of cities) {
     const coords = getCityCoords(c.city);
-    if (!coords) { unmapped++; continue; }
+    if (!coords) continue;
 
     let orgs = c.orgs;
     let count = c.count;
@@ -662,27 +726,27 @@ function renderMarkers(cities, totalDecl) {
 
     mapped++;
     mappedDecl += count;
-    const r = Math.max(8, Math.min(40, 8 + Math.sqrt(count) * 2.8));
-    const color = State.mapFilter ? markerColorByType(State.mapFilter) : markerColor(count);
+    State.mapCityInfo.set(c.city, { ...c, orgs, count });
+    features.push({
+      type: 'Feature',
+      properties: {
+        city: c.city,
+        count,
+        r: Math.max(8, Math.min(40, 8 + Math.sqrt(count) * 2.8)),
+        color: State.mapFilter ? markerColorByType(State.mapFilter) : markerColor(count),
+      },
+      geometry: { type: 'Point', coordinates: [coords[1], coords[0]] },
+    });
+  }
 
-    const marker = L.circleMarker(coords, {
-      radius: r,
-      fillColor: color,
-      fillOpacity: 0.75,
-      color: '#fff',
-      weight: 2.5,
-      interactive: true,
-    }).addTo(State.mapInstance);
-
-    marker.bindTooltip(`<b>${c.city}</b>: ${count} декл.`, { permanent: false, direction: 'top' });
-    marker.bindPopup(buildMapPopup({ ...c, orgs, count }), { maxWidth: 320, className: 'map-popup' });
+  if (map && map.getSource('cities')) {
+    map.getSource('cities').setData({ type: 'FeatureCollection', features });
   }
 
   document.getElementById('mapCityCount').textContent = mapped;
   document.getElementById('mapDeclCount').textContent = mappedDecl.toLocaleString('ru');
   document.getElementById('mapUnknown').textContent = (totalDecl - mappedDecl).toLocaleString('ru');
-
-  if (mapped === 0) document.getElementById('mapEmpty').style.display = 'block';
+  document.getElementById('mapEmpty').style.display = mapped === 0 ? 'block' : 'none';
 }
 
 function buildMapPopup(c) {
@@ -707,7 +771,7 @@ function buildMapPopup(c) {
 }
 
 function mapOpenDecl(id) {
-  if (State.mapInstance) State.mapInstance.closePopup();
+  if (State.mapPopup) { State.mapPopup.remove(); State.mapPopup = null; }
   openDetail(id);
 }
 
