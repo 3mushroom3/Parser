@@ -18,6 +18,13 @@ const db = new Database(dbPath);
 // дожидались друг друга, а не роняли задание.
 db.pragma('busy_timeout = 15000');
 
+// WAL: в режиме по умолчанию (rollback journal) любая запись блокирует чтение,
+// и на время фоновых заданий сайт отвечал по 5 секунд вместо 0.4. В WAL
+// читатели не ждут писателя вовсе — и для этой базы (постоянный фоновый парсинг
+// + читающие запросы пользователей) это правильный режим. Переключение
+// одноразовое и хранится в самом файле базы.
+db.pragma('journal_mode = WAL');
+
 // SQLite's built-in LOWER() only handles ASCII and leaves Cyrillic unchanged —
 // register a JS-backed lowercasing function so case-insensitive search works for Cyrillic text.
 db.function('lower_u', (s) => (s == null ? s : String(s).toLowerCase()));

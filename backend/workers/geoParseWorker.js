@@ -76,7 +76,12 @@ const processBatch = db.transaction(rows => {
   return { parsed, skipped, places };
 });
 
-try {
+// Между пачками отдаём базу другим: разметка идёт по всему реестру, и без пауз
+// она на несколько минут занимает запись, из-за чего запросы пользователей
+// ждут её в очереди.
+const PAUSE_MS = parseInt(process.env.GEO_PARSE_PAUSE_MS || '40', 10);
+
+(async () => {
   let parsed = 0, skipped = 0, places = 0;
   for (;;) {
     const rows = selectStmt.all(BATCH);
@@ -86,6 +91,7 @@ try {
     skipped += res.skipped;
     places += res.places;
     parentPort.postMessage({ progress: { parsed, skipped, places } });
+    if (PAUSE_MS) await new Promise(r => setTimeout(r, PAUSE_MS));
   }
 
   // Число деклараций на НП — по нему задание геокодирования выбирает, что
@@ -98,6 +104,4 @@ try {
 
   const pending = db.prepare("SELECT COUNT(*) c FROM geo_places WHERE status = 'pending'").get().c;
   parentPort.postMessage({ done: { parsed, skipped, places, pending } });
-} catch (err) {
-  parentPort.postMessage({ error: err.message });
-}
+})().catch(err => parentPort.postMessage({ error: err.message }));
