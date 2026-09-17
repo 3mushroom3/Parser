@@ -7,7 +7,7 @@ const auth = require('../middleware/auth');
 const multer = require('multer');
 const { backfillMissingInn, findAmbiguousInnGroups, resolveAmbiguousGroup, dismissAmbiguousGroup } = require('../services/dedupe');
 const { archiveOldDeclarations, ARCHIVE_AFTER_DAYS } = require('../services/archiver');
-const { importXlsx } = require('../services/xlsImporter');
+const { runImportJob } = require('../services/importJobs');
 
 const xlsUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -229,11 +229,13 @@ router.delete('/groups/:id/members/:userId', auth, requireAdmin, (req, res) => {
 
 // POST /api/admin/import-xlsx — импорт производителей из XLS/XLSX-файла
 router.post('/import-xlsx', auth, requireAdmin, (req, res) => {
-  xlsUpload.single('file')(req, res, (err) => {
+  xlsUpload.single('file')(req, res, async (err) => {
     if (err) return res.status(400).json({ error: err.message });
     if (!req.file) return res.status(400).json({ error: 'Файл не передан' });
     try {
-      const result = importXlsx(req.file.buffer, { skipExisting: req.body.skipExisting === '1' });
+      // Multer получает имя файла как latin1-байты, декодируем в utf8
+      const fileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
+      const result = await runImportJob('adminImport', [req.file.buffer, { skipExisting: req.body.skipExisting === '1', fileName }]);
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(500).json({ error: e.message });

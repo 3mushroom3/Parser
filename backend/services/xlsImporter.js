@@ -1,132 +1,69 @@
 /**
- * Импорт производителей из XLS/XLSX-файла.
+ * Админский импорт производителей из XLS/XLSX/CSV-файла.
  *
- * Формат файла (образец «Луганская НР»):
- *  - Строки 0-2: заголовки/подзаголовки — пропускаем
- *  - Строка 3+: данные. Если колонки «название» и «ИНН» пусты — строка
- *    принадлежит предыдущей компании (ещё одна культура).
- *
- * Колонки (0-based):
- *   1 = название предприятия
- *   2 = ИНН
- *   3 = контакты (адрес + директор + телефон в одной строке)
- *  14 = вид культуры
- *  15 = площадь посевов, га
+ * Структура файла определяется автоматически (services/sheetAnalyzer.js):
+ * лист, строка шапки, колонки названия/ИНН/телефона/адреса/руководителя/
+ * культур/площади — по заголовкам и содержимому. Поддерживаются «смешанные»
+ * ячейки (адрес + директор + телефон в одной, как в образце «Луганская НР»)
+ * и строки-продолжения (доп. культуры компании без названия и ИНН).
  */
-const XLSX = require('xlsx');
-const db   = require('./db');
+const crypto = require('crypto');
+const db = require('./db');
+const {
+  PRODUCER_TYPES, readWorkbook, analyzeWorkbook, buildRecords, findInRegistry, nameKey,
+} = require('./sheetAnalyzer');
 
-const HEADER_ROWS = 3; // строки 0-2 — шапка
+const TYPE_LABELS = {
+  name: 'Название', inn: 'ИНН', phone: 'Телефон', phone2: 'Телефон 2', email: 'Email',
+  address: 'Адрес', person: 'Руководитель', crops: 'Культуры', area: 'Площадь',
+};
 
-// ── Парсинг контактного поля ──────────────────────────────────────────────
-function parseContact(raw) {
-  if (!raw) return { address: '', phone: '', ceoName: '' };
-  const s = String(raw).trim();
+const formatArea = n => `${Number(n.toFixed(2)).toLocaleString('ru-RU')} га`;
 
-  // Телефон: +7 или 8, 10-11 цифр, допускаем пробелы/скобки/дефисы
-  const phoneMatch = s.match(/(?:тел\.?\s*)?(\+?7[\s()\-\d]{9,15}\d)/i) ||
-                     s.match(/(\+7[\d]{10})/);
-  const phone = phoneMatch ? phoneMatch[1].replace(/[^+\d]/g, '') : '';
-
-  // Директор: вариации "Директор Иванов А.А.", "ФИО:", "Фамилия Имя Отчество"
-  // Важно: \w в JS не включает кириллицу, поэтому используем \s вместо [^\w]
-  const ceoMatch = s.match(/директор\s*[-–]?\s*([А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ][а-яё.]+)+)/i) ||
-                   s.match(/(?:\d[\s,]+)([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)(?:\s*,|\s*\+|\s*$)/i) ||
-                   s.match(/,\s*([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)\s*,/);
-  const ceoName = ceoMatch
-    ? ceoMatch[1].trim()
-        .replace(/\s+(?:тел|тлф|phone|факс)\.?\s*$/i, '')  // убрать "тел." в конце
-        .replace(/,\s*$/, '')
-        .trim()
-    : '';
-
-  // Адрес: всё до первого упоминания директора или телефона
-  const addrEnd = s.search(/директор|тел\.|(\+7|8\()\d{3}/i);
-  const address = (addrEnd > 0 ? s.slice(0, addrEnd) : s)
-    .replace(/,$/, '').trim();
-
-  return { address, phone, ceoName };
-}
-
-// ── Нормализуем строки культур ────────────────────────────────────────────
-function normCrops(raw) {
-  if (!raw) return [];
-  return String(raw)
-    .split(/[,;/\n\t]+/)
-    .map(c => c.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+function describeAreas(areas) {
+  if (!areas.length) return '';
+  if (areas.length === 1) return formatArea(areas[0].area);
+  const total = areas.reduce((s, a) => s + a.area, 0);
+  const parts = areas.map(a => (a.crops.length ? `${a.crops.join(', ')}: ` : '') + formatArea(a.area));
+  return `${parts.join('; ')} (всего ${formatArea(total)})`;
 }
 
 // ── Основная функция импорта ──────────────────────────────────────────────
 function importXlsx(buffer, options = {}) {
-  const { skipExisting = false } = options;
+  const { skipExisting = false, fileName = '' } = options;
 
-  const wb   = XLSX.read(buffer, { type: 'buffer' });
-  const ws   = wb.Sheets[wb.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+  const wb = readWorkbook(buffer, fileName);
+  const analysis = analyzeWorkbook(wb, { types: PRODUCER_TYPES });
+  if (!analysis) throw new Error('Файл пустой или не читается');
 
-  // Группируем строки по компаниям
-  const companies = [];
-  let cur = null;
-
-  for (let i = HEADER_ROWS; i < rows.length; i++) {
-    const r = rows[i];
-    if (!r || r.every(c => c === null || c === undefined || c === '')) continue;
-
-    const rawName = r[1];
-    const rawInn  = r[2];
-    const name = rawName ? String(rawName).trim() : '';
-    const inn  = rawInn  ? String(rawInn ).replace(/\D/g, '') : '';
-
-    if (name) {
-      // Новая компания
-      cur = { name, inn, rawContact: r[3] || '', crops: [], areaByСrop: {} };
-      companies.push(cur);
-    }
-    // Культура текущей компании
-    if (cur) {
-      const cropCell = r[14];
-      const areaCell = r[15];
-      if (cropCell) {
-        normCrops(cropCell).forEach(c => {
-          if (!cur.crops.includes(c)) {
-            cur.crops.push(c);
-            if (areaCell) cur.areaByСrop[c] = Number(areaCell) || 0;
-          }
-        });
-      }
-    }
+  const { sheetName, rows, layout, suggested } = analysis;
+  if (suggested.name < 0 && suggested.inn < 0) {
+    throw new Error('Не удалось найти колонку с названием или ИНН производителя. Проверьте, что в файле есть шапка «Наименование»/«ИНН».');
   }
+
+  const detected = {};
+  for (const [type, col] of Object.entries(suggested)) {
+    if (col >= 0) detected[TYPE_LABELS[type] || type] = layout.labels[col] || `Колонка ${col + 1}`;
+  }
+
+  const { records, stats } = buildRecords(rows, layout, suggested);
+  const companies = records.filter(r => r.name || r.inn);
 
   // ── Запись в БД ───────────────────────────────────────────────────────
-  const result = { total: companies.length, inserted: 0, enriched: 0, skipped: 0, errors: [] };
+  const result = {
+    total: companies.length, inserted: 0, enriched: 0, skipped: 0, errors: [],
+    sheetName, detected, mergedRows: stats.merged,
+  };
 
-  // Один запрос вместо 134: собираем все ИНН и имена, получаем какие уже есть
-  const innsFromFile = companies.map(c => c.inn).filter(Boolean);
-  const namesFromFile = companies.map(c => c.name).filter(Boolean);
-
-  const existingInns = new Set();
-  const existingNames = new Set();
-
-  if (innsFromFile.length) {
-    const rows = db.prepare(
-      `SELECT DISTINCT inn FROM declarations WHERE inn IN (${innsFromFile.map(() => '?').join(',')}) AND inn != ''`
-    ).all(...innsFromFile);
-    rows.forEach(r => existingInns.add(r.inn));
-  }
-  if (namesFromFile.length) {
-    // Ищем по первым 10 символам lower_u (быстрее, чем полный скан)
-    const nameRows = db.prepare(
-      `SELECT DISTINCT lower_u(shortName) as sn FROM declarations WHERE source != 'xls_import' AND length(shortName) > 3 LIMIT 50000`
-    ).all();
-    nameRows.forEach(r => { if (r.sn) existingNames.add(r.sn); });
-  }
+  // Какие ИНН и названия уже есть в реестре — пачкой, без запроса на строку
+  const inRegistry = findInRegistry(db, companies);
 
   const upsertCompany = db.prepare(`
-    INSERT INTO companies (id, inn, name, phone, ceoName, notes, updatedAt)
-    VALUES (@id, @inn, @name, @phone, @ceoName, @notes, CURRENT_TIMESTAMP)
+    INSERT INTO companies (id, inn, name, phone, email, ceoName, notes, updatedAt)
+    VALUES (@id, @inn, @name, @phone, @email, @ceoName, @notes, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       phone    = COALESCE(NULLIF(excluded.phone, ''), companies.phone),
+      email    = COALESCE(NULLIF(excluded.email, ''), companies.email),
       ceoName  = COALESCE(NULLIF(excluded.ceoName, ''), companies.ceoName),
       notes    = COALESCE(NULLIF(companies.notes, ''), excluded.notes),
       updatedAt = CURRENT_TIMESTAMP
@@ -142,56 +79,54 @@ function importXlsx(buffer, options = {}) {
   const doImport = db.transaction(() => {
     for (const c of companies) {
       try {
-        const { address, phone, ceoName } = parseContact(c.rawContact);
         const companyKey = c.inn || c.name;
+        const phones = c.phones.join(', ');
         const cropsStr = c.crops.join(', ');
-        const areaStr  = Object.entries(c.areaByСrop)
-          .map(([cr, a]) => `${cr}: ${a} га`)
-          .join('; ');
+        const areaStr = describeAreas(c.areas);
 
         // Всё из XLS пишем в заметки — description не трогаем,
         // чтобы не затирать то, что admin написал вручную
         const xlsParts = [
-          address  ? `Адрес: ${address}`          : '',
-          ceoName  ? `Директор: ${ceoName}`        : '',
-          cropsStr ? `Культуры: ${cropsStr}`       : '',
-          areaStr  ? `Посевная площадь: ${areaStr}` : '',
+          c.address        ? `Адрес: ${c.address}`              : '',
+          c.person         ? `Руководитель: ${c.person}`        : '',
+          c.phones.length > 1 ? `Телефоны: ${phones}`           : '',
+          c.emails.length  ? `Email: ${c.emails.join(', ')}`    : '',
+          cropsStr         ? `Культуры: ${cropsStr}`            : '',
+          areaStr          ? `Посевная площадь: ${areaStr}`     : '',
         ].filter(Boolean);
-        const notes = xlsParts.length
-          ? `📥 Из XLS-базы\n${xlsParts.join('\n')}`
-          : null;
+        const notes = xlsParts.length ? `📥 Из XLS-базы\n${xlsParts.join('\n')}` : null;
 
         upsertCompany.run({
           id:      companyKey,
           inn:     c.inn || null,
-          name:    c.name,
-          phone:   phone  || null,
-          ceoName: ceoName || null,
+          name:    c.name || null,
+          phone:   phones || null,
+          email:   c.emails[0] || null,
+          ceoName: c.person || null,
           notes,
         });
 
-        // Проверяем по заранее загруженным множествам (без повторных SQL-запросов)
-        const exists = (c.inn && existingInns.has(c.inn)) ||
-                       existingNames.has((c.name || '').toLowerCase());
+        const exists = inRegistry(c);
 
         if (!exists && !skipExisting) {
-          const declId = 'xls_' + companyKey.replace(/\W/g, '_') + '_' + Date.now() % 100000;
-          insertDecl.run({
+          // Стабильный id: повторный импорт того же файла не плодит дубли
+          const declId = 'xls_' + (c.inn || crypto.createHash('sha1').update(nameKey(c.name) || c.name).digest('hex').slice(0, 16));
+          const { changes } = insertDecl.run({
             id:          declId,
-            shortName:   c.name,
+            shortName:   c.name || c.inn,
             inn:         c.inn || '',
-            address:     address || '',
-            phone:       phone  || '',
+            address:     c.address || '',
+            phone:       c.phones[0] || '',
             productName: cropsStr || '',
           });
-          result.inserted++;
+          changes ? result.inserted++ : result.enriched++;
         } else if (exists) {
           result.enriched++;
         } else {
           result.skipped++;
         }
       } catch (e) {
-        result.errors.push({ company: c.name, error: e.message });
+        result.errors.push({ company: c.name || c.inn, error: e.message });
       }
     }
   });

@@ -360,9 +360,9 @@
     <!-- Upload zone -->
     <div id="mydbUploadZone" style="display:none;background:var(--surf2);border:2px dashed var(--border);border-radius:var(--rl);padding:20px;margin-bottom:18px;text-align:center">
       <div style="font-size:13px;color:var(--muted);margin-bottom:12px">
-        Загрузите файл с базой контактов — шапка может быть любой, система сама определит колонки.<br>
-        После загрузки вы <b>сами назначите</b> какая колонка что означает (ИНН, телефон, email и т.д.).<br>
-        <span style="font-size:12px">Форматы: XLS, XLSX, CSV &nbsp;·&nbsp; Максимум 10 МБ &nbsp;·&nbsp; До 100 000 строк</span>
+        Загрузите файл с базой контактов — шапка и порядок колонок могут быть любыми, система сама определит колонки<br>
+        (в том числе если адрес, руководитель и телефоны записаны в одной ячейке). Перед импортом вы сможете всё проверить и поправить.<br>
+        <span style="font-size:12px">Форматы: XLS, XLSX, ODS, CSV &nbsp;·&nbsp; Максимум 50 МБ &nbsp;·&nbsp; До 100 000 строк</span>
       </div>
       <div id="mydbDropArea" style="border:2px dashed #93c5fd;border-radius:var(--r);padding:18px 24px;cursor:pointer;margin-bottom:10px;transition:.2s"
            onclick="document.getElementById('mydbFileInput').click()"
@@ -523,9 +523,9 @@
     </div>
     <div style="margin-top:28px;margin-bottom:12px">
       <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">📥 Импорт из XLS/XLSX</h3>
-      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Загрузите файл с производителями (формат: название, ИНН, адрес/директор/телефон, культуры). Если производитель уже есть в ФСА-базе — только обновится карточка компании. Если нет — создастся новая запись для поиска.</p>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:10px">Загрузите файл с производителями — колонки (название, ИНН, телефон, адрес, руководитель, культуры, площадь) определяются автоматически по шапке и содержимому, в любом порядке. Если производитель уже есть в ФСА-базе — только обновится карточка компании. Если нет — создастся новая запись для поиска.</p>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
-        <input type="file" id="xlsFileInput" accept=".xls,.xlsx" style="font-size:12px">
+        <input type="file" id="xlsFileInput" accept=".xls,.xlsx,.ods,.csv" style="font-size:12px">
         <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--muted)">
           <input type="checkbox" id="xlsSkipExisting"> Пропускать, если нет в ФСА
         </label>
@@ -919,6 +919,7 @@
     <span style="font-size:12px;padding:3px 10px;border-radius:10px;background:#FFDDC1;color:#7F2000;border:1px solid #7F200040">🔶 Телефон 2</span>
     <span style="font-size:12px;padding:3px 10px;border-radius:10px;background:#FFEB9C;color:#9C5700;border:1px solid #9C570040">🟡 Email</span>
     <span style="font-size:12px;padding:3px 10px;border-radius:10px;background:#E2EFDA;color:#375623;border:1px solid #37562340">🟩 Адрес</span>
+    <span style="font-size:12px;padding:3px 10px;border-radius:10px;background:#E4DFEC;color:#5B3E7A;border:1px solid #5B3E7A40">🟣 Контактное лицо</span>
   </div>
 
   <!-- Table -->

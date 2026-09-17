@@ -1091,7 +1091,7 @@ async function openCompany(inn, name) {
       </div>
     </div>
     <div class="dg" style="margin-bottom:18px;gap:10px 20px">
-      <div class="df"><div class="df-l">Телефон</div><div class="df-v">${p.phone || p.ebPhone || '—'}</div></div>
+      <div class="df"><div class="df-l">Телефон</div><div class="df-v">${escHtml(p.phone || p.ebPhone || '—')}</div></div>
       ${(p.ebCeoName && !fioStr) ? `<div class="df full"><div class="df-l">Директор</div><div class="df-v">${escHtml(p.ebCeoName)}</div></div>` : ''}
       ${fioStr ? `<div class="df full"><div class="df-l">ФИО</div><div class="df-v">${fioStr}</div></div>` : ''}
       ${applicantHtml}
@@ -2006,7 +2006,10 @@ async function importXlsFile() {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showAlert(j.error || 'Ошибка импорта', 'err'); return; }
     const errors = j.errors?.length ? ` · ошибок: ${j.errors.length}` : '';
-    resultEl.innerHTML = `✅ Всего: <b>${j.total}</b> компаний · новых: <b>${j.inserted}</b> · обогащено: <b>${j.enriched}</b>${errors}`;
+    const detected = Object.entries(j.detected || {})
+      .map(([type, col]) => `${escHtml(type)} ← «${escHtml(String(col).slice(0, 40))}»`).join('; ');
+    resultEl.innerHTML = `✅ Всего: <b>${j.total}</b> компаний · новых: <b>${j.inserted}</b> · обогащено: <b>${j.enriched}</b>${errors}` +
+      (detected ? `<div style="color:var(--muted);margin-top:4px">Лист «${escHtml(j.sheetName || '')}». Колонки: ${detected}</div>` : '');
     resultEl.style.display = 'block';
     showAlert(`Импорт завершён: ${j.inserted} новых, ${j.enriched} обновлено`);
     if (j.errors?.length) console.warn('[XLS] Ошибки:', j.errors);
@@ -2389,6 +2392,7 @@ const MYDB_TYPES = {
   phone2:  { label: 'Телефон 2',    bg: '#FFDDC1', color: '#7F2000', icon: '🔶' },
   email:   { label: 'Email',        bg: '#FFEB9C', color: '#9C5700', icon: '🟡' },
   address: { label: 'Адрес',        bg: '#E2EFDA', color: '#375623', icon: '🟩' },
+  person:  { label: 'Контактное лицо', bg: '#E4DFEC', color: '#5B3E7A', icon: '🟣' },
 };
 
 function toggleMydbUpload() {
@@ -2410,7 +2414,7 @@ function handleMydbFileInput(input) {
 async function startMydbPreview(file) {
   if (State.mydbUploading) return;
 
-  const MAX_MB = 10;
+  const MAX_MB = 50;
   if (file.size > MAX_MB * 1024 * 1024) {
     const prog = document.getElementById('mydbUploadProgress');
     const res  = document.getElementById('mydbUploadResult');
@@ -2475,14 +2479,20 @@ function openMydbColPicker(previewData) {
   // Применяем подсказку (каждый тип → массив)
   const sc = previewData.suggestedCols || {};
   for (const [type, idx] of Object.entries(sc)) {
-    if (idx >= 0) {
+    if (idx >= 0 && MYDB_TYPES[type]) {
       if (!State.mydbMapping[idx]) State.mydbMapping[idx] = [];
       State.mydbMapping[idx].push(type);
     }
   }
 
-  document.getElementById('mydbColModalSub').textContent =
-    `${previewData.originalName} · ${previewData.headers.length} колонок · нажмите на заголовок и выберите тип(ы)`;
+  const info = [previewData.originalName];
+  if (previewData.sheetCount > 1) info.push(`лист «${previewData.sheetName}»`);
+  if (previewData.dataRows) info.push(`${previewData.dataRows} строк данных`);
+  info.push(previewData.headerRow ? `шапка в строке ${previewData.headerRow}` : 'без шапки');
+  const autoFound = Object.values(sc).some(i => i >= 0);
+  document.getElementById('mydbColModalSub').textContent = info.join(' · ') + ' · ' + (autoFound
+    ? 'колонки определены автоматически — проверьте и при необходимости исправьте, нажав на заголовок'
+    : 'нажмите на заголовок и выберите тип(ы)');
 
   renderColPickerTable();
   openModal('mydbColModal');
@@ -2649,8 +2659,12 @@ function _refreshColHeader(colIdx) {
 }
 
 function updateMydbColStatus() {
-  const ok = _hasType('phone') || _hasType('phone2') || _hasType('email');
-  document.getElementById('mydbColConfirmBtn').disabled = !ok;
+  const hasContact = _hasType('phone') || _hasType('phone2') || _hasType('email');
+  const hasKey = _hasType('inn') || _hasType('name');
+  const btn = document.getElementById('mydbColConfirmBtn');
+  btn.disabled = !(hasContact && hasKey);
+  btn.title = !hasContact ? 'Назначьте колонку с Телефоном или Email'
+    : !hasKey ? 'Назначьте колонку с ИНН или Названием' : '';
 
   const parts = [];
   for (const [idxStr, types] of Object.entries(State.mydbMapping)) {
@@ -2692,11 +2706,14 @@ async function confirmMydbMapping() {
 
     const res = document.getElementById('mydbUploadResult');
     res.style.display = 'block';
+    const extra = [];
+    if (data.noContacts) extra.push(`без телефона и email: ${data.noContacts}`);
+    if (data.merged) extra.push(`строк-продолжений объединено: ${data.merged}`);
     res.innerHTML = `<div style="color:#16a34a;font-size:13px;background:#f0fdf4;padding:10px 14px;border-radius:var(--r)">
-      ✅ <b>${escHtml(originalName || 'Файл')}</b> импортирован: <b>${data.total}</b> строк
+      ✅ <b>${escHtml(originalName || 'Файл')}</b> импортирован: <b>${data.imported}</b> компаний
       &nbsp;·&nbsp; Совпало с реестром: <b>${data.matched}</b>
       &nbsp;·&nbsp; Только у вас: <b>${data.private}</b>
-      &nbsp;·&nbsp; Пропущено: ${data.skipped}
+      ${extra.length ? `<div style="color:var(--muted);font-size:12px;margin-top:4px">${extra.join(' · ')}</div>` : ''}
     </div>`;
     loadMydbPage();
   } catch(e) {
@@ -2738,7 +2755,7 @@ async function loadMydbPage() {
           <div style="font-size:12px;color:var(--muted)">${u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—'} &nbsp;·&nbsp; ${(u.fileSize/1024).toFixed(0)} КБ</div>
         </div>
         <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
-          <div><span style="color:var(--muted)">Всего строк:</span> <b>${u.totalRows}</b></div>
+          <div><span style="color:var(--muted)">Записей:</span> <b>${u.totalRows}</b></div>
           <div><span style="color:var(--muted)">Совпало:</span> <b style="color:#16a34a">${u.matchedRows}</b></div>
           <div><span style="color:var(--muted)">Только у вас:</span> <b style="color:#0a3870">${u.privateRows}</b></div>
         </div>
@@ -2784,7 +2801,8 @@ async function loadMydbPrivate(page) {
     listEl.innerHTML = rows.length ? rows.map(r => `
       <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div style="flex:1;min-width:120px;font-weight:500">${escHtml(r.companyName || '—')}</div>
-        ${r.inn ? `<div style="color:var(--muted);font-size:12px">ИНН: ${r.inn}</div>` : ''}
+        ${r.inn ? `<div style="color:var(--muted);font-size:12px">ИНН: ${escHtml(r.inn)}</div>` : ''}
+        ${r.contactName ? `<div style="font-size:12px">👤 ${escHtml(r.contactName)}</div>` : ''}
         ${r.phone ? `<div style="color:#0a3870">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
         ${r.email ? `<div style="color:var(--muted);font-size:12px">✉ ${escHtml(r.email)}</div>` : ''}
         ${r.address ? `<div style="color:var(--muted);font-size:12px">📍 ${escHtml(r.address).slice(0, 60)}</div>` : ''}
@@ -2816,6 +2834,7 @@ async function loadUserContactsForCard(inn, name) {
 
     const items = data.map(c => {
       const parts = [];
+      if (c.contactName) parts.push(`<span style="font-size:12px">👤 ${escHtml(c.contactName)}</span>`);
       if (c.phone)  parts.push(`<span style="color:#0a3870;font-weight:500">📞 ${escHtml(c.phone)}${c.phone2 ? ' · ' + escHtml(c.phone2) : ''}</span>`);
       if (c.email)  parts.push(`<span style="color:var(--muted);font-size:12px">✉ ${escHtml(c.email)}</span>`);
       if (c.address) parts.push(`<span style="color:var(--muted);font-size:12px">📍 ${escHtml(c.address).slice(0, 60)}</span>`);

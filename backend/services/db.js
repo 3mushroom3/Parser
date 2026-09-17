@@ -306,5 +306,14 @@ const uploadColNames = db.prepare("PRAGMA table_info(user_uploads)").all().map(c
 if (!uploadColNames.includes('status')) {
   db.exec("ALTER TABLE user_uploads ADD COLUMN status TEXT DEFAULT 'processed'");
 }
+// Миграция: разметка листа из превью (лист, строка шапки) — обработка идёт по ней же
+if (!uploadColNames.includes('layout')) {
+  db.exec('ALTER TABLE user_uploads ADD COLUMN layout TEXT');
+}
+// Миграция: ФИО руководителя / контактного лица из загруженной базы
+const contactColNames = db.prepare("PRAGMA table_info(user_contacts)").all().map(c => c.name);
+if (!contactColNames.includes('contactName')) {
+  db.exec('ALTER TABLE user_contacts ADD COLUMN contactName TEXT');
+}
 
 module.exports = db;

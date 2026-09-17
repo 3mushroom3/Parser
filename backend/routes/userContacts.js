@@ -4,9 +4,9 @@ const multer  = require('multer');
 const auth    = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const {
-  previewUpload, processWithMapping,
   getUploads, deleteUpload, getContactsForCompany, getPrivateCompanies,
 } = require('../services/userContactsParser');
+const { runImportJob } = require('../services/importJobs');
 
 const MAX_FILE_MB = 50;
 const upload = multer({
@@ -31,7 +31,7 @@ router.post('/preview', auth, requireSubscription, (req, res) => {
     try {
       // Multer получает имя файла как latin1-байты, декодируем в utf8
       const originalname = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-      const result = await previewUpload(req.user.id, req.file.buffer, originalname);
+      const result = await runImportJob('preview', [req.user.id, req.file.buffer, originalname]);
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -40,11 +40,11 @@ router.post('/preview', auth, requireSubscription, (req, res) => {
 });
 
 // POST /api/user/contacts/process — шаг 2: обрабатывает с маппингом пользователя
-router.post('/process', auth, requireSubscription, (req, res) => {
+router.post('/process', auth, requireSubscription, async (req, res) => {
   const { uploadId, mapping } = req.body;
   if (!uploadId || !mapping) return res.status(400).json({ error: 'uploadId и mapping обязательны' });
   try {
-    const result = processWithMapping(req.user.id, Number(uploadId), mapping);
+    const result = await runImportJob('process', [req.user.id, Number(uploadId), mapping]);
     res.json({ ok: true, ...result });
   } catch (e) {
     res.status(400).json({ error: e.message });
