@@ -206,6 +206,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_decl_fsaId ON declarations(fsaId);
   CREATE INDEX IF NOT EXISTS idx_decl_shortName ON declarations(shortName);
   CREATE INDEX IF NOT EXISTS idx_decl_updatedAt ON declarations(updatedAt);
+  CREATE INDEX IF NOT EXISTS idx_decl_status_fetchedAt ON declarations(status, fetchedAt DESC);
 `);
 
 // Migrations for existing databases

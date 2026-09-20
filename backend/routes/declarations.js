@@ -280,6 +280,32 @@ router.get('/map-place', auth, requireSubscription, dataReadLimiter, (req, res) 
   });
 });
 
+// GET /api/declarations/recent — витрина на главной + слой «свежее» на карте.
+// Один и тот же список используют оба потребителя: дашборду координаты не
+// нужны, карте не нужен текст, но обоим дешевле переиспользовать один запрос,
+// чем считать дважды. lat/lon берутся из geo_places (тот же справочник НП,
+// что заполняет geoParseWorker для основной карты) — если НП ещё не
+// геокодирован, координаты просто отсутствуют и слой карты эту декларацию
+// не покажет (текстовая витрина по-прежнему покажет).
+const RECENT_LIMIT_MAX = 100;
+router.get('/recent', auth, requireSubscription, dataReadLimiter, (req, res) => {
+  const limit = Math.min(RECENT_LIMIT_MAX, Math.max(1, Number(req.query.limit) || 30));
+  // fetchedAt, не regDate: regDate — календарная дата без времени (когда
+  // партию зарегистrировали в ФСА), а лента про то, когда МЫ её увидели —
+  // иначе бэкафилл открытых данных выглядел бы как «партия N дней назад».
+  const rows = db.prepare(`
+    SELECT d.id, d.productName, d.batchSize, d.regDate, d.fetchedAt,
+           g.region AS region, g.district AS district, g.label AS place,
+           g.lat AS lat, g.lon AS lon
+    FROM declarations d
+    LEFT JOIN geo_places g ON g.key = d.placeKey
+    WHERE d.status = 'active' AND d.productName IS NOT NULL AND d.productName != ''
+    ORDER BY d.fetchedAt DESC
+    LIMIT ?
+  `).all(limit);
+  res.json({ items: rows });
+});
+
 router.get('/', auth, requireSubscription, dataReadLimiter, (req, res) => {
   const {
     page = 0,

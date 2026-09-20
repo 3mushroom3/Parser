@@ -232,6 +232,7 @@ function showPage(name) {
     }
   }
 
+  if (name === 'registry') loadRecentStrip();
   if (name === 'favorites') loadFavorites();
   if (name === 'notes') loadNotes();
   if (name === 'folders') loadFolders();
@@ -242,6 +243,40 @@ function showPage(name) {
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
+
+// Живая лента: что появилось в реестре за последние минуты/часы — как у
+// конкурента на главной, только без отдельного дашборда, тонкой полоской
+// над таблицей. Тот же /recent используется слоем «Свежее» на карте.
+function timeAgo(iso) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'только что';
+  if (min < 60) return `${min} ${plural(min,'минуту','минуты','минут')} назад`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} ${plural(h,'час','часа','часов')} назад`;
+  const d = Math.floor(h / 24);
+  return `${d} ${plural(d,'день','дня','дней')} назад`;
+}
+
+async function loadRecentStrip() {
+  const wrap = document.getElementById('recentStrip');
+  const itemsEl = document.getElementById('recentStripItems');
+  if (!wrap || !itemsEl) return;
+  try {
+    const data = await apiFetch('/api/declarations/recent?limit=20');
+    const items = data.items || [];
+    if (!items.length) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'flex';
+    itemsEl.innerHTML = items.map(it => {
+      const place = [it.district, it.place].filter(Boolean).join(', ') || it.region || '';
+      const vol = it.batchSize ? ' · ' + escHtml(it.batchSize) : '';
+      return `<div onclick="openDetail('${it.id}')" style="flex:none;cursor:pointer;padding:4px 10px;background:var(--surface);border:1px solid var(--border);border-radius:999px;font-size:11.5px;white-space:nowrap" title="${escHtml(place)}">
+        <b>${escHtml(it.productName)}</b>${vol}${place ? ' · ' + escHtml(place) : ''} · <span style="color:var(--muted)">${timeAgo(it.fetchedAt)}</span>
+      </div>`;
+    }).join('');
+  } catch (_) { wrap.style.display = 'none'; }
+}
+
 let _tableLoadSeq = 0;
 async function loadTable() {
   const seq = ++_tableLoadSeq;
@@ -620,7 +655,51 @@ function onMapLoad(map) {
     openPlacePopup(map, e.features[0]);
   });
 
+  // Слой «Свежее»: последние декларации поверх обычных точек НП — та же идея,
+  // что живая лента над таблицей реестра, только на карте. Не кластеризуется
+  // (максимум 100 точек), скрыт до первого включения тумблера.
+  map.addSource('recent', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'recent-point',
+    type: 'circle',
+    source: 'recent',
+    layout: { visibility: 'none' },
+    paint: {
+      'circle-radius': 7,
+      'circle-color': '#dc2626',
+      'circle-opacity': 0.85,
+      'circle-stroke-color': '#fff',
+      'circle-stroke-width': 2,
+    },
+  });
+  map.on('mousemove', 'recent-point', hover(p => `<b>${escHtml(p.product)}</b>${p.batch ? ' · ' + escHtml(p.batch) : ''}<br>${escHtml(p.place || '')} · ${p.ago}`));
+  map.on('mouseleave', 'recent-point', unhover);
+  map.on('click', 'recent-point', e => openDetail(e.features[0].properties.id));
+
   loadMapData();
+}
+
+let _recentLayerLoaded = false;
+async function toggleRecentLayer(checked) {
+  const map = State.mapInstance;
+  if (!map || !map.getLayer('recent-point')) return;
+  map.setLayoutProperty('recent-point', 'visibility', checked ? 'visible' : 'none');
+  if (checked && !_recentLayerLoaded) {
+    _recentLayerLoaded = true;
+    try {
+      const data = await apiFetch('/api/declarations/recent?limit=100');
+      const features = (data.items || [])
+        .filter(it => it.lat && it.lon)
+        .map(it => ({
+          type: 'Feature',
+          properties: { id: it.id, product: it.productName, batch: it.batchSize,
+            place: [it.district, it.place].filter(Boolean).join(', ') || it.region || '',
+            ago: timeAgo(it.fetchedAt) },
+          geometry: { type: 'Point', coordinates: [it.lon, it.lat] },
+        }));
+      map.getSource('recent').setData({ type: 'FeatureCollection', features });
+    } catch (_) { _recentLayerLoaded = false; }
+  }
 }
 
 // Список компаний по НП тянем по клику: в общем ответе карты его больше нет —
@@ -2348,6 +2427,7 @@ function initApp() {
       openModal('noAccessModal');
     }
   });
+  loadRecentStrip();
   pollStatus();
 }
 

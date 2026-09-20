@@ -240,6 +240,13 @@
           </div>
         </div>
 
+        <!-- Свежие декларации -->
+        <div id="recentStrip" style="display:none;align-items:center;gap:10px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">
+          <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;display:inline-block;animation:recentPulse 2s infinite"></span>Свежее</span>
+          <div id="recentStripItems" style="display:flex;gap:8px;overflow-x:auto;flex:1;scrollbar-width:none"></div>
+        </div>
+        <style>@keyframes recentPulse{0%,100%{opacity:1}50%{opacity:.3}}</style>
+
         <!-- Toolbar -->
         <div class="tb">
           <div class="sw">
@@ -320,6 +327,10 @@
         <button class="map-fc" data-ft="farmer" onclick="setMapFilter(this,'farmer')">Производители</button>
         <button class="map-fc" data-ft="trader" onclick="setMapFilter(this,'trader')">Трейдеры</button>
       </div>
+      <label style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;color:var(--text);cursor:pointer">
+        <input type="checkbox" id="mapRecentToggle" onchange="toggleRecentLayer(this.checked)">
+        🔴 Свежие декларации
+      </label>
     </div>
     <div class="map-legend">
       <div class="map-legend-title">Деклараций</div>
