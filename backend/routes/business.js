@@ -22,6 +22,7 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
 
   const first = records[0];
   const key = inn || name;
+  db.prepare('INSERT INTO companies (id, viewCount) VALUES (?, 1) ON CONFLICT(id) DO UPDATE SET viewCount = viewCount + 1').run(key);
   const companyInfo = db.prepare('SELECT * FROM companies WHERE id = ?').get(key);
   const contacts = db.prepare('SELECT * FROM contacts WHERE companyId = ? ORDER BY id DESC').all(key);
 
@@ -49,6 +50,7 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
     ebWebsite: companyInfo?.website || '',
     ebCeoName: companyInfo?.ceoName || '',
     ebRevenue: companyInfo?.revenue || '',
+    viewCount: companyInfo?.viewCount || 1,
     contacts,
     lastDeclDate,
     dormant: daysSinceLastDecl != null && daysSinceLastDecl > DORMANT_AFTER_DAYS,

@@ -178,11 +178,15 @@ async function fetchOkvedFromDadata(inn) {
   const rawName = data.name?.short_with_opf || data.name?.full_with_opf || '';
   const name = normalizeOrgName(rawName);
   const regDate = parseDadataDate(data.state?.registration_date);
+  // ЕГРЮЛ-данные, которые dadata отдаёт в том же ответе, но раньше не читались:
+  // руководитель и e-mail из выписки (ФНС с 2023 требует email при регистрации).
+  const director = data.management?.name || '';
+  const egrulEmail = (data.emails || [])[0]?.value || '';
 
   if (primary) {
-    console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length}), имя="${name}"`);
+    console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length}), имя="${name}"${director ? `, рук.="${director}"` : ''}`);
   }
-  return { name, okved: primary, okveds: extras, inn, regDate };
+  return { name, okved: primary, okveds: extras, inn, regDate, director, egrulEmail };
 }
 
 /**
@@ -220,9 +224,11 @@ async function findByNameDadata(name) {
   const foundInn = String(data.inn || '').trim();
   const foundName = data.name?.short_with_opf || match.value || '';
   const regDate = parseDadataDate(data.state?.registration_date);
+  const director = data.management?.name || '';
+  const egrulEmail = (data.emails || [])[0]?.value || '';
 
   if (foundInn) console.log(`[FNS] dadata name:"${name.slice(0,30)}" → ИНН:${foundInn} осн=${primary||'?'}`);
-  return { name: foundName, okved: primary, okveds: extras, inn: foundInn, regDate };
+  return { name: foundName, okved: primary, okveds: extras, inn: foundInn, regDate, director, egrulEmail };
 }
 
 /**

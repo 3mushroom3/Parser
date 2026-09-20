@@ -17,11 +17,11 @@ const insertStmt = db.prepare(`
   INSERT OR IGNORE INTO declarations
     (id, fsaId, declNumber, source, status, productGroup, technicalReglament, regDate, endDate,
      applicantName, lastName, firstName, middleName, shortName, address, phone,
-     productName, batchSize, otherInfo, fsaUrl, fetchedAt, farmerType, inn, productionSites)
+     productName, batchSize, batchTons, otherInfo, fsaUrl, fetchedAt, farmerType, inn, productionSites)
   VALUES
     (@id, @fsaId, @declNumber, @source, @status, @group, @technicalReglament, @regDate, @endDate,
      @applicantName, @lastName, @firstName, @middleName, @shortName, @address, @phone,
-     @productName, @batchSize, @otherInfo, @fsaUrl, @fetchedAt, @farmerType, @inn, @productionSites)
+     @productName, @batchSize, @batchTons, @otherInfo, @fsaUrl, @fetchedAt, @farmerType, @inn, @productionSites)
 `);
 
 const markImportedStmt = db.prepare(`

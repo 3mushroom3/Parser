@@ -7,6 +7,7 @@ const auth = require('../middleware/auth');
 const requireSubscription = require('../middleware/subscription');
 const requireAdmin = require('../middleware/requireAdmin');
 const { dataReadLimiter, exportLimiter } = require('../middleware/rateLimiters');
+const { parseBatchTons } = require('../services/batchSize');
 
 const DORMANT_AFTER_DAYS = 547; // 1.5 года без новых деклараций
 const MAX_PAGE_SIZE = 100; // совпадает с максимумом в UI (см. #pgSize) — больше там никогда не запрашивается
@@ -54,7 +55,9 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req,
     product = '',
     dateFrom = '',
     dateTo = '',
-    farmerType = ''
+    farmerType = '',
+    batchMin = '',
+    batchMax = ''
   } = req.query;
 
   let baseQuery = 'FROM declarations WHERE 1=1';
@@ -74,6 +77,8 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req,
   if (product) { baseQuery += ' AND lower_u(productName) LIKE ?'; params.push(`%${product.toLowerCase()}%`); }
   if (dateFrom) { baseQuery += ' AND regDate >= ?'; params.push(dateFrom); }
   if (dateTo) { baseQuery += ' AND regDate <= ?'; params.push(dateTo); }
+  if (batchMin) { baseQuery += ' AND batchTons >= ?'; params.push(Number(batchMin)); }
+  if (batchMax) { baseQuery += ' AND batchTons <= ?'; params.push(Number(batchMax)); }
   if (farmerType) {
     // Производители = farmer + farmer_trader; Трейдеры = trader + trader_farmer
     if (farmerType === 'farmer') {
@@ -375,12 +380,13 @@ router.post('/', auth, requireAdmin, (req, res) => {
     ...req.body
   };
 
-  const columns = ['id', 'source', 'status', 'fetchedAt', 'declNumber', 'applicantName', 'productGroup', 'technicalReglament', 'regDate', 'endDate', 'lastName', 'firstName', 'middleName', 'shortName', 'address', 'phone', 'productName', 'batchSize', 'otherInfo', 'fsaUrl', 'productionSites'];
+  const columns = ['id', 'source', 'status', 'fetchedAt', 'declNumber', 'applicantName', 'productGroup', 'technicalReglament', 'regDate', 'endDate', 'lastName', 'firstName', 'middleName', 'shortName', 'address', 'phone', 'productName', 'batchSize', 'batchTons', 'otherInfo', 'fsaUrl', 'productionSites'];
 
   const placeholders = columns.map(() => '?').join(', ');
   const values = columns.map(col => {
     if (col === 'productGroup') return rec.group || '';
     if (col === 'productionSites') return JSON.stringify(rec.productionSites || []);
+    if (col === 'batchTons') return parseBatchTons(rec.batchSize);
     return rec[col] || '';
   });
 
@@ -404,6 +410,11 @@ router.put('/:id', auth, requireAdmin, (req, res) => {
       values.push(col === 'productionSites' ? JSON.stringify(updates[col]) : updates[col]);
     }
   });
+
+  if (updates.batchSize !== undefined) {
+    columnsToUpdate.push('batchTons = ?');
+    values.push(parseBatchTons(updates.batchSize));
+  }
 
   if (updates.group !== undefined) {
     columnsToUpdate.push('productGroup = ?');

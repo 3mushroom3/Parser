@@ -2,6 +2,7 @@ const fs = require('fs');
 const { parse } = require('csv-parse');
 const parser = require('./parser');
 const log = require('./logger');
+const { parseBatchTons } = require('./batchSize');
 
 /**
  * Парсинг CSV из открытых данных РДС (см. opendataClient.js) и маппинг строк
@@ -86,6 +87,7 @@ function mapCsvRowToDbRecord(row, fsaBaseUrl) {
     farmerType: 'unknown',
     productName: pick(row, 'Полное наименование'),
     batchSize: pick(row, 'Размер партии'),
+    batchTons: parseBatchTons(pick(row, 'Размер партии')),
     otherInfo: [pick(row, 'Обозначение'), pick(row, 'Стандарт продукции')].filter(Boolean).join(' '),
     fsaUrl: id ? `${fsaBaseUrl}/rds/declaration/view/${id}` : '',
     fetchedAt: new Date().toISOString(),

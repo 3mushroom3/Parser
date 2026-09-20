@@ -265,6 +265,22 @@ for (const col of ['phone','email','website','ceoName','employees','revenue','re
     db.exec(`ALTER TABLE companies ADD COLUMN ${col} ${type}`);
   }
 }
+if (!companiesExCols.includes('viewCount')) {
+  db.exec('ALTER TABLE companies ADD COLUMN viewCount INTEGER NOT NULL DEFAULT 0');
+}
+
+// Тег стадии сделки на заметке (Встреча/Договор/Документы/Звонок/Оплата/Отгрузка/Проверка)
+const notesCols = db.prepare("PRAGMA table_info(notes)").all().map(c => c.name);
+if (!notesCols.includes('stage')) {
+  db.exec('ALTER TABLE notes ADD COLUMN stage TEXT');
+}
+
+// Объём партии в тоннах, числом — для фильтра по диапазону (batchSize остаётся
+// исходной строкой из декларации, batchTons парсится из неё при импорте)
+const declCols = db.prepare("PRAGMA table_info(declarations)").all().map(c => c.name);
+if (!declCols.includes('batchTons')) {
+  db.exec('ALTER TABLE declarations ADD COLUMN batchTons REAL');
+}
 
 // Таблица групповых подписок (1 подписка — несколько пользователей компании)
 db.exec(`

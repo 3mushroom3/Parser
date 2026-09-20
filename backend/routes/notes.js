@@ -3,20 +3,23 @@ const router = express.Router();
 const db = require('../services/db');
 const auth = require('../middleware/auth');
 
+const STAGES = ['meeting', 'contract', 'documents', 'call', 'payment', 'shipment', 'check'];
+const normStage = s => (STAGES.includes(s) ? s : '');
+
 router.get('/', auth, (req, res) => {
   const rows = db.prepare('SELECT * FROM notes WHERE userId = ? ORDER BY updatedAt DESC').all(req.user.id);
   res.json(rows.map(n => ({ ...n, links: JSON.parse(n.links || '[]') })));
 });
 
 router.post('/', auth, (req, res) => {
-  const { title, content, links } = req.body || {};
+  const { title, content, links, stage } = req.body || {};
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Заголовок обязателен' });
   }
   const linksStr = JSON.stringify(Array.isArray(links) ? links.slice(0, 20) : []);
   const info = db.prepare(
-    'INSERT INTO notes (userId, title, content, links) VALUES (?, ?, ?, ?)'
-  ).run(req.user.id, title.trim().slice(0, 200), (content || '').slice(0, 5000), linksStr);
+    'INSERT INTO notes (userId, title, content, links, stage) VALUES (?, ?, ?, ?, ?)'
+  ).run(req.user.id, title.trim().slice(0, 200), (content || '').slice(0, 5000), linksStr, normStage(stage));
   const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(info.lastInsertRowid);
   res.status(201).json({ ...note, links: JSON.parse(note.links || '[]') });
 });
@@ -25,13 +28,14 @@ router.put('/:id', auth, (req, res) => {
   const note = db.prepare('SELECT * FROM notes WHERE id = ? AND userId = ?').get(req.params.id, req.user.id);
   if (!note) return res.status(404).json({ error: 'Не найдено' });
 
-  const { title, content, links } = req.body || {};
+  const { title, content, links, stage } = req.body || {};
   const newTitle = (typeof title === 'string' ? title.trim() : note.title).slice(0, 200) || note.title;
   const newContent = (typeof content === 'string' ? content : note.content).slice(0, 5000);
   const newLinks = JSON.stringify(Array.isArray(links) ? links.slice(0, 20) : JSON.parse(note.links || '[]'));
+  const newStage = stage === undefined ? (note.stage || '') : normStage(stage);
 
-  db.prepare('UPDATE notes SET title=?, content=?, links=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?')
-    .run(newTitle, newContent, newLinks, note.id);
+  db.prepare('UPDATE notes SET title=?, content=?, links=?, stage=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?')
+    .run(newTitle, newContent, newLinks, newStage, note.id);
   const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(note.id);
   res.json({ ...updated, links: JSON.parse(updated.links || '[]') });
 });

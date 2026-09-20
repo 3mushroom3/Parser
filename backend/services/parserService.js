@@ -4,6 +4,7 @@ const parser = require('./parser');
 const { enrichRecords } = require('./innEnricher');
 const { backfillMissingInn } = require('./dedupe');
 const { archiveOldDeclarations } = require('./archiver');
+const { parseBatchTons } = require('./batchSize');
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -146,11 +147,12 @@ async function runParser(apiClient, declarationService, config) {
 
         const rec = parser.mapRecordForDb(item, detail, apiClient.getBaseUrl());
 
-        const columns = ['id', 'fsaId', 'declNumber', 'source', 'status', 'productGroup', 'technicalReglament', 'regDate', 'endDate', 'lastName', 'firstName', 'middleName', 'shortName', 'address', 'phone', 'productName', 'batchSize', 'otherInfo', 'fsaUrl', 'fetchedAt', 'productionSites'];
+        const columns = ['id', 'fsaId', 'declNumber', 'source', 'status', 'productGroup', 'technicalReglament', 'regDate', 'endDate', 'lastName', 'firstName', 'middleName', 'shortName', 'address', 'phone', 'productName', 'batchSize', 'batchTons', 'otherInfo', 'fsaUrl', 'fetchedAt', 'productionSites'];
         const placeholders = columns.map(() => '?').join(', ');
         const values = columns.map(col => {
           if (col === 'productGroup') return rec.group || '';
           if (col === 'productionSites') return JSON.stringify(rec.productionSites || []);
+          if (col === 'batchTons') return parseBatchTons(rec.batchSize);
           return rec[col] || '';
         });
 

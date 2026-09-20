@@ -158,6 +158,13 @@
           </div>
         </div>
         <div>
+          <div class="fs-title">Объём партии, т</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <input type="number" min="0" class="fi" id="flBatchMin" placeholder="От" autocomplete="off" onchange="applyFilters()" style="flex:1">
+            <input type="number" min="0" class="fi" id="flBatchMax" placeholder="До" autocomplete="off" onchange="applyFilters()" style="flex:1">
+          </div>
+        </div>
+        <div>
           <div class="fs-title">Тип компании</div>
           <div class="ftf" id="ftfBar">
             <button class="ftf-btn act" data-ft="" onclick="setFarmerFilter(this,'')">Все</button>
@@ -855,6 +862,19 @@
       <div class="frow">
         <label>Заголовок <span style="color:var(--dng)">*</span></label>
         <input type="text" id="noteTitle" class="fi" placeholder="Название заметки" maxlength="200">
+      </div>
+      <div class="frow">
+        <label>Стадия сделки</label>
+        <select id="noteStage" class="fi">
+          <option value="">Без стадии</option>
+          <option value="meeting">Встреча</option>
+          <option value="contract">Договор</option>
+          <option value="documents">Документы</option>
+          <option value="call">Звонок</option>
+          <option value="payment">Оплата</option>
+          <option value="shipment">Отгрузка</option>
+          <option value="check">Проверка</option>
+        </select>
       </div>
       <div class="frow">
         <label>Текст заметки</label>

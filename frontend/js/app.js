@@ -270,7 +270,9 @@ function getFilters() {
     product: document.getElementById('csProduct').value || '',
     sortField: document.getElementById('sortF').value || 'regDate',
     sortDir: document.getElementById('sortD').value || 'desc',
-    farmerType: State.curFarmerFilter
+    farmerType: State.curFarmerFilter,
+    batchMin: document.getElementById('flBatchMin').value || '',
+    batchMax: document.getElementById('flBatchMax').value || ''
   };
 }
 
@@ -295,7 +297,7 @@ function clearColSearch() {
 }
 
 function resetFilters() {
-  ['flDateF','flDateT','globalQ'].forEach(id => document.getElementById(id).value = '');
+  ['flDateF','flDateT','globalQ','flBatchMin','flBatchMax'].forEach(id => document.getElementById(id).value = '');
   ['csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
   State.curFarmerFilter = '';
   document.querySelectorAll('.ftf-btn').forEach(b => b.classList.toggle('act', b.dataset.ft === ''));
@@ -1096,6 +1098,7 @@ async function openCompany(inn, name) {
   document.getElementById('compModalSub').innerHTML = [
     p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
     p.companyRegDate ? 'Зарегистрирована: <b>' + p.companyRegDate + '</b>' : '',
+    p.viewCount ? `👁 ${p.viewCount} ${plural(p.viewCount,'просмотр','просмотра','просмотров')}` : '',
     p.dormant ? `<span style="color:var(--warn)">⏸ &gt;1.5 года без деклараций (с ${p.lastDeclDate||'—'})</span>` : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
@@ -2890,6 +2893,16 @@ async function loadUserContactsForCard(inn, name) {
 let _notes = [];
 let _editingNoteId = null;
 
+const NOTE_STAGES = {
+  meeting:   { label: 'Встреча',   color: '#6b7280' },
+  contract:  { label: 'Договор',   color: '#0a3870' },
+  documents: { label: 'Документы', color: '#7c3aed' },
+  call:      { label: 'Звонок',    color: '#0284c7' },
+  payment:   { label: 'Оплата',    color: '#16a34a' },
+  shipment:  { label: 'Отгрузка',  color: '#ea580c' },
+  check:     { label: 'Проверка',  color: '#a32d2d' },
+};
+
 async function loadNotes() {
   try {
     _notes = await apiFetch('/api/notes');
@@ -2913,12 +2926,16 @@ function renderNotes() {
     const linksHtml = n.links.length
       ? `<span class="note-chip">🔗 ${n.links.length} ссыл.</span>`
       : '';
+    const stage = NOTE_STAGES[n.stage];
+    const stageHtml = stage
+      ? `<span class="note-chip" style="background:${stage.color}1a;color:${stage.color}">${stage.label}</span>`
+      : '';
     return `
       <div class="note-card" onclick="openNoteModal(${n.id})">
         <div class="note-card-title">${escHtml(n.title)}</div>
         ${n.content ? `<div class="note-card-body">${escHtml(n.content)}</div>` : ''}
         <div class="note-card-footer">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${linksHtml}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${stageHtml}${linksHtml}</div>
           <span style="font-size:10px;color:var(--muted)">${new Date(n.updatedAt).toLocaleDateString('ru-RU')}</span>
         </div>
       </div>`;
@@ -2929,11 +2946,20 @@ function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Русское склонение по числу: plural(1,'просмотр','просмотра','просмотров') → 'просмотр'
+function plural(n, one, few, many) {
+  const mod10 = n % 10, mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
+  return many;
+}
+
 function openNoteModal(noteId) {
   _editingNoteId = noteId;
   const note = noteId ? _notes.find(n => n.id === noteId) : null;
   document.getElementById('noteModalTitle').textContent = note ? 'Редактировать заметку' : 'Новая заметка';
   document.getElementById('noteTitle').value = note ? note.title : '';
+  document.getElementById('noteStage').value = note ? (note.stage || '') : '';
   document.getElementById('noteContent').value = note ? (note.content || '') : '';
   document.getElementById('noteDeleteBtn').style.display = note ? '' : 'none';
 
@@ -2968,6 +2994,7 @@ async function saveNote() {
   _savingNote = true;
 
   const content = document.getElementById('noteContent').value;
+  const stage = document.getElementById('noteStage').value;
 
   const linkRows = document.querySelectorAll('#noteLinks .note-link-row');
   const links = [];
@@ -2978,7 +3005,7 @@ async function saveNote() {
   });
 
   try {
-    const body = { title, content, links };
+    const body = { title, content, links, stage };
     if (_editingNoteId) {
       const updated = await apiFetch(`/api/notes/${_editingNoteId}`, { method: 'PUT', body: JSON.stringify(body) });
       const idx = _notes.findIndex(n => n.id === _editingNoteId);
