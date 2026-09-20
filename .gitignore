@@ -3,6 +3,8 @@ data/declarations.json
 data/status.json
 data/*.db
 data/*.db-journal
+data/*.db-shm
+data/*.db-wal
 data/opendata/
 backend/data/
 .env
