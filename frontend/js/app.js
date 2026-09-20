@@ -2841,7 +2841,7 @@ async function loadMydbPrivate(page) {
         ${r.contactName ? `<div style="font-size:12px">👤 ${escHtml(r.contactName)}</div>` : ''}
         ${r.phone ? `<div style="color:#0a3870">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
         ${r.email ? `<div style="color:var(--muted);font-size:12px">✉ ${escHtml(r.email)}</div>` : ''}
-        ${r.address ? `<div style="color:var(--muted);font-size:12px">📍 ${escHtml(r.address).slice(0, 60)}</div>` : ''}
+        ${r.address ? `<div style="color:var(--muted);font-size:12px;flex-basis:100%;word-break:break-word">📍 ${escHtml(r.address)}</div>` : ''}
       </div>
     `).join('') : '<div style="color:var(--muted);font-size:13px;padding:8px">Нет данных</div>';
 
@@ -2873,7 +2873,7 @@ async function loadUserContactsForCard(inn, name) {
       if (c.contactName) parts.push(`<span style="font-size:12px">👤 ${escHtml(c.contactName)}</span>`);
       if (c.phone)  parts.push(`<span style="color:#0a3870;font-weight:500">📞 ${escHtml(c.phone)}${c.phone2 ? ' · ' + escHtml(c.phone2) : ''}</span>`);
       if (c.email)  parts.push(`<span style="color:var(--muted);font-size:12px">✉ ${escHtml(c.email)}</span>`);
-      if (c.address) parts.push(`<span style="color:var(--muted);font-size:12px">📍 ${escHtml(c.address).slice(0, 60)}</span>`);
+      if (c.address) parts.push(`<span style="color:var(--muted);font-size:12px">📍 ${escHtml(c.address)}</span>`);
       return parts.join(' &nbsp; ');
     }).filter(Boolean);
 
