@@ -644,7 +644,10 @@ function parseRow(row, cols, colTypes) {
     if (types.has('email')) rec.emails.push(...extractEmails(raw));
     if (types.has('crops')) rec.crops.push(...splitCrops(raw));
     if (types.has('area')) rec.area = parseArea(raw);
-    if (types.has('address')) rec.address = mixed ? cleanAddress(raw, { person: rec.person }) : collapse(raw);
+    // cleanAddress всегда, не только для «смешанных» колонок: в чистой колонке
+    // «Адрес» тоже попадается прилипший телефон/подпись («…12 моб.…8-928-…»,
+    // «15 тел. 2-34-56») — без очистки он остаётся в адресе как есть.
+    if (types.has('address')) rec.address = collapse(cleanAddress(raw, { person: rec.person })) || collapse(raw);
     if (types.has('name')) {
       let name = collapse(text(c));
       // «ООО Ромашка, ИНН …, тел. …» — название до первых реквизитов
