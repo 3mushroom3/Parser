@@ -257,6 +257,30 @@ if (!userCols.includes('sessionId')) {
 if (!userCols.includes('groupId')) {
   db.exec('ALTER TABLE users ADD COLUMN groupId TEXT');
 }
+if (!userCols.includes('email')) {
+  db.exec('ALTER TABLE users ADD COLUMN email TEXT');
+  db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL');
+}
+if (!userCols.includes('emailVerified')) {
+  db.exec('ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 0');
+}
+
+// Коды подтверждения email при регистрации — вход по email вместо
+// логина/пароля без проверки (см. CLAUDE.md, регистрация «как у Агро Радар»,
+// только без платного flash-call сервиса).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS email_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    code TEXT NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    expiresAt DATETIME NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_email_codes_email ON email_codes(email);
+`);
 
 // Миграции таблицы companies (export-base поля)
 const companiesExCols = db.prepare("PRAGMA table_info(companies)").all().map(c => c.name);

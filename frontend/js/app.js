@@ -94,18 +94,27 @@ async function apiFetch(path, opts = {}) {
 
 // ── Auth ──────────────────────────────────────────────────────────────────
 function switchAuthTab(tab) {
-  document.getElementById('loginForm').style.display    = tab === 'login'    ? '' : 'none';
-  document.getElementById('registerForm').style.display = tab === 'register' ? '' : 'none';
+  document.getElementById('loginForm').style.display        = tab === 'login'    ? '' : 'none';
+  document.getElementById('registerForm').style.display     = tab === 'register' ? '' : 'none';
+  document.getElementById('confirmEmailForm').style.display = tab === 'confirm'  ? '' : 'none';
+  document.getElementById('authTosNote').style.display      = tab === 'confirm'  ? 'none' : '';
   document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
-  document.getElementById('tabRegister').classList.toggle('active', tab === 'register');
+  document.getElementById('tabRegister').classList.toggle('active', tab === 'register' || tab === 'confirm');
   document.getElementById('loginError').style.display    = 'none';
   document.getElementById('registerError').style.display = 'none';
+}
+
+function goToConfirmEmail(email) {
+  document.getElementById('confirmEmailAddr').textContent = email;
+  document.getElementById('confirmCode').value = '';
+  switchAuthTab('confirm');
 }
 
 const AUTH_ERRORS = {
   'Invalid credentials':            'Неверный логин или пароль',
   'Username and password are required': 'Заполните все поля',
   'Username already exists':        'Этот логин уже занят',
+  'EMAIL_NOT_VERIFIED':             'Подтвердите почту — код отправлен при регистрации',
 };
 function authMsg(msg) { return AUTH_ERRORS[msg] || msg; }
 
@@ -131,6 +140,12 @@ async function handleLogin(e) {
     localStorage.setItem('fsa_user', JSON.stringify(data.user));
     checkAuth();
   } catch (err) {
+    if (err.message === 'EMAIL_NOT_VERIFIED') {
+      goToConfirmEmail(username);
+      btn.disabled = false;
+      btn.textContent = 'Войти';
+      return;
+    }
     errorEl.textContent   = authMsg(err.message);
     errorEl.style.display = 'block';
     btn.disabled = false;
@@ -140,7 +155,7 @@ async function handleLogin(e) {
 
 async function handleRegister(e) {
   e.preventDefault();
-  const username  = document.getElementById('regUser').value.trim();
+  const email     = document.getElementById('regEmail').value.trim().toLowerCase();
   const password  = document.getElementById('regPass').value;
   const password2 = document.getElementById('regPass2').value;
   const errorEl   = document.getElementById('registerError');
@@ -153,8 +168,8 @@ async function handleRegister(e) {
     errorEl.style.display = 'block';
     return;
   }
-  if (password.length < 4) {
-    errorEl.textContent   = 'Пароль должен содержать минимум 4 символа';
+  if (password.length < 8) {
+    errorEl.textContent   = 'Пароль должен содержать минимум 8 символов';
     errorEl.style.display = 'block';
     return;
   }
@@ -163,8 +178,30 @@ async function handleRegister(e) {
   btn.textContent = 'Регистрация…';
 
   try {
-    await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify({ username, password }) });
-    const data = await apiFetch('/api/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) });
+    await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+    goToConfirmEmail(email);
+  } catch (err) {
+    errorEl.textContent   = authMsg(err.message);
+    errorEl.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Зарегистрироваться';
+  }
+}
+
+async function handleConfirmEmail(e) {
+  e.preventDefault();
+  const email    = document.getElementById('confirmEmailAddr').textContent;
+  const code     = document.getElementById('confirmCode').value.trim();
+  const errorEl  = document.getElementById('confirmEmailError');
+  const btn      = document.getElementById('confirmEmailBtn');
+
+  errorEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Проверка…';
+
+  try {
+    const data = await apiFetch('/api/auth/confirm-email', { method: 'POST', body: JSON.stringify({ email, code }) });
     State.token = data.token;
     State.user  = data.user;
     localStorage.setItem('fsa_token', data.token);
@@ -174,7 +211,22 @@ async function handleRegister(e) {
     errorEl.textContent   = authMsg(err.message);
     errorEl.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Зарегистрироваться';
+    btn.textContent = 'Подтвердить';
+  }
+}
+
+async function handleResendCode() {
+  const email = document.getElementById('confirmEmailAddr').textContent;
+  const errorEl = document.getElementById('confirmEmailError');
+  try {
+    await apiFetch('/api/auth/resend-code', { method: 'POST', body: JSON.stringify({ email }) });
+    errorEl.style.color = 'var(--succ)';
+    errorEl.textContent = 'Код отправлен повторно';
+    errorEl.style.display = 'block';
+  } catch (err) {
+    errorEl.style.color = '';
+    errorEl.textContent = authMsg(err.message);
+    errorEl.style.display = 'block';
   }
 }
 

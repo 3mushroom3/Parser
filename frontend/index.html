@@ -61,8 +61,8 @@
     <form id="registerForm" onsubmit="handleRegister(event)" style="display:none">
       <div class="fg" style="grid-template-columns:1fr">
         <div class="frow">
-          <label>Логин</label>
-          <input type="text" id="regUser" required placeholder="Придумайте логин" autocomplete="username">
+          <label>Email</label>
+          <input type="email" id="regEmail" required placeholder="you@example.com" autocomplete="email">
         </div>
         <div class="frow">
           <label>Пароль</label>
@@ -82,7 +82,21 @@
       </div>
       <p id="registerError" class="auth-error" style="display:none"></p>
     </form>
-    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
+
+    <form id="confirmEmailForm" onsubmit="handleConfirmEmail(event)" style="display:none">
+      <div class="fg" style="grid-template-columns:1fr">
+        <p style="font-size:13px;color:var(--muted);margin:0 0 4px">Код отправлен на <b id="confirmEmailAddr"></b></p>
+        <div class="frow">
+          <label>Код из письма</label>
+          <input type="text" id="confirmCode" required placeholder="123456" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+        </div>
+        <button type="submit" id="confirmEmailBtn" class="btn btn-p auth-submit-btn">Подтвердить</button>
+        <button type="button" class="btn auth-submit-btn" onclick="handleResendCode()">Отправить код ещё раз</button>
+      </div>
+      <p id="confirmEmailError" class="auth-error" style="display:none"></p>
+    </form>
+
+    <div id="authTosNote" style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
       Регистрируясь, вы соглашаетесь с <a href="#" onclick="openTos();return false" style="color:var(--accent)">пользовательским соглашением</a>
     </div>
   </div>
