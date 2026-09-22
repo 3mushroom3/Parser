@@ -6,6 +6,7 @@ data/*.db-journal
 data/*.db-shm
 data/*.db-wal
 data/opendata/
+data/inn_cache.json
 backend/data/
 .env
 *.log
