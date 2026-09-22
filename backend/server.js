@@ -37,6 +37,8 @@ const notesRoutes = require('./routes/notes');
 const externalRoutes = require('./routes/external');
 const feedbackRoutes    = require('./routes/feedback');
 const userContactRoutes = require('./routes/userContacts');
+const crmRoutes = require('./routes/crm');
+const { runCrmSync } = require('./services/crmExport');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 const { runGeoJob } = require('./services/geoEnricher');
 
@@ -121,6 +123,7 @@ app.use('/api/notes', notesRoutes);
 app.use('/api/external', externalRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user/contacts', userContactRoutes);
+app.use('/api/crm', crmRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);
@@ -282,6 +285,12 @@ if (process.env.NODE_ENV !== 'test') {
       runGeoJob().catch(() => {});
     });
     setTimeout(() => runGeoJob().catch(() => {}), 2 * 60 * 1000);
+
+    // CRM-выгрузка (платная опция, см. routes/crm.js) — раз в 15 минут
+    // проверяем активные интеграции и досылаем новые подходящие декларации.
+    cron.schedule(process.env.CRM_CRON_SCHEDULE || '*/15 * * * *', () => {
+      runCrmSync().catch(e => logger.error('[CRM] Ошибка синхронизации: %s', e.message));
+    });
 
     // Run parser after 5 seconds
     setTimeout(safeRunParser, 5000);

@@ -20,7 +20,7 @@ function issueSession(res, user) {
     _secret,
     { expiresIn: '24h' }
   );
-  res.json({ token, user: { username: user.username, email: user.email || '', role: user.role } });
+  res.json({ token, user: { username: user.username, email: user.email || '', role: user.role, crmEnabled: !!user.crmEnabled } });
 }
 
 // Simple in-memory rate limiter for auth endpoints
@@ -203,7 +203,7 @@ router.post('/resend-code', async (req, res) => {
 });
 
 router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, role, subscriptionUntil, subscriptionPlan, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, role, subscriptionUntil, subscriptionPlan, created_at, crmEnabled FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
   res.json(user);
 });

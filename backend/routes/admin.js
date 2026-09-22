@@ -21,12 +21,20 @@ function requireAdmin(req, res, next) {
 // GET /api/admin/users — список пользователей
 router.get('/users', auth, requireAdmin, (req, res) => {
   const users = db.prepare(`
-    SELECT u.id, u.username, u.role, u.subscriptionUntil, u.subscriptionPlan, u.created_at,
+    SELECT u.id, u.username, u.email, u.role, u.subscriptionUntil, u.subscriptionPlan, u.created_at, u.crmEnabled,
       (SELECT COUNT(*) FROM payments WHERE userId = u.id AND status = 'succeeded') as paymentCount,
       (SELECT SUM(amount) FROM payments WHERE userId = u.id AND status = 'succeeded') as totalPaid
     FROM users u ORDER BY u.created_at DESC
   `).all();
   res.json(users);
+});
+
+// PUT /api/admin/users/:id/crm — включить/выключить CRM-интеграцию клиенту
+// (платная опция без самообслуживаемого биллинга, см. routes/crm.js)
+router.put('/users/:id/crm', auth, requireAdmin, (req, res) => {
+  const { enabled } = req.body || {};
+  db.prepare('UPDATE users SET crmEnabled = ? WHERE id = ?').run(enabled ? 1 : 0, req.params.id);
+  res.json({ ok: true });
 });
 
 // PUT /api/admin/users/:id/subscription — установить подписку вручную

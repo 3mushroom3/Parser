@@ -264,6 +264,29 @@ if (!userCols.includes('email')) {
 if (!userCols.includes('emailVerified')) {
   db.exec('ALTER TABLE users ADD COLUMN emailVerified INTEGER NOT NULL DEFAULT 0');
 }
+if (!userCols.includes('crmEnabled')) {
+  db.exec('ALTER TABLE users ADD COLUMN crmEnabled INTEGER NOT NULL DEFAULT 0');
+}
+
+// Выгрузка лидов в CRM клиента (Bitrix24 входящим вебхуком, amoCRM — позже
+// через OAuth, см. CLAUDE.md). Один активный набор фильтров на пользователя
+// для MVP — тот же формат фильтров, что у /api/declarations/producers.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS crm_integrations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL UNIQUE,
+    provider TEXT NOT NULL DEFAULT 'bitrix24',
+    webhookUrl TEXT,
+    oauthTokens TEXT,
+    filterJson TEXT NOT NULL DEFAULT '{}',
+    active INTEGER NOT NULL DEFAULT 1,
+    lastSyncAt DATETIME,
+    lastError TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
 
 // Коды подтверждения email при регистрации — вход по email вместо
 // логина/пароля без проверки (см. CLAUDE.md, регистрация «как у Агро Радар»,

@@ -272,6 +272,7 @@ function showPage(name) {
   document.getElementById('pg-profile').className       = 'panel-page' + (name === 'profile'   ? ' active' : '');
   document.getElementById('pg-feedback').className      = 'panel-page' + (name === 'feedback'  ? ' active' : '');
   document.getElementById('pg-mydb').className          = 'panel-page' + (name === 'mydb'      ? ' active' : '');
+  document.getElementById('pg-crm').className            = 'panel-page' + (name === 'crm'       ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
@@ -292,6 +293,7 @@ function showPage(name) {
   if (name === 'profile') loadProfile();
   if (name === 'feedback') loadFeedback();
   if (name === 'mydb') loadMydbPage();
+  if (name === 'crm') loadCrmPage();
 }
 
 // ── Registry ──────────────────────────────────────────────────────────────
@@ -2101,6 +2103,7 @@ function renderAdminUsersTable(users) {
         <button class="btn btn-sm" onclick="adminAddDays(${u.id},'${u.username}')" title="Продлить подписку">+Дни</button>
         <button class="btn btn-sm btn-warn" onclick="adminRevokeSub(${u.id},'${u.username}')" title="Отозвать подписку">✕</button>
         <button class="btn btn-sm" onclick="adminChangeRole(${u.id},'${u.username}','${u.role}')" title="Роль">👤</button>
+        <button class="btn btn-sm ${u.crmEnabled ? 'btn-p' : ''}" onclick="adminToggleCrm(${u.id},'${u.username}',${u.crmEnabled ? 0 : 1})" title="CRM-интеграция">${u.crmEnabled ? '🔗 CRM вкл' : '🔗 CRM'}</button>
         <button class="btn btn-sm btn-dng" onclick="adminDeleteUser(${u.id},'${u.username}')" title="Удалить">🗑</button>
       </td>
     </tr>`;
@@ -2446,6 +2449,16 @@ async function adminChangeRole(userId, username, currentRole) {
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
+async function adminToggleCrm(userId, username, enable) {
+  const action = enable ? 'Включить' : 'Отключить';
+  if (!confirm(`${action} CRM-интеграцию пользователю "${username}"?`)) return;
+  try {
+    await apiFetch(`/api/admin/users/${userId}/crm`, { method: 'PUT', body: JSON.stringify({ enabled: !!enable }) });
+    showAlert(enable ? 'CRM-интеграция включена' : 'CRM-интеграция отключена');
+    loadAdminData();
+  } catch(e) { showAlert(e.message, 'err'); }
+}
+
 async function adminDeleteUser(userId, username) {
   if (!confirm(`Удалить пользователя "${username}"? Это действие необратимо.`)) return;
   try {
@@ -2480,6 +2493,8 @@ function initApp() {
     }
   });
   loadRecentStrip();
+  const crmTab = document.getElementById('crmTab');
+  if (crmTab) crmTab.style.display = State.user?.crmEnabled ? '' : 'none';
   pollStatus();
 }
 
@@ -3076,6 +3091,82 @@ function renderNotes() {
 
 function escHtml(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── CRM-интеграция ───────────────────────────────────────────────────────
+function crmReadFilter() {
+  return {
+    product: document.getElementById('crmFProduct').value.trim(),
+    address: document.getElementById('crmFAddress').value.trim(),
+    farmerType: document.getElementById('crmFFarmerType').value,
+    batchMin: document.getElementById('crmFBatchMin').value,
+    batchMax: document.getElementById('crmFBatchMax').value,
+  };
+}
+
+async function loadCrmPage() {
+  const statusEl = document.getElementById('crmStatus');
+  statusEl.textContent = '';
+  try {
+    const row = await apiFetch('/api/crm/integration');
+    document.getElementById('crmDeleteBtn').style.display = row ? '' : 'none';
+    if (!row) return;
+    document.getElementById('crmProvider').value = row.provider || 'bitrix24';
+    document.getElementById('crmWebhookUrl').placeholder = row.webhookUrl || 'https://ваш-портал.bitrix24.ru/rest/1/xxxxxxxxxxxxxxxx/';
+    const f = row.filterJson || {};
+    document.getElementById('crmFProduct').value = f.product || '';
+    document.getElementById('crmFAddress').value = f.address || '';
+    document.getElementById('crmFFarmerType').value = f.farmerType || '';
+    document.getElementById('crmFBatchMin').value = f.batchMin || '';
+    document.getElementById('crmFBatchMax').value = f.batchMax || '';
+    const lastSync = row.lastSyncAt ? new Date(row.lastSyncAt).toLocaleString('ru-RU') : 'ещё не запускалась';
+    statusEl.innerHTML = `Вебхук: <code>${escHtml(row.webhookUrl)}</code> · Последняя синхронизация: ${lastSync}` +
+      (row.lastError ? `<br><span style="color:var(--dng)">Ошибка: ${escHtml(row.lastError)}</span>` : '');
+  } catch (e) {
+    if (e.message !== 'SUBSCRIPTION_REQUIRED') statusEl.textContent = e.message;
+  }
+}
+
+async function saveCrmIntegration() {
+  const webhookUrl = document.getElementById('crmWebhookUrl').value.trim();
+  const provider = document.getElementById('crmProvider').value;
+  const statusEl = document.getElementById('crmStatus');
+  try {
+    await apiFetch('/api/crm/integration', {
+      method: 'PUT',
+      body: JSON.stringify({ provider, webhookUrl: webhookUrl || undefined, filter: crmReadFilter() }),
+    });
+    showAlert('Настройки CRM-интеграции сохранены');
+    loadCrmPage();
+  } catch (e) { statusEl.textContent = e.message; statusEl.style.color = 'var(--dng)'; }
+}
+
+async function previewCrmFilter() {
+  const el = document.getElementById('crmPreviewResult');
+  el.textContent = 'Проверяю...';
+  try {
+    const data = await apiFetch('/api/crm/integration/preview', { method: 'POST', body: JSON.stringify({ filter: crmReadFilter() }) });
+    el.textContent = `За последние 24ч под фильтр подошло бы: ${data.count} деклараций`;
+  } catch (e) { el.textContent = e.message; }
+}
+
+async function testCrmIntegration() {
+  const el = document.getElementById('crmStatus');
+  el.textContent = 'Отправляю тестовый лид...';
+  try {
+    const data = await apiFetch('/api/crm/integration/test', { method: 'POST' });
+    el.textContent = data.message;
+    el.style.color = 'var(--succ)';
+  } catch (e) { el.textContent = e.message; el.style.color = 'var(--dng)'; }
+}
+
+async function deleteCrmIntegration() {
+  if (!confirm('Удалить настройки CRM-интеграции? Выгрузка лидов остановится.')) return;
+  try {
+    await apiFetch('/api/crm/integration', { method: 'DELETE' });
+    showAlert('Интеграция удалена');
+    loadCrmPage();
+  } catch (e) { showAlert(e.message, 'err'); }
 }
 
 // Русское склонение по числу: plural(1,'просмотр','просмотра','просмотров') → 'просмотр'
