@@ -207,8 +207,10 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_decl_shortName ON declarations(shortName);
   CREATE INDEX IF NOT EXISTS idx_decl_updatedAt ON declarations(updatedAt);
   CREATE INDEX IF NOT EXISTS idx_decl_status_fetchedAt ON declarations(status, fetchedAt DESC);
-  CREATE INDEX IF NOT EXISTS idx_decl_placeKey_status ON declarations(placeKey, status);
 `);
+// Индекс по placeKey — ниже, после миграции, которая эту колонку добавляет:
+// на базе, созданной до появления карты, здесь падало «no such column: placeKey»
+// и сервер не стартовал вообще.
 
 // Migrations for existing databases
 const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
@@ -430,6 +432,7 @@ if (!declColNames.includes('placeKey')) {
 }
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_decl_placeKey ON declarations(placeKey);
+  CREATE INDEX IF NOT EXISTS idx_decl_placeKey_status ON declarations(placeKey, status);
 
   CREATE TABLE IF NOT EXISTS geo_places (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
