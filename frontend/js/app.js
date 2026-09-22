@@ -1531,13 +1531,21 @@ function parseTon(s) {
   let str = String(s).toLowerCase().replace(/\([^)]*\)/g, ' ');
   str = str.replace(/(\d)[   ]+(?=\d)/g, '$1');
   str = str.replace(/(\d),[   ]+(?=\d)/g, '$1,');
-  str = str.replace(/\d{1,3}(?:,\d{3}){2,}/g, m => m.replace(/,/g, ''));
+  // Несколько запятых («1,450,544») — последняя десятичная, предыдущие были
+  // разделителями тысяч. Обоснование — в backend/services/batchSize.js.
+  str = str.replace(/\d{1,3}(?:,\d{3})+/g, m => {
+    const last = m.lastIndexOf(',');
+    return m.slice(0, last).replace(/,/g, '') + ',' + m.slice(last + 1);
+  });
 
   const m = BATCH_FIRST_RE.exec(str);
   if (!m) {
+    // Число без единицы измерения: до миллиона — тонны, от миллиона —
+    // килограммы. Обоснование порога — в backend/services/batchSize.js.
     const bare = BATCH_BARE_RE.exec(str);
-    const n = bare ? parseFloat(bare[1].replace(',', '.')) : NaN;
-    return isNaN(n) || n <= 0 ? 0 : n;
+    const num = bare ? parseFloat(bare[1].replace(',', '.')) : NaN;
+    if (isNaN(num) || num <= 0) return 0;
+    return num >= 1000000 ? num / 1000 : num;
   }
 
   const value = parseFloat(m[1].replace(',', '.'));
