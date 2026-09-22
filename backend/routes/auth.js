@@ -6,6 +6,7 @@ const db = require('../services/db');
 const crypto = require('crypto');
 const _secret = require('../config/jwtSecret');
 const { sendVerificationCode, isConfigured: mailerConfigured } = require('../services/mailer');
+const maxBot = require('../services/maxBot');
 
 const MIN_PASSWORD_LEN = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -203,9 +204,21 @@ router.post('/resend-code', async (req, res) => {
 });
 
 router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, role, subscriptionUntil, subscriptionPlan, created_at, crmEnabled FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, role, subscriptionUntil, subscriptionPlan, created_at, crmEnabled, maxUserId FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
-  res.json(user);
+  res.json({ ...user, maxLinked: !!user.maxUserId, maxUserId: undefined });
+});
+
+// Код для привязки MAX (см. services/maxBot.js) — пользователь пишет его боту
+router.post('/max-link-code', authMiddleware, (req, res) => {
+  if (!maxBot.isConfigured()) return res.status(503).json({ error: 'MAX-бот пока не настроен' });
+  const code = maxBot.issueLinkCode(req.user.id);
+  res.json({ code, botUsername: maxBot.botUsername() });
+});
+
+router.post('/max-unlink', authMiddleware, (req, res) => {
+  db.prepare('UPDATE users SET maxUserId = NULL WHERE id = ?').run(req.user.id);
+  res.json({ ok: true });
 });
 
 router.put('/password', authMiddleware, (req, res) => {

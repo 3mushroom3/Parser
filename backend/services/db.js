@@ -207,6 +207,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_decl_shortName ON declarations(shortName);
   CREATE INDEX IF NOT EXISTS idx_decl_updatedAt ON declarations(updatedAt);
   CREATE INDEX IF NOT EXISTS idx_decl_status_fetchedAt ON declarations(status, fetchedAt DESC);
+  CREATE INDEX IF NOT EXISTS idx_decl_placeKey_status ON declarations(placeKey, status);
 `);
 
 // Migrations for existing databases
@@ -267,6 +268,27 @@ if (!userCols.includes('emailVerified')) {
 if (!userCols.includes('crmEnabled')) {
   db.exec('ALTER TABLE users ADD COLUMN crmEnabled INTEGER NOT NULL DEFAULT 0');
 }
+// MAX-бот (только MAX, без Telegram — решение пользователя): напоминания
+// по заметкам + уведомления о новых декларациях по сохранённым фильтрам
+for (const col of ['maxUserId', 'maxLinkCode', 'maxLinkCodeExpiresAt']) {
+  if (!userCols.includes(col)) db.exec(`ALTER TABLE users ADD COLUMN ${col} TEXT`);
+}
+
+// Сохранённые фильтры реестра с уведомлением о новых подходящих
+// декларациях в MAX — тот же формат filterJson, что у crm_integrations
+// (см. services/crmExport.js: findMatchingLeads переиспользуется отсюда).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS saved_searches (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL DEFAULT '',
+    filterJson TEXT NOT NULL DEFAULT '{}',
+    active INTEGER NOT NULL DEFAULT 1,
+    lastCheckedAt DATETIME,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE
+  );
+`);
 
 // Выгрузка лидов в CRM клиента (Bitrix24 входящим вебхуком, amoCRM — позже
 // через OAuth, см. CLAUDE.md). Один активный набор фильтров на пользователя
@@ -315,6 +337,10 @@ for (const col of ['phone','email','website','ceoName','employees','revenue','re
 }
 if (!companiesExCols.includes('viewCount')) {
   db.exec('ALTER TABLE companies ADD COLUMN viewCount INTEGER NOT NULL DEFAULT 0');
+}
+// Для отчёта о должной осмотрительности (E1) — статус и адрес из ЕГРЮЛ (dadata)
+for (const col of ['egrulStatus', 'egrulAddress', 'ogrn']) {
+  if (!companiesExCols.includes(col)) db.exec(`ALTER TABLE companies ADD COLUMN ${col} TEXT`);
 }
 
 // Тег стадии сделки на заметке (Встреча/Договор/Документы/Звонок/Оплата/Отгрузка/Проверка)

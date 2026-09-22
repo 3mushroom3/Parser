@@ -39,6 +39,10 @@ const feedbackRoutes    = require('./routes/feedback');
 const userContactRoutes = require('./routes/userContacts');
 const crmRoutes = require('./routes/crm');
 const { runCrmSync } = require('./services/crmExport');
+const publicRoutes = require('./routes/public');
+const savedSearchRoutes = require('./routes/savedSearches');
+const maxBot = require('./services/maxBot');
+const { runNotifyJob } = require('./services/notifyJob');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 const { runGeoJob } = require('./services/geoEnricher');
 
@@ -88,6 +92,9 @@ app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
 
+// Публичные превью-страницы без логина (SEO) — серверный рендер, не SPA
+app.use(publicRoutes);
+
 // Swagger Setup (only in development)
 const swaggerOptions = {
   definition: {
@@ -124,6 +131,7 @@ app.use('/api/external', externalRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user/contacts', userContactRoutes);
 app.use('/api/crm', crmRoutes);
+app.use('/api/saved-searches', savedSearchRoutes);
 
 // Legacy/Redirect routes for frontend compatibility
 app.use('/api/status', systemRoutes);
@@ -290,6 +298,15 @@ if (process.env.NODE_ENV !== 'test') {
     // проверяем активные интеграции и досылаем новые подходящие декларации.
     cron.schedule(process.env.CRM_CRON_SCHEDULE || '*/15 * * * *', () => {
       runCrmSync().catch(e => logger.error('[CRM] Ошибка синхронизации: %s', e.message));
+    });
+
+    // MAX-бот: long polling (см. services/maxBot.js) — сам не завершается,
+    // если MAX_BOT_TOKEN не задан, просто логирует и ничего не делает.
+    maxBot.startPolling().catch(e => logger.error('[MAX] Не удалось запустить polling: %s', e.message));
+    // Напоминания по заметкам + подписки на новые декларации — каждые 2 минуты
+    // (напоминания зависят от времени, дольше 2 мин — заметный лаг для пользователя)
+    cron.schedule(process.env.NOTIFY_CRON_SCHEDULE || '*/2 * * * *', () => {
+      runNotifyJob().catch(e => logger.error('[MAX] Ошибка уведомлений: %s', e.message));
     });
 
     // Run parser after 5 seconds

@@ -11,15 +11,18 @@ router.get('/', auth, (req, res) => {
   res.json(rows.map(n => ({ ...n, links: JSON.parse(n.links || '[]') })));
 });
 
+// notifyTime — ISO-строка (datetime-local с фронта); пустая строка/null снимает напоминание
+const normNotifyTime = t => (t ? new Date(t).toISOString() : null);
+
 router.post('/', auth, (req, res) => {
-  const { title, content, links, stage } = req.body || {};
+  const { title, content, links, stage, notifyTime } = req.body || {};
   if (!title || typeof title !== 'string' || !title.trim()) {
     return res.status(400).json({ error: 'Заголовок обязателен' });
   }
   const linksStr = JSON.stringify(Array.isArray(links) ? links.slice(0, 20) : []);
   const info = db.prepare(
-    'INSERT INTO notes (userId, title, content, links, stage) VALUES (?, ?, ?, ?, ?)'
-  ).run(req.user.id, title.trim().slice(0, 200), (content || '').slice(0, 5000), linksStr, normStage(stage));
+    'INSERT INTO notes (userId, title, content, links, stage, notifyTime) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(req.user.id, title.trim().slice(0, 200), (content || '').slice(0, 5000), linksStr, normStage(stage), normNotifyTime(notifyTime));
   const note = db.prepare('SELECT * FROM notes WHERE id = ?').get(info.lastInsertRowid);
   res.status(201).json({ ...note, links: JSON.parse(note.links || '[]') });
 });
@@ -28,14 +31,17 @@ router.put('/:id', auth, (req, res) => {
   const note = db.prepare('SELECT * FROM notes WHERE id = ? AND userId = ?').get(req.params.id, req.user.id);
   if (!note) return res.status(404).json({ error: 'Не найдено' });
 
-  const { title, content, links, stage } = req.body || {};
+  const { title, content, links, stage, notifyTime } = req.body || {};
   const newTitle = (typeof title === 'string' ? title.trim() : note.title).slice(0, 200) || note.title;
   const newContent = (typeof content === 'string' ? content : note.content).slice(0, 5000);
   const newLinks = JSON.stringify(Array.isArray(links) ? links.slice(0, 20) : JSON.parse(note.links || '[]'));
   const newStage = stage === undefined ? (note.stage || '') : normStage(stage);
+  const newNotifyTime = notifyTime === undefined ? note.notifyTime : normNotifyTime(notifyTime);
+  // Сдвинули время напоминания — снова разрешаем боту отправить его
+  const notifySentDate = newNotifyTime !== note.notifyTime ? null : note.notifySentDate;
 
-  db.prepare('UPDATE notes SET title=?, content=?, links=?, stage=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?')
-    .run(newTitle, newContent, newLinks, newStage, note.id);
+  db.prepare('UPDATE notes SET title=?, content=?, links=?, stage=?, notifyTime=?, notifySentDate=?, updatedAt=CURRENT_TIMESTAMP WHERE id=?')
+    .run(newTitle, newContent, newLinks, newStage, newNotifyTime, notifySentDate, note.id);
   const updated = db.prepare('SELECT * FROM notes WHERE id = ?').get(note.id);
   res.json({ ...updated, links: JSON.parse(updated.links || '[]') });
 });

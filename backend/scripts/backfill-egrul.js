@@ -27,12 +27,15 @@ async function main() {
   console.log(`К дозаполнению: ${rows.length} компаний (лимит запросов: ${limit === Infinity ? 'без лимита' : limit})`);
 
   const upsert = db.prepare(`
-    INSERT INTO companies (id, inn, ceoName, email, regDate)
-    VALUES (@inn, @inn, @ceoName, @email, @regDate)
+    INSERT INTO companies (id, inn, ceoName, email, regDate, egrulStatus, egrulAddress, ogrn)
+    VALUES (@inn, @inn, @ceoName, @email, @regDate, @egrulStatus, @egrulAddress, @ogrn)
     ON CONFLICT(id) DO UPDATE SET
       ceoName = COALESCE(NULLIF(excluded.ceoName, ''), companies.ceoName),
       email = COALESCE(NULLIF(excluded.email, ''), companies.email),
       regDate = COALESCE(NULLIF(excluded.regDate, ''), companies.regDate),
+      egrulStatus = COALESCE(NULLIF(excluded.egrulStatus, ''), companies.egrulStatus),
+      egrulAddress = COALESCE(NULLIF(excluded.egrulAddress, ''), companies.egrulAddress),
+      ogrn = COALESCE(NULLIF(excluded.ogrn, ''), companies.ogrn),
       updatedAt = CURRENT_TIMESTAMP
   `);
 
@@ -42,8 +45,11 @@ async function main() {
     try {
       calls++;
       const data = await lookupInn(inn);
-      if (data && (data.director || data.egrulEmail)) {
-        upsert.run({ inn, ceoName: data.director || '', email: data.egrulEmail || '', regDate: data.regDate || '' });
+      if (data && (data.director || data.egrulEmail || data.egrulStatus)) {
+        upsert.run({
+          inn, ceoName: data.director || '', email: data.egrulEmail || '', regDate: data.regDate || '',
+          egrulStatus: data.egrulStatus || '', egrulAddress: data.egrulAddress || '', ogrn: data.ogrn || '',
+        });
         found++;
       }
     } catch (e) {

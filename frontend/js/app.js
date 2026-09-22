@@ -1233,6 +1233,7 @@ async function openCompany(inn, name) {
     p.companyRegDate ? 'Зарегистрирована: <b>' + p.companyRegDate + '</b>' : '',
     p.viewCount ? `👁 ${p.viewCount} ${plural(p.viewCount,'просмотр','просмотра','просмотров')}` : '',
     p.dormant ? `<span style="color:var(--warn)">⏸ &gt;1.5 года без деклараций (с ${p.lastDeclDate||'—'})</span>` : '',
+    p.inn ? `<a href="/company/${p.inn}" target="_blank" style="color:var(--accent)">🔗 публичная ссылка</a>` : '',
   ].filter(Boolean).join(' &nbsp;·&nbsp; ');
 
   State.curCompDecls = p.decls || [];
@@ -1320,12 +1321,59 @@ async function openCompany(inn, name) {
       </div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
+        ${p.inn ? `<button class="btn btn-sm" onclick="openDueDiligenceReport('${safeInn}')">📄 Отчёт о контрагенте</button>` : ''}
         <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
         <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
         <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>
       </div>
     </div>`;
   _updateCompNavButtons();
+}
+
+// Отчёт о должной осмотрительности (MVP на данных ЕГРЮЛ, без банкротства/
+// арбитража/ФССП — для этого нужен платный источник, см. CLAUDE.md).
+// Открываем в новом окне через window.open('') + document.write, а не
+// прямой ссылкой: обычная <a href> не понесёт Bearer-токен на GET-запрос.
+async function openDueDiligenceReport(inn) {
+  let data;
+  try {
+    data = await apiFetch('/api/business/company/report?inn=' + encodeURIComponent(inn));
+  } catch (e) { showAlert('Не удалось сформировать отчёт: ' + e.message, 'err'); return; }
+
+  const addrRow = data.egrulAddress
+    ? `<div class="row"><b>Адрес по ЕГРЮЛ</b><span>${escHtml(data.egrulAddress)}${data.addressMatch === false ? ' <span class="warn">⚠ отличается от адреса в декларации</span>' : data.addressMatch ? ' <span class="ok">✓ совпадает с декларацией</span>' : ''}</span></div>`
+    : '';
+  const win = window.open('', '_blank');
+  if (!win) { showAlert('Браузер заблокировал всплывающее окно — разрешите всплывающие окна для этого сайта', 'err'); return; }
+  win.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+    <title>Отчёт о контрагенте — ${escHtml(data.name)}</title>
+    <style>
+      body{font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#1a1e27;line-height:1.5}
+      h1{font-size:19px;margin:0 0 4px}
+      .sub{color:#6b7280;font-size:12px;margin-bottom:20px}
+      .row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #eee;font-size:13.5px}
+      .row b{color:#6b7280;font-weight:500;flex:none;width:180px}
+      .row span{text-align:right}
+      .warn{color:#a32d2d;font-size:12px}
+      .ok{color:#16a34a;font-size:12px}
+      .notice{background:#fff7e6;border:1px solid #f2d272;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin:18px 0}
+      .btn{background:#185FA5;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;margin-top:18px}
+      @media print{.btn{display:none}}
+    </style></head><body>
+    <h1>Отчёт о контрагенте: ${escHtml(data.name)}</h1>
+    <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · База АПК</div>
+    <div class="row"><b>ИНН</b><span>${escHtml(data.inn)}</span></div>
+    ${data.ogrn ? `<div class="row"><b>ОГРН</b><span>${escHtml(data.ogrn)}</span></div>` : ''}
+    <div class="row"><b>Статус в ЕГРЮЛ</b><span>${escHtml(data.egrulStatusLabel)}</span></div>
+    ${data.regDate ? `<div class="row"><b>Дата регистрации</b><span>${escHtml(data.regDate)}</span></div>` : ''}
+    ${data.director ? `<div class="row"><b>Руководитель</b><span>${escHtml(data.director)}</span></div>` : ''}
+    ${data.okved ? `<div class="row"><b>ОКВЭД (по декларации)</b><span>${escHtml(data.okved)}</span></div>` : ''}
+    ${addrRow}
+    ${!data.hasEgrulData ? '<div class="notice">⚠ Данных из ЕГРЮЛ по этой компании пока нет — обогащение ещё не прошло или компания не найдена в реестре ФНС.</div>' : ''}
+    <div class="notice">Это сокращённая версия отчёта: наличие в ЕГРЮЛ, статус, руководитель, адрес. Проверка банкротства, арбитражных дел и исполнительных производств (ст. 54.1 НК РФ) требует платного источника данных и в эту версию не входит.</div>
+    <button class="btn" onclick="window.print()">Печать / сохранить как PDF</button>
+    </body></html>`);
+  win.document.close();
 }
 
 function updateCompFavBtn(inn, name) {
@@ -1814,9 +1862,97 @@ async function loadProfile() {
     } else {
       subEl.innerHTML = '<span style="color:var(--dng);font-weight:600">🔒 Нет активной подписки</span>';
     }
+
+    renderMaxLinkStatus(me.maxLinked);
+    loadSavedSearches();
   } catch(e) {
     showAlert(e.message, 'err');
   }
+}
+
+// ── MAX-бот: привязка аккаунта ──────────────────────────────────────────
+function renderMaxLinkStatus(linked) {
+  const statusEl = document.getElementById('maxLinkStatus');
+  const areaEl = document.getElementById('maxLinkArea');
+  if (linked) {
+    statusEl.innerHTML = '<span style="color:var(--succ);font-weight:600">✓ MAX привязан</span>';
+    areaEl.innerHTML = '<button class="btn btn-sm" onclick="unlinkMax()">Отвязать</button>';
+  } else {
+    statusEl.textContent = 'MAX не привязан — напоминания и подписки приходить не будут.';
+    areaEl.innerHTML = '<button class="btn btn-p btn-sm" onclick="requestMaxLinkCode()">Получить код для привязки</button>';
+  }
+}
+
+async function requestMaxLinkCode() {
+  const areaEl = document.getElementById('maxLinkArea');
+  try {
+    const { code, botUsername } = await apiFetch('/api/auth/max-link-code', { method: 'POST' });
+    areaEl.innerHTML = `
+      <div style="background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;font-size:13px">
+        1. Откройте MAX и найдите бота${botUsername ? ' <b>@' + escHtml(botUsername) + '</b>' : ''}<br>
+        2. Отправьте ему сообщением код: <b style="font-size:16px;letter-spacing:2px">${escHtml(code)}</b><br>
+        <span style="color:var(--muted);font-size:11px">Код действует 10 минут</span>
+      </div>`;
+  } catch (e) { areaEl.innerHTML = `<span style="color:var(--dng);font-size:13px">${escHtml(e.message)}</span>`; }
+}
+
+async function unlinkMax() {
+  try {
+    await apiFetch('/api/auth/max-unlink', { method: 'POST' });
+    renderMaxLinkStatus(false);
+  } catch (e) { showAlert(e.message, 'err'); }
+}
+
+// ── Подписки на фильтр реестра ──────────────────────────────────────────
+async function loadSavedSearches() {
+  const listEl = document.getElementById('savedSearchesList');
+  if (!listEl) return;
+  try {
+    const rows = await apiFetch('/api/saved-searches');
+    listEl.innerHTML = rows.length ? rows.map(r => `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:12.5px">
+        <div>
+          <b>${escHtml(r.name || 'Без названия')}</b><br>
+          <span style="color:var(--muted)">${escHtml(savedSearchSummary(r.filterJson))}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex:none">
+          <button class="btn btn-sm" onclick="toggleSavedSearch(${r.id},${r.active ? 0 : 1})">${r.active ? '⏸' : '▶'}</button>
+          <button class="btn btn-sm btn-dng" onclick="deleteSavedSearch(${r.id})">🗑</button>
+        </div>
+      </div>`).join('') : '<div style="color:var(--muted);font-size:12.5px">Подписок пока нет — настройте фильтр в реестре и нажмите «🔔 Подписаться».</div>';
+  } catch (_) {}
+}
+
+function savedSearchSummary(f) {
+  const parts = [];
+  if (f.product) parts.push(`продукция: ${f.product}`);
+  if (f.address) parts.push(`адрес: ${f.address}`);
+  if (f.farmerType) parts.push(f.farmerType === 'farmer' ? 'производители' : 'трейдеры');
+  if (f.batchMin) parts.push(`от ${f.batchMin} т`);
+  if (f.batchMax) parts.push(`до ${f.batchMax} т`);
+  return parts.length ? parts.join(', ') : 'без фильтра — все декларации';
+}
+
+async function toggleSavedSearch(id, active) {
+  try { await apiFetch(`/api/saved-searches/${id}/active`, { method: 'PUT', body: JSON.stringify({ active: !!active }) }); loadSavedSearches(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function deleteSavedSearch(id) {
+  if (!confirm('Удалить подписку?')) return;
+  try { await apiFetch(`/api/saved-searches/${id}`, { method: 'DELETE' }); loadSavedSearches(); }
+  catch (e) { showAlert(e.message, 'err'); }
+}
+
+async function subscribeCurrentFilter() {
+  const filters = getFilters();
+  const filter = { product: '', address: filters.address, farmerType: filters.farmerType, batchMin: filters.batchMin, batchMax: filters.batchMax };
+  const name = prompt('Название подписки (для себя)', filters.address || filters.farmerType || 'Реестр');
+  if (name === null) return;
+  try {
+    await apiFetch('/api/saved-searches', { method: 'POST', body: JSON.stringify({ name, filter }) });
+    showAlert('Подписка сохранена — уведомления придут в MAX (привяжите его в Профиле, если ещё не сделали)');
+  } catch (e) { showAlert(e.message, 'err'); }
 }
 
 async function changePassword() {
@@ -3077,12 +3213,15 @@ function renderNotes() {
     const stageHtml = stage
       ? `<span class="note-chip" style="background:${stage.color}1a;color:${stage.color}">${stage.label}</span>`
       : '';
+    const notifyHtml = (n.notifyTime && !n.notifySentDate)
+      ? `<span class="note-chip" style="background:#fff7e6;color:#7a5b00">🔔 ${new Date(n.notifyTime).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>`
+      : '';
     return `
       <div class="note-card" onclick="openNoteModal(${n.id})">
         <div class="note-card-title">${escHtml(n.title)}</div>
         ${n.content ? `<div class="note-card-body">${escHtml(n.content)}</div>` : ''}
         <div class="note-card-footer">
-          <div style="display:flex;gap:6px;flex-wrap:wrap">${stageHtml}${linksHtml}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">${stageHtml}${notifyHtml}${linksHtml}</div>
           <span style="font-size:10px;color:var(--muted)">${new Date(n.updatedAt).toLocaleDateString('ru-RU')}</span>
         </div>
       </div>`;
@@ -3183,6 +3322,7 @@ function openNoteModal(noteId) {
   document.getElementById('noteModalTitle').textContent = note ? 'Редактировать заметку' : 'Новая заметка';
   document.getElementById('noteTitle').value = note ? note.title : '';
   document.getElementById('noteStage').value = note ? (note.stage || '') : '';
+  document.getElementById('noteNotifyTime').value = note ? isoToLocalInputValue(note.notifyTime) : '';
   document.getElementById('noteContent').value = note ? (note.content || '') : '';
   document.getElementById('noteDeleteBtn').style.display = note ? '' : 'none';
 
@@ -3191,6 +3331,17 @@ function openNoteModal(noteId) {
   (note ? note.links : []).forEach(l => addNoteLinkRow(l.label || '', l.url || ''));
 
   openModal('noteModal');
+}
+
+// datetime-local хранит/показывает локальное время браузера без таймзоны —
+// переводим в ISO на границе запроса именно здесь (в браузере), пока известен
+// правильный локальный офсет пользователя, а не на сервере (у него свой).
+function isoToLocalInputValue(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function addNoteLink(label, url) {
@@ -3218,6 +3369,8 @@ async function saveNote() {
 
   const content = document.getElementById('noteContent').value;
   const stage = document.getElementById('noteStage').value;
+  const notifyInput = document.getElementById('noteNotifyTime').value;
+  const notifyTime = notifyInput ? new Date(notifyInput).toISOString() : null;
 
   const linkRows = document.querySelectorAll('#noteLinks .note-link-row');
   const links = [];
@@ -3228,7 +3381,7 @@ async function saveNote() {
   });
 
   try {
-    const body = { title, content, links, stage };
+    const body = { title, content, links, stage, notifyTime };
     if (_editingNoteId) {
       const updated = await apiFetch(`/api/notes/${_editingNoteId}`, { method: 'PUT', body: JSON.stringify(body) });
       const idx = _notes.findIndex(n => n.id === _editingNoteId);

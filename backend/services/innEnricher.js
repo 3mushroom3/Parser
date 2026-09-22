@@ -39,21 +39,24 @@ function updateOfficialNameByInn(inn, officialName) {
 // из платного export-base.ru (никогда не вызывался) — dadata отдаёт то же самое
 // бесплатно в том же ответе, что уже используется для ОКВЭД.
 const _upsertCompanyInfoStmt = db.prepare(`
-  INSERT INTO companies (id, inn, name, regDate, autoNote, ceoName, email)
-  VALUES (@key, @inn, @name, @regDate, @autoNote, @ceoName, @email)
+  INSERT INTO companies (id, inn, name, regDate, autoNote, ceoName, email, egrulStatus, egrulAddress, ogrn)
+  VALUES (@key, @inn, @name, @regDate, @autoNote, @ceoName, @email, @egrulStatus, @egrulAddress, @ogrn)
   ON CONFLICT(id) DO UPDATE SET
     regDate = COALESCE(NULLIF(excluded.regDate, ''), companies.regDate),
     autoNote = excluded.autoNote,
     ceoName = COALESCE(NULLIF(excluded.ceoName, ''), companies.ceoName),
     email = COALESCE(NULLIF(excluded.email, ''), companies.email),
+    egrulStatus = COALESCE(NULLIF(excluded.egrulStatus, ''), companies.egrulStatus),
+    egrulAddress = COALESCE(NULLIF(excluded.egrulAddress, ''), companies.egrulAddress),
+    ogrn = COALESCE(NULLIF(excluded.ogrn, ''), companies.ogrn),
     updatedAt = CURRENT_TIMESTAMP
 `);
-function upsertCompanyInfo(key, inn, name, regDate, autoNote, { director = '', egrulEmail = '' } = {}) {
-  if (!key || (!regDate && !autoNote && !director && !egrulEmail)) return;
+function upsertCompanyInfo(key, inn, name, regDate, autoNote, { director = '', egrulEmail = '', egrulStatus = '', egrulAddress = '', ogrn = '' } = {}) {
+  if (!key || (!regDate && !autoNote && !director && !egrulEmail && !egrulStatus)) return;
   try {
     _upsertCompanyInfoStmt.run({
       key, inn: inn || null, name: name || null, regDate: regDate || '', autoNote: autoNote || '',
-      ceoName: director || '', email: egrulEmail || '',
+      ceoName: director || '', email: egrulEmail || '', egrulStatus: egrulStatus || '', egrulAddress: egrulAddress || '', ogrn: ogrn || '',
     });
   } catch (e) {
     console.warn('[INN] Ошибка сохранения regDate/autoNote для', key, ':', e.message);
@@ -106,7 +109,7 @@ async function enrichRecords(records) {
         rec.farmerType = farmerType;
         rec.okved = okved;
         upsertCompanyInfo(inn, inn, rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote,
-          { director: data?.director, egrulEmail: data?.egrulEmail });
+          { director: data?.director, egrulEmail: data?.egrulEmail, egrulStatus: data?.egrulStatus, egrulAddress: data?.egrulAddress, ogrn: data?.ogrn });
         if (data?.name && data.name !== rec.shortName) {
           updateOfficialNameByInn(inn, data.name);
           rec.shortName = data.name;
@@ -151,7 +154,7 @@ async function enrichRecords(records) {
       rec.okved = okved;
       if (foundInn) rec.inn = foundInn;
       upsertCompanyInfo(foundInn || nameKey, foundInn, nameKey, data?.regDate, autoNote,
-        { director: data?.director, egrulEmail: data?.egrulEmail });
+        { director: data?.director, egrulEmail: data?.egrulEmail, egrulStatus: data?.egrulStatus, egrulAddress: data?.egrulAddress, ogrn: data?.ogrn });
       newLookups++;
       console.log(`[INN] "${nameKey.slice(0,30)}" → ИНН ${foundInn || '?'} → ${okved || '?'} → ${farmerType}`);
     } catch (e) {
@@ -278,7 +281,7 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
       rec.okved = okved;
       if (foundInn) rec.inn = foundInn;
       upsertCompanyInfo(foundInn || nameKey, foundInn, nameKey || rec.shortName || rec.applicantName || rec.lastName, data?.regDate, autoNote,
-        { director: data?.director, egrulEmail: data?.egrulEmail });
+        { director: data?.director, egrulEmail: data?.egrulEmail, egrulStatus: data?.egrulStatus, egrulAddress: data?.egrulAddress, ogrn: data?.ogrn });
 
       // Обновляем официальное название — только при поиске по ИНН (авторитетный источник).
       // Поиск по ИНН: cacheKey === inn (число), а не 'name:...'

@@ -179,14 +179,18 @@ async function fetchOkvedFromDadata(inn) {
   const name = normalizeOrgName(rawName);
   const regDate = parseDadataDate(data.state?.registration_date);
   // ЕГРЮЛ-данные, которые dadata отдаёт в том же ответе, но раньше не читались:
-  // руководитель и e-mail из выписки (ФНС с 2023 требует email при регистрации).
+  // руководитель и e-mail из выписки (ФНС с 2023 требует email при регистрации),
+  // статус и официальный адрес — для отчёта о должной осмотрительности (E1).
   const director = data.management?.name || '';
   const egrulEmail = (data.emails || [])[0]?.value || '';
+  const egrulStatus = data.state?.status || '';
+  const egrulAddress = data.address?.value || '';
+  const ogrn = data.ogrn || '';
 
   if (primary) {
     console.log(`[FNS] dadata ИНН ${inn}: осн=${primary}, доп.(${extras.length}), имя="${name}"${director ? `, рук.="${director}"` : ''}`);
   }
-  return { name, okved: primary, okveds: extras, inn, regDate, director, egrulEmail };
+  return { name, okved: primary, okveds: extras, inn, regDate, director, egrulEmail, egrulStatus, egrulAddress, ogrn };
 }
 
 /**
@@ -226,9 +230,12 @@ async function findByNameDadata(name) {
   const regDate = parseDadataDate(data.state?.registration_date);
   const director = data.management?.name || '';
   const egrulEmail = (data.emails || [])[0]?.value || '';
+  const egrulStatus = data.state?.status || '';
+  const egrulAddress = data.address?.value || '';
+  const ogrn = data.ogrn || '';
 
   if (foundInn) console.log(`[FNS] dadata name:"${name.slice(0,30)}" → ИНН:${foundInn} осн=${primary||'?'}`);
-  return { name: foundName, okved: primary, okveds: extras, inn: foundInn, regDate, director, egrulEmail };
+  return { name: foundName, okved: primary, okveds: extras, inn: foundInn, regDate, director, egrulEmail, egrulStatus, egrulAddress, ogrn };
 }
 
 /**

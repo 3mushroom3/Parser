@@ -74,6 +74,55 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
   });
 });
 
+// GET /api/business/company/report?inn=X — данные для отчёта о должной
+// осмотрительности (E1). MVP на том, что уже даёт бесплатный ответ DaData
+// при обогащении ОКВЭД (см. services/fnsClient.js): статус в ЕГРЮЛ, ОГРН,
+// директор, дата регистрации, официальный адрес — без банкротства/арбитража/
+// ФССП, для которых нужен платный источник (см. CLAUDE.md, фаза E1).
+const EGRUL_STATUS_LABELS = {
+  ACTIVE: 'Действующая', LIQUIDATING: 'В процессе ликвидации', LIQUIDATED: 'Ликвидирована',
+  BANKRUPT: 'Банкротство', REORGANIZING: 'В процессе реорганизации',
+};
+router.get('/company/report', auth, requireSubscription, dataReadLimiter, (req, res) => {
+  const { inn } = req.query;
+  if (!inn) return res.status(400).json({ error: 'inn required' });
+
+  const decl = db.prepare('SELECT address, shortName, applicantName, lastName, okved FROM declarations WHERE inn = ? ORDER BY regDate DESC LIMIT 1').get(inn);
+  const company = db.prepare('SELECT * FROM companies WHERE id = ?').get(inn);
+  if (!decl && !company) return res.status(404).json({ error: 'Компания не найдена' });
+
+  const declAddress = (decl?.address || '').trim();
+  const egrulAddress = (company?.egrulAddress || '').trim();
+  // Декларация и ЕГРЮЛ форматируют один и тот же адрес по-разному («ул.» vs
+  // «улица», «р-н» vs «район», порядок слов, запятые) — точное вхождение
+  // подстроки почти всегда ложно отрицательное. Сравниваем по пересечению
+  // слов-токенов: адрес длинный, случайное совпадение >половины токенов
+  // маловероятно, а разное форматирование одного адреса даёт его легко.
+  const addressTokens = s => new Set(s.toLowerCase().replace(/[().,]/g, ' ').split(/\s+/).filter(t => t.length > 1));
+  let addressMatch = null;
+  if (declAddress && egrulAddress) {
+    const ta = addressTokens(declAddress), tb = addressTokens(egrulAddress);
+    const common = [...ta].filter(t => tb.has(t)).length;
+    addressMatch = common / Math.min(ta.size, tb.size) >= 0.5;
+  }
+
+  res.json({
+    inn,
+    name: company?.name || decl?.shortName || decl?.applicantName || decl?.lastName || '',
+    ogrn: company?.ogrn || '',
+    egrulStatus: company?.egrulStatus || '',
+    egrulStatusLabel: EGRUL_STATUS_LABELS[company?.egrulStatus] || (company?.egrulStatus ? company.egrulStatus : 'нет данных'),
+    regDate: company?.regDate || '',
+    director: company?.ceoName || '',
+    okved: decl?.okved || '',
+    declAddress,
+    egrulAddress,
+    addressMatch,
+    hasEgrulData: !!(company?.egrulStatus || company?.ceoName || company?.regDate),
+    generatedAt: new Date().toISOString(),
+  });
+});
+
 router.put('/company/notes', auth, (req, res) => {
   const { inn, name, notes, description } = req.body;
   const key = inn || name;
