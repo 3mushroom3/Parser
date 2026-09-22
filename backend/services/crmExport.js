@@ -74,7 +74,7 @@ async function pushToBitrix24(integration, leads) {
         TITLE: leadTitle(lead),
         NAME: lead.shortName || lead.applicantName || lead.lastName || '',
         SOURCE_ID: 'WEB',
-        SOURCE_DESCRIPTION: 'База АПК',
+        SOURCE_DESCRIPTION: 'KOVELIA — реестр АПК',
         COMMENTS: leadComment(lead),
         PHONE: lead.phone ? [{ VALUE: lead.phone, VALUE_TYPE: 'WORK' }] : undefined,
       },

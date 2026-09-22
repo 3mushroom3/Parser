@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>База АПК — База сельхозпроизводителей</title>
+  <title>KOVELIA — реестр АПК</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -14,26 +14,13 @@
   <div class="login-card">
     <div class="login-logo">
       <div class="logo-ic logo-apk">
-        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
-          <!-- Пшеничный стебель -->
-          <line x1="18" y1="28" x2="18" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <!-- Колосья (зёрна) сверху -->
-          <ellipse cx="18" cy="9" rx="2.2" ry="3.5" fill="white" opacity="0.95"/>
-          <!-- Боковые колоски -->
-          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(-25 18 13) translate(-4 0)"/>
-          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(25 18 13) translate(4 0)"/>
-          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(-25 18 17) translate(-4.5 0)"/>
-          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(25 18 17) translate(4.5 0)"/>
-          <!-- Поле внизу -->
-          <path d="M7 28 Q12 24 18 26 Q24 24 29 28" stroke="#4ade80" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <path d="M4 31 Q11 27 18 29 Q25 27 32 31" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        </svg>
+        <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" width="36" height="36"><path d="M9 6 C9 6 7.5 10 7.5 17 C7.5 24 9 28 10.5 28 L14 28 C15.5 28 16 24 16 17 C16 10 15 6 13.5 6 Z" fill="#57e39a"/><path d="M16 16 C16 16 20 13 25 9 C28 7 30 6.5 31 7.5 C32 8.5 30.5 10.5 27.5 12.5 C23.5 15 18.5 17.5 16.5 18.5 Z" fill="#57e39a"/><path d="M16 18 C16 18 20 21 25 25 C28 27 30 27.5 31 26.5 C32 25.5 30.5 23.5 27.5 21.5 C23.5 19 18.5 16.5 16.5 17.5 Z" fill="#57e39a"/></svg>
       </div>
       <div class="login-brand">
-        <span class="brand-base">БАЗА</span><span class="brand-apk">АПК</span>
+        <span class="brand-base">KOVELIA</span><span class="brand-apk">реестр АПК</span>
       </div>
     </div>
-    <p class="login-subtitle">База сельхозпроизводителей</p>
+    <p class="login-subtitle">Реестр сельхозпроизводителей России</p>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Вход</button>
@@ -104,26 +91,17 @@
 
 <!-- MAIN APP -->
 <div id="app" style="display:none">
-  <!-- HEADER -->
-  <div class="hdr">
+<div class="app-shell">
+  <aside class="nav-rail">
     <a class="logo" href="#" onclick="showPage('registry');return false">
       <div class="logo-ic logo-apk">
-        <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-          <line x1="18" y1="28" x2="18" y2="10" stroke="white" stroke-width="2" stroke-linecap="round"/>
-          <ellipse cx="18" cy="9" rx="2.2" ry="3.5" fill="white" opacity="0.95"/>
-          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(-25 18 13) translate(-4 0)"/>
-          <ellipse cx="18" cy="13" rx="1.6" ry="2.6" fill="white" opacity="0.9" transform="rotate(25 18 13) translate(4 0)"/>
-          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(-25 18 17) translate(-4.5 0)"/>
-          <ellipse cx="18" cy="17" rx="1.5" ry="2.4" fill="white" opacity="0.8" transform="rotate(25 18 17) translate(4.5 0)"/>
-          <path d="M7 28 Q12 24 18 26 Q24 24 29 28" stroke="#4ade80" stroke-width="2" stroke-linecap="round" fill="none"/>
-          <path d="M4 31 Q11 27 18 29 Q25 27 32 31" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        </svg>
+        <svg viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22"><path d="M9 6 C9 6 7.5 10 7.5 17 C7.5 24 9 28 10.5 28 L14 28 C15.5 28 16 24 16 17 C16 10 15 6 13.5 6 Z" fill="#57e39a"/><path d="M16 16 C16 16 20 13 25 9 C28 7 30 6.5 31 7.5 C32 8.5 30.5 10.5 27.5 12.5 C23.5 15 18.5 17.5 16.5 18.5 Z" fill="#57e39a"/><path d="M16 18 C16 18 20 21 25 25 C28 27 30 27.5 31 26.5 C32 25.5 30.5 23.5 27.5 21.5 C23.5 19 18.5 16.5 16.5 17.5 Z" fill="#57e39a"/></svg>
       </div>
-      <div class="logo-text-apk"><span class="brand-base">БАЗА</span><span class="brand-apk">АПК</span></div>
+      <div class="logo-text-apk"><span class="brand-base">KOVELIA</span><span class="brand-apk">реестр АПК</span></div>
     </a>
     <nav class="nav">
-      <button class="nav-tab active" data-page="registry" onclick="showPage('registry')">Реестр</button>
-      <button class="nav-tab" data-page="map" onclick="showPage('map')">Карта <span style="font-size:10px;opacity:.7">(Бета)</span></button>
+      <button class="nav-tab active" data-page="registry" onclick="showPage('registry')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Реестр</button>
+      <button class="nav-tab" data-page="map" onclick="showPage('map')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Карта <span style="font-size:10px;opacity:.7">(Бета)</span></button>
       <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z"/></svg> Избранные</button>
       <button class="nav-tab" data-page="folders" onclick="showPage('folders')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg> Папки</button>
       <button class="nav-tab" data-page="notes" onclick="showPage('notes')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5h6.5L18 7v13a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-16a.5.5 0 01.5-.5z"/><path d="M14 3.5V7h4"/><path d="M9 12h6M9 15.5h6"/></svg> Заметки</button>
@@ -133,6 +111,18 @@
       <button class="nav-tab" data-page="crm" id="crmTab" onclick="showPage('crm')" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H4a1 1 0 01-1-1V8a1 1 0 011-1h5m6 0h5a1 1 0 011 1v8a1 1 0 01-1 1h-5M9 7V5a3 3 0 016 0v2M9 12h6"/></svg> CRM</button>
       <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/></svg> Админ</button>
     </nav>
+    <div class="rail-user">
+      <div class="rail-avatar" id="railAvatar">—</div>
+      <div class="rail-user-info">
+        <div class="rail-user-name" id="railUser">—</div>
+        <div class="rail-user-role" id="railRole"></div>
+      </div>
+    </div>
+  </aside>
+  <div class="app-body">
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-title" id="pageTitle">Реестр</div>
     <div class="hdr-r">
       <span id="hdrStatus" class="admin-only" style="font-size:12px;color:var(--muted)"></span>
       <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
@@ -207,8 +197,8 @@
         <!-- Stats -->
         <div class="stats">
           <div class="sc">
-            <div class="sc-icon" style="background:#EBF5FF">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="1.8">
+            <div class="sc-icon" style="background:var(--acl)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#075c44" stroke-width="1.8">
                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
             </div>
@@ -219,8 +209,8 @@
             </div>
           </div>
           <div class="sc">
-            <div class="sc-icon" style="background:#E8F5E2">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2d6a0f" stroke-width="1.8">
+            <div class="sc-icon" style="background:var(--succbg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#157a4d" stroke-width="1.8">
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </div>
@@ -231,8 +221,8 @@
             </div>
           </div>
           <div class="sc">
-            <div class="sc-icon" style="background:#E8F5E2">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#2d6a0f" stroke-width="1.8">
+            <div class="sc-icon" style="background:var(--succbg)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#157a4d" stroke-width="1.8">
                 <path d="M12 3v18m0-18l-4 4m4-4l4 4M5 21h14"/>
               </svg>
             </div>
@@ -350,10 +340,10 @@
     </div>
     <div class="map-legend">
       <div class="map-legend-title">Деклараций</div>
-      <div class="map-legend-row"><div class="map-legend-dot" style="width:12px;height:12px;background:#7DB9E8"></div><span style="color:var(--muted)">1–10</span></div>
-      <div class="map-legend-row"><div class="map-legend-dot" style="width:18px;height:18px;background:#378ADD"></div><span style="color:var(--muted)">11–50</span></div>
-      <div class="map-legend-row"><div class="map-legend-dot" style="width:24px;height:24px;background:#185FA5"></div><span style="color:var(--muted)">51–200</span></div>
-      <div class="map-legend-row"><div class="map-legend-dot" style="width:30px;height:30px;background:#0C3B7A"></div><span style="color:var(--muted)">200+</span></div>
+      <div class="map-legend-row"><div class="map-legend-dot" style="width:12px;height:12px;background:#a8dcc6"></div><span style="color:var(--muted)">1–10</span></div>
+      <div class="map-legend-row"><div class="map-legend-dot" style="width:18px;height:18px;background:#58b391"></div><span style="color:var(--muted)">11–50</span></div>
+      <div class="map-legend-row"><div class="map-legend-dot" style="width:24px;height:24px;background:#0b7355"></div><span style="color:var(--muted)">51–200</span></div>
+      <div class="map-legend-row"><div class="map-legend-dot" style="width:30px;height:30px;background:#044030"></div><span style="color:var(--muted)">200+</span></div>
     </div>
     <div class="map-loader" id="mapLoader">Загрузка данных...</div>
     <div class="map-empty" id="mapEmpty">
@@ -530,7 +520,7 @@
       <!-- Subscription card -->
       <div class="profile-card">
         <div class="profile-card-header">
-          <div class="profile-card-icon" style="background:#EBF5FF">💳</div>
+          <div class="profile-card-icon" style="background:var(--acl)">💳</div>
           <h3>Подписка</h3>
         </div>
         <div id="profileSubStatus" style="margin-bottom:16px;font-size:14px"></div>
@@ -540,7 +530,7 @@
       <!-- Change password card -->
       <div class="profile-card">
         <div class="profile-card-header">
-          <div class="profile-card-icon" style="background:#F0FFF4">🔑</div>
+          <div class="profile-card-icon" style="background:var(--succbg)">🔑</div>
           <h3>Смена пароля</h3>
         </div>
         <div class="fg" style="grid-template-columns:1fr">
@@ -586,7 +576,7 @@
       <!-- MAX bot card -->
       <div class="profile-card">
         <div class="profile-card-header">
-          <div class="profile-card-icon" style="background:#EEF4FF">💬</div>
+          <div class="profile-card-icon" style="background:var(--acl)">💬</div>
           <h3>Уведомления в MAX</h3>
         </div>
         <div id="maxLinkStatus" style="font-size:13px;color:var(--muted);margin-bottom:12px">Загрузка...</div>
@@ -596,7 +586,7 @@
       <!-- Saved searches card -->
       <div class="profile-card">
         <div class="profile-card-header">
-          <div class="profile-card-icon" style="background:#F0FFF4">🔔</div>
+          <div class="profile-card-icon" style="background:var(--succbg)">🔔</div>
           <h3>Мои подписки на реестр</h3>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Уведомление в MAX о каждой новой декларации, подходящей под сохранённый фильтр.</div>
@@ -725,11 +715,13 @@
       <div id="folderItemsEmpty" class="empty" style="display:none"><div class="ico">📄</div><p>Папка пуста. Добавьте компании или декларации через 📁 в реестре.</p></div>
     </div>
   </div>
+  </div>
+</div>
 </div>
 
 <!-- FOOTER -->
 <footer class="site-footer">
-  <span>© <span id="ftrYear"></span> База АПК</span>
+  <span>© <span id="ftrYear"></span> KOVELIA · реестр АПК</span>
   <span class="ftr-sep">·</span>
   <span>Агрегатор открытых данных pub.fsa.gov.ru, не аффилирован с Росаккредитацией</span>
   <span class="ftr-sep">·</span>
@@ -845,7 +837,7 @@
   <div class="mh"><h3>📄 Пользовательское соглашение</h3><button class="mcl" onclick="closeModal('tosModal')">✕</button></div>
   <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
     <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
-    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «База АПК — База сельхозпроизводителей» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
+    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «KOVELIA — реестр сельхозпроизводителей АПК» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
     <p style="margin-bottom:12px"><b>2. Источник данных</b></p>
     <p style="margin-bottom:12px">Все сведения о декларациях соответствия, представленные в Сервисе, получены исключительно из открытого государственного реестра Федеральной службы по аккредитации (Росаккредитация) — официального портала <b>pub.fsa.gov.ru</b>, функционирующего в соответствии с Федеральным законом № 412-ФЗ «Об аккредитации в национальной системе аккредитации».</p>
     <p style="margin-bottom:12px">Указанные данные являются <b>общедоступными</b> и размещены государственным органом в открытом доступе для неограниченного круга лиц. Сервис не является официальным ресурсом Росаккредитации и не аффилирован с ним. Сервис выполняет функцию агрегатора и инструмента удобного поиска по открытым данным.</p>
@@ -878,7 +870,7 @@
   <div class="mh"><h3>🔐 Политика конфиденциальности</h3><button class="mcl" onclick="closeModal('privacyModal')">✕</button></div>
   <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
     <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
-    <p style="margin-bottom:12px">Настоящая политика определяет порядок обработки персональных данных пользователей сервиса «База АПК» (далее — Сервис) администрацией Сервиса в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
+    <p style="margin-bottom:12px">Настоящая политика определяет порядок обработки персональных данных пользователей сервиса «KOVELIA» (далее — Сервис) администрацией Сервиса в соответствии с Федеральным законом № 152-ФЗ «О персональных данных».</p>
     <p style="margin-bottom:12px"><b>2. Какие данные собираются</b></p>
     <p style="margin-bottom:12px">При регистрации: логин и пароль (хранится только в виде необратимого хеша, не в открытом виде). При оформлении подписки: сведения об оплате обрабатываются платёжным оператором ЮKassa; Сервис не получает и не хранит данные банковских карт. При обращении в поддержку: текст обращения и, при необходимости, приложенный скриншот.</p>
     <p style="margin-bottom:12px">Отдельно: если пользователь загружает через раздел «Мои базы» собственный файл с контактами компаний, эти сведения — данные о юридических лицах, а не персональные данные пользователя — хранятся в его личном разделе и не передаются другим пользователям Сервиса.</p>

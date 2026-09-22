@@ -242,6 +242,8 @@ function checkAuth() {
   const loginPage = document.getElementById('pg-login');
   const appContainer = document.getElementById('app');
 
+  document.body.classList.toggle('logged-in', !!State.token);
+
   if (!State.token) {
     loginPage.style.display = 'flex';
     appContainer.style.display = 'none';
@@ -275,6 +277,14 @@ function showPage(name) {
   document.getElementById('pg-crm').className            = 'panel-page' + (name === 'crm'       ? ' active' : '');
 
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
+
+  const TITLES = {
+    registry: 'Реестр', map: 'Карта', favorites: 'Избранные', folders: 'Папки',
+    notes: 'Заметки', mydb: 'Мои базы', profile: 'Профиль', feedback: 'Поддержка',
+    crm: 'Выгрузка в CRM', admin: 'Администрирование',
+  };
+  const titleEl = document.getElementById('pageTitle');
+  if (titleEl) titleEl.textContent = TITLES[name] || '';
 
   if (name === 'map') {
     if (!State.mapInitialized) {
@@ -583,7 +593,7 @@ async function triggerParse() {
 function markerColorByType(ft) {
   if (ft === 'farmer') return '#2d6a0f';
   if (ft === 'trader') return '#A32D2D';
-  return '#378ADD';
+  return '#0b7355';
 }
 
 // MapLibre + векторные тайлы OpenFreeMap (OSM) со своим стилем map/style-ru.json:
@@ -640,7 +650,7 @@ function onMapLoad(map) {
     clusterProperties: { total: ['+', ['get', 'count']] },
   });
 
-  const colorByCount = field => ['step', ['get', field], '#7DB9E8', 11, '#378ADD', 51, '#185FA5', 200, '#0C3B7A'];
+  const colorByCount = field => ['step', ['get', field], '#a8dcc6', 11, '#58b391', 51, '#0b7355', 200, '#044030'];
 
   map.addLayer({
     id: 'places-cluster',
@@ -835,7 +845,7 @@ function renderPlaces() {
   const color = ft ? markerColorByType(ft) : null;
   for (const [layer, field] of [['places-point', 'count'], ['places-cluster', 'total']]) {
     map.setPaintProperty(layer, 'circle-color',
-      color || ['step', ['get', field], '#7DB9E8', 11, '#378ADD', 51, '#185FA5', 200, '#0C3B7A']);
+      color || ['step', ['get', field], '#a8dcc6', 11, '#58b391', 51, '#0b7355', 200, '#044030']);
   }
 
   const stats = State.mapStats || {};
@@ -859,7 +869,7 @@ function buildMapPopup(place) {
     const declsHtml = (o.decls || []).map(d => {
       const label = escHtml(d.product || 'Декларация');
       const safeId = String(d.id).replace(/'/g, '');
-      return `<div onclick="mapOpenDecl('${safeId}')" style="cursor:pointer;padding:3px 8px;margin:2px 0;border-radius:4px;font-size:11px;color:#185FA5;background:#eef4ff;line-height:1.4" onmouseover="this.style.background='#d9e8ff'" onmouseout="this.style.background='#eef4ff'">${label}</div>`;
+      return `<div onclick="mapOpenDecl('${safeId}')" style="cursor:pointer;padding:3px 8px;margin:2px 0;border-radius:4px;font-size:11px;color:#075c44;background:#eef4ff;line-height:1.4" onmouseover="this.style.background='#d9e8ff'" onmouseout="this.style.background='#eef4ff'">${label}</div>`;
     }).join('');
     return `
       <div style="padding:7px 0;border-bottom:1px solid #f0f2f5">
@@ -872,7 +882,7 @@ function buildMapPopup(place) {
     <div style="font-family:'Segoe UI',system-ui,sans-serif;min-width:280px">
       <div style="font-size:16px;font-weight:700;margin-bottom:2px">${escHtml(place.label || '')}</div>
       <div style="font-size:11px;color:#6b7280">${escHtml(where)}</div>
-      <div style="font-size:12px;color:#6b7280;margin:6px 0 10px;padding-bottom:10px;border-bottom:2px solid #185FA5">${place.count} деклараций</div>
+      <div style="font-size:12px;color:#6b7280;margin:6px 0 10px;padding-bottom:10px;border-bottom:2px solid #075c44">${place.count} деклараций</div>
       <div style="max-height:340px;overflow-y:auto;padding-right:2px">${orgsHtml}</div>
     </div>`;
 }
@@ -1348,20 +1358,20 @@ async function openDueDiligenceReport(inn) {
   win.document.write(`<!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
     <title>Отчёт о контрагенте — ${escHtml(data.name)}</title>
     <style>
-      body{font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#1a1e27;line-height:1.5}
+      body{font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:640px;margin:32px auto;padding:0 16px;color:#212829;line-height:1.5}
       h1{font-size:19px;margin:0 0 4px}
-      .sub{color:#6b7280;font-size:12px;margin-bottom:20px}
+      .sub{color:#6f8080;font-size:12px;margin-bottom:20px}
       .row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid #eee;font-size:13.5px}
-      .row b{color:#6b7280;font-weight:500;flex:none;width:180px}
+      .row b{color:#6f8080;font-weight:500;flex:none;width:180px}
       .row span{text-align:right}
       .warn{color:#a32d2d;font-size:12px}
-      .ok{color:#16a34a;font-size:12px}
+      .ok{color:#157a4d;font-size:12px}
       .notice{background:#fff7e6;border:1px solid #f2d272;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#7a5b00;margin:18px 0}
-      .btn{background:#185FA5;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;margin-top:18px}
+      .btn{background:#075c44;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;margin-top:18px}
       @media print{.btn{display:none}}
     </style></head><body>
     <h1>Отчёт о контрагенте: ${escHtml(data.name)}</h1>
-    <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · База АПК</div>
+    <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · KOVELIA · реестр АПК</div>
     <div class="row"><b>ИНН</b><span>${escHtml(data.inn)}</span></div>
     ${data.ogrn ? `<div class="row"><b>ОГРН</b><span>${escHtml(data.ogrn)}</span></div>` : ''}
     <div class="row"><b>Статус в ЕГРЮЛ</b><span>${escHtml(data.egrulStatusLabel)}</span></div>
@@ -2631,6 +2641,16 @@ function initApp() {
   loadRecentStrip();
   const crmTab = document.getElementById('crmTab');
   if (crmTab) crmTab.style.display = State.user?.crmEnabled ? '' : 'none';
+
+  // Блок пользователя внизу бокового меню.
+  const nameEl = document.getElementById('railUser');
+  if (nameEl && State.user) {
+    nameEl.textContent = State.user.username || '';
+    const roleEl = document.getElementById('railRole');
+    if (roleEl) roleEl.textContent = State.user.role === 'admin' ? 'Администратор' : 'Пользователь';
+    const avaEl = document.getElementById('railAvatar');
+    if (avaEl) avaEl.textContent = (State.user.username || '?').slice(0, 1);
+  }
   pollStatus();
 }
 
@@ -3079,7 +3099,7 @@ async function loadMydbPage() {
         <div style="display:flex;gap:16px;font-size:13px;flex-wrap:wrap">
           <div><span style="color:var(--muted)">Записей:</span> <b>${u.totalRows}</b></div>
           <div><span style="color:var(--muted)">Совпало:</span> <b style="color:#16a34a">${u.matchedRows}</b></div>
-          <div><span style="color:var(--muted)">Только у вас:</span> <b style="color:#0a3870">${u.privateRows}</b></div>
+          <div><span style="color:var(--muted)">Только у вас:</span> <b style="color:#0e4a3c">${u.privateRows}</b></div>
         </div>
         <button class="btn btn-sm" style="color:var(--err);border-color:var(--err)"
           onclick="deleteMydbUpload(${u.id})">🗑 Удалить</button>
@@ -3125,7 +3145,7 @@ async function loadMydbPrivate(page) {
         <div style="flex:1;min-width:120px;font-weight:500">${escHtml(r.companyName || '—')}</div>
         ${r.inn ? `<div style="color:var(--muted);font-size:12px">ИНН: ${escHtml(r.inn)}</div>` : ''}
         ${r.contactName ? `<div style="font-size:12px">👤 ${escHtml(r.contactName)}</div>` : ''}
-        ${r.phone ? `<div style="color:#0a3870">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
+        ${r.phone ? `<div style="color:#0e4a3c">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
         ${r.email ? `<div style="color:var(--muted);font-size:12px">✉ ${escHtml(r.email)}</div>` : ''}
         ${r.address ? `<div style="color:var(--muted);font-size:12px;flex-basis:100%;word-break:break-word">📍 ${escHtml(r.address)}</div>` : ''}
       </div>
@@ -3157,7 +3177,7 @@ async function loadUserContactsForCard(inn, name) {
     const items = data.map(c => {
       const parts = [];
       if (c.contactName) parts.push(`<span style="font-size:12px">👤 ${escHtml(c.contactName)}</span>`);
-      if (c.phone)  parts.push(`<span style="color:#0a3870;font-weight:500">📞 ${escHtml(c.phone)}${c.phone2 ? ' · ' + escHtml(c.phone2) : ''}</span>`);
+      if (c.phone)  parts.push(`<span style="color:#0e4a3c;font-weight:500">📞 ${escHtml(c.phone)}${c.phone2 ? ' · ' + escHtml(c.phone2) : ''}</span>`);
       if (c.email)  parts.push(`<span style="color:var(--muted);font-size:12px">✉ ${escHtml(c.email)}</span>`);
       if (c.address) parts.push(`<span style="color:var(--muted);font-size:12px">📍 ${escHtml(c.address)}</span>`);
       return parts.join(' &nbsp; ');
@@ -3178,7 +3198,7 @@ let _editingNoteId = null;
 
 const NOTE_STAGES = {
   meeting:   { label: 'Встреча',   color: '#6b7280' },
-  contract:  { label: 'Договор',   color: '#0a3870' },
+  contract:  { label: 'Договор',   color: '#0e4a3c' },
   documents: { label: 'Документы', color: '#7c3aed' },
   call:      { label: 'Звонок',    color: '#0284c7' },
   payment:   { label: 'Оплата',    color: '#16a34a' },

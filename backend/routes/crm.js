@@ -67,7 +67,7 @@ router.post('/integration/test', auth, requireCrmAccess, async (req, res) => {
   if (!row) return res.status(404).json({ error: 'Сначала сохраните настройки интеграции' });
   if (row.provider !== 'bitrix24') return res.status(400).json({ error: 'Тестовая отправка пока доступна только для Bitrix24' });
 
-  const testLead = { id: 'test', productName: 'Тестовый лид из «База АПК»', batchSize: '100 т',
+  const testLead = { id: 'test', productName: 'Тестовый лид из «KOVELIA»', batchSize: '100 т',
     address: 'Тестовый адрес', inn: '0000000000', shortName: 'ООО «Тест»', regDate: new Date().toISOString().slice(0, 10) };
   try {
     await pushToBitrix24(row, [testLead]);

@@ -5,7 +5,7 @@
  *   UNISENDER_GO_API_URL  — эндпоинт вида https://goN.unisender.ru/ru/transactional/api/v1/email/send.json
  *                           (N — номер дата-центра аккаунта, смотреть в личном кабинете; по умолчанию go1)
  *   MAIL_FROM_EMAIL       — адрес отправителя (должен быть подтверждён в Unisender Go)
- *   MAIL_FROM_NAME        — имя отправителя, по умолчанию «База АПК»
+ *   MAIL_FROM_NAME        — имя отправителя, по умолчанию «KOVELIA»
  * Пока переменные не заданы, send() бросает понятную ошибку — вызывающий код
  * (routes/auth.js) должен явно обработать это состояние, а не тихо глотать.
  */
@@ -14,7 +14,7 @@ const axios = require('axios');
 const API_URL = process.env.UNISENDER_GO_API_URL || 'https://go1.unisender.ru/ru/transactional/api/v1/email/send.json';
 const API_KEY = process.env.UNISENDER_GO_API_KEY || '';
 const FROM_EMAIL = process.env.MAIL_FROM_EMAIL || '';
-const FROM_NAME = process.env.MAIL_FROM_NAME || 'База АПК';
+const FROM_NAME = process.env.MAIL_FROM_NAME || 'KOVELIA';
 
 const http = axios.create({ timeout: 15000, validateStatus: () => true });
 
@@ -46,10 +46,10 @@ async function send({ to, subject, html, text }) {
 async function sendVerificationCode(email, code) {
   return send({
     to: email,
-    subject: `Код подтверждения: ${code} — База АПК`,
+    subject: `Код подтверждения: ${code} — KOVELIA`,
     html: `
       <div style="font-family:Arial,sans-serif;font-size:15px;color:#1a1e27">
-        <p>Код для подтверждения почты на «База АПК»:</p>
+        <p>Код для подтверждения почты на «KOVELIA»:</p>
         <p style="font-size:28px;font-weight:700;letter-spacing:4px">${code}</p>
         <p style="color:#6b7280;font-size:13px">Код действует 10 минут. Если вы не запрашивали регистрацию — просто игнорируйте это письмо.</p>
       </div>`,

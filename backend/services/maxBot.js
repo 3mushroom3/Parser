@@ -69,7 +69,7 @@ async function handleUpdate(update) {
 
   if (user) {
     db.prepare('UPDATE users SET maxUserId = ?, maxLinkCode = NULL, maxLinkCodeExpiresAt = NULL WHERE id = ?').run(senderId, user.id);
-    await sendMessage(senderId, `✅ Аккаунт «${user.username}» на База АПК привязан. Сюда будут приходить напоминания по заметкам и уведомления о новых декларациях по вашим подпискам.`).catch(() => {});
+    await sendMessage(senderId, `✅ Аккаунт «${user.username}» на KOVELIA привязан. Сюда будут приходить напоминания по заметкам и уведомления о новых декларациях по вашим подпискам.`).catch(() => {});
     logger.info('[MAX] Привязан аккаунт userId=%s к maxUserId=%s', user.id, senderId);
   } else {
     await sendMessage(senderId, 'Не узнал код. Возьмите код привязки в разделе «Профиль» на baza-apk и отправьте его сюда сообщением.').catch(() => {});

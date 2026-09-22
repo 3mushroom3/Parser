@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Генерирует frontend/map/style-ru.json — стиль карты «База АПК».
+ * Генерирует frontend/map/style-ru.json — стиль карты KOVELIA.
  *
  * Берём бесплатный векторный стиль OpenFreeMap (Positron, тайлы OSM — работают
  * из России, без ключа и лимитов) и правим его под русскую версию карты:
@@ -68,7 +68,7 @@ function fetchJson(url) {
     throw new Error('в стиле нет ожидаемых слоёв boundary_* — стиль изменился, скрипт надо править');
   }
 
-  style.name = 'База АПК — русская версия';
+  style.name = 'KOVELIA — русская версия';
   delete style.sprite;
   delete style.sources.ne2_shaded; // в Positron этот источник не используется
 
