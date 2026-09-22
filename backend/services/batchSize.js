@@ -1,17 +1,73 @@
 /**
- * Парсинг объёма партии из строки декларации («280 т», «2 110 тонн»,
- * «500 000 кг», «12 центнеров») в тонны числом — для фильтра по диапазону
- * в реестре. Портировано без изменений из frontend/js/app.js (parseTon) —
- * держать в синхроне при правках любой из версий.
+ * Парсинг объёма партии из строки декларации в тонны числом — для фильтра по
+ * диапазону в реестре и для сумм в карточке производителя.
+ *
+ * Формулировки в реестре произвольные, поэтому разбор идёт по шагам:
+ *   «1000 тонн»                              → 1000
+ *   «6000 (Шесть тысяч) тонн»                → 6000   (пропись в скобках — дубль)
+ *   «166 тонн 540 кг»                        → 166.54 (целые тонны + остаток)
+ *   «542,3 (пятьсот сорок две) тонны 300 кг» → 542.3  (0,3 т и есть те самые 300 кг)
+ *   «вес нетто 20 000 кг (500 мешков)»       → 20     (текст в начале, «500» — мешки)
+ *   «12 центнеров»                           → 1.2
+ *
+ * Держать в синхроне с parseTon() во frontend/js/app.js.
  */
+
+// Пропись и пояснения в скобках повторяют число («6000 (Шесть тысяч) тонн») или
+// считают тару («(500 мешков)»). И то и другое только мешает — выкидываем.
+const PARENS_RE = /\([^)]*\)/g;
+
+// (?![а-яё]) — чтобы «т» не цеплялось к «точка», а «ц» к «цистерна».
+const UNIT_TON = '(?:тонн[а-яё]*|тн|т)(?![а-яё])';
+const UNIT_KG = '(?:килограмм[а-яё]*|кг)(?![а-яё])';
+const UNIT_CT = '(?:центнер[а-яё]*|ц)(?![а-яё])';
+
+const NUM = '(\\d+(?:[.,]\\d+)?)';
+const FIRST_VALUE_RE = new RegExp(`${NUM}\\s*(${UNIT_TON}|${UNIT_KG}|${UNIT_CT})`, 'i');
+const KG_TAIL_RE = new RegExp(`${NUM}\\s*${UNIT_KG}`, 'i');
+const BARE_NUM_RE = new RegExp(`^\\s*${NUM}`);
+const UNIT_KG_RE = new RegExp(`^${UNIT_KG}$`, 'i');
+const UNIT_CT_RE = new RegExp(`^${UNIT_CT}$`, 'i');
+
 function parseBatchTons(s) {
   if (!s) return null;
-  const str = String(s).replace(/\s/g, '').toLowerCase();
-  const n = parseFloat(str.replace(',', '.'));
-  if (isNaN(n) || n <= 0) return null;
-  if (/цент|^\d+ц[^и]/.test(str)) return n / 10;
-  if (/кг|кило/.test(str)) return n / 1000;
-  return n;
+
+  let str = String(s).toLowerCase().replace(PARENS_RE, ' ');
+  // Пробел внутри числа — разделитель тысяч («20 000 кг», «2 717,7»), а не конец
+  // числа. Склеиваем только цифры между собой, остальные пробелы не трогаем.
+  str = str.replace(/(\d)[   ]+(?=\d)/g, '$1');
+  // «5000, 00 тонн» — пробел уехал после запятой, дробная часть оторвалась.
+  str = str.replace(/(\d),[   ]+(?=\d)/g, '$1,');
+  // «1,450,544 тонн» — запятая как разделитель тысяч. Требуем минимум две группы
+  // подряд: одиночное «1,450» двусмысленно и остаётся дробью, как было.
+  str = str.replace(/\d{1,3}(?:,\d{3}){2,}/g, m => m.replace(/,/g, ''));
+
+  const m = FIRST_VALUE_RE.exec(str);
+  if (!m) {
+    // Единиц нет вовсе — «1000». Считаем тоннами, как и раньше.
+    const bare = BARE_NUM_RE.exec(str);
+    const n = bare ? parseFloat(bare[1].replace(',', '.')) : NaN;
+    return isNaN(n) || n <= 0 ? null : n;
+  }
+
+  const value = parseFloat(m[1].replace(',', '.'));
+  if (isNaN(value) || value <= 0) return null;
+  const unit = m[2];
+
+  if (UNIT_KG_RE.test(unit)) return value / 1000;
+  if (UNIT_CT_RE.test(unit)) return value / 10;
+
+  // Тонны. Хвост «N кг» после них добавляем только к целому числу тонн:
+  // у «542,3 тонны 300 кг» дробная часть — это и есть те 300 кг, и сложение
+  // посчитало бы их дважды.
+  if (Number.isInteger(value)) {
+    const tail = KG_TAIL_RE.exec(str.slice(m.index + m[0].length));
+    if (tail) {
+      const kg = parseFloat(tail[1].replace(',', '.'));
+      if (!isNaN(kg) && kg > 0 && kg < 1000) return value + kg / 1000;
+    }
+  }
+  return value;
 }
 
 module.exports = { parseBatchTons };

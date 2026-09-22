@@ -9,6 +9,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../services/db');
+const { normalizeCompanyName } = require('../services/companyName');
 
 const escHtml = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -60,7 +61,7 @@ router.get('/company/:inn', (req, res) => {
       `<h1>Компания не найдена</h1><p>В реестре действующих деклараций компания с ИНН ${escHtml(inn)} не найдена.</p><a class="cta" href="/">Открыть реестр</a>`));
   }
 
-  const name = rows[0].name || 'Без названия';
+  const name = normalizeCompanyName(rows[0].name) || 'Без названия';
   const place = [rows[0].district, rows[0].place].filter(Boolean).join(', ') || rows[0].region || 'регион не определён';
   const typeLabel = { farmer: 'Производитель', farmer_trader: 'Производитель / Трейдер', trader: 'Трейдер', trader_farmer: 'Трейдер / Производитель' }[rows[0].farmerType] || '';
   const products = [...new Set(rows.map(r => r.productName).filter(Boolean))].slice(0, 12);

@@ -18,6 +18,8 @@ node scripts/build-map-style.js                # пересобрать стил
 node scripts/build-ru-border.js                # пересобрать границу РФ для карты (frontend/map/ru-border.geojson)
 node scripts/geocode-places.js [--limit N] [--parse-only]  # разметка адресов по НП + геокодирование очереди
 node scripts/reset-admin-password.js [пароль]  # сброс пароля admin (без аргумента — случайный)
+node scripts/backfill-batch-tons.js --all        # пересчитать объём партии по всему реестру (после правок разбора)
+node scripts/rematch-user-contacts.js [--dry]    # пересверить загруженные базы с реестром (после правок сверки)
 ```
 
 Тестов и линтера (в рабочем состоянии) нет.

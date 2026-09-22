@@ -787,7 +787,11 @@ function findInRegistry(db, records) {
       .all(...part).forEach(r => inns.add(r.inn));
   }
 
-  const wanted = new Set(records.filter(r => !r.inn && r.name).map(r => nameKey(r.name)).filter(k => k.length >= 3));
+  // Ключи названий собираем по всем записям, а не только по бесИННым: ИНН в
+  // файле может не совпасть с реестром и у известной компании — например у
+  // предприятий ЛНР и ДНР, сменивших ИНН при перерегистрации по российскому
+  // праву, или когда в реестре стоит ИНН заявителя, а в файле — производителя.
+  const wanted = new Set(records.filter(r => r.name).map(r => nameKey(r.name)).filter(k => k.length >= 3));
   const shortNamesByKey = new Map();
   if (wanted.size) {
     const stmt = db.prepare("SELECT DISTINCT shortName FROM declarations WHERE shortName IS NOT NULL AND shortName != ''");
@@ -813,7 +817,9 @@ function findInRegistry(db, records) {
   }
 
   return rec => {
-    if (rec.inn) return inns.has(rec.inn);
+    if (rec.inn && inns.has(rec.inn)) return true;
+    // ИНН не нашёлся — это ещё не «нет в реестре»: пробуем по названию с той же
+    // проверкой региона, что и для записей без ИНН.
     const key = rec.name ? nameKey(rec.name) : '';
     if (!shortNamesByKey.has(key)) return false;
     const own = regionHints(rec.address);

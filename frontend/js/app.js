@@ -485,7 +485,7 @@ function renderTable(data) {
       <tr class="producer-row" id="prod_${page}_${idx}" onclick="toggleProducer(${page},${idx},${p.decls.length})" style="cursor:${hasMany?'pointer':'default'}">
         <td style="text-align:center;color:var(--muted);font-size:11px;user-select:none" id="arr_${page}_${idx}">${hasMany?'▶':''}</td>
         <td title="${(p.name).replace(/"/g,'&quot;')}" style="font-weight:500">
-          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(p.name, _csManuf)}${badge}${dormantBadge}</span>${innHint}
+          <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(fmtCompany(p.name), _csManuf)}${badge}${dormantBadge}</span>${innHint}
         </td>
         <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—', _csAddr)}</td>
         <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
@@ -873,7 +873,7 @@ function buildMapPopup(place) {
     }).join('');
     return `
       <div style="padding:7px 0;border-bottom:1px solid #f0f2f5">
-        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${escHtml(o.name)} <span style="font-weight:400;color:#6b7280">${o.decls.length > 1 ? '(' + o.decls.length + ')' : ''}</span></div>
+        <div style="font-size:13px;font-weight:600;color:#1a1e27;margin-bottom:4px;white-space:normal">${escHtml(fmtCompany(o.name))} <span style="font-weight:400;color:#6b7280">${o.decls.length > 1 ? '(' + o.decls.length + ')' : ''}</span></div>
         ${declsHtml}
       </div>`;
   }).join('');
@@ -1220,7 +1220,7 @@ async function openCompany(inn, name) {
   State.navDeclIndex = -1;
 
   const key = inn || name;
-  document.getElementById('compModalName').textContent = name || inn || 'Загрузка...';
+  document.getElementById('compModalName').textContent = fmtCompany(name) || inn || 'Загрузка...';
   document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
   document.getElementById('compModalBody').innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">Загрузка данных...</div>';
   document.getElementById('compModalFoot').innerHTML = '';
@@ -1237,7 +1237,7 @@ async function openCompany(inn, name) {
            farmerType: p.farmerType||'unknown', okved: p.okved||'', notes: '', description: '', contacts: [], decls: p.decls||[] };
   }
 
-  document.getElementById('compModalName').textContent = p.name || name || '—';
+  document.getElementById('compModalName').textContent = fmtCompany(p.name || name) || '—';
   document.getElementById('compModalSub').innerHTML = [
     p.inn  ? 'ИНН: <b>' + p.inn + '</b>'   : '',
     p.companyRegDate ? 'Зарегистрирована: <b>' + p.companyRegDate + '</b>' : '',
@@ -1370,7 +1370,7 @@ async function openDueDiligenceReport(inn) {
       .btn{background:#075c44;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;margin-top:18px}
       @media print{.btn{display:none}}
     </style></head><body>
-    <h1>Отчёт о контрагенте: ${escHtml(data.name)}</h1>
+    <h1>Отчёт о контрагенте: ${escHtml(fmtCompany(data.name))}</h1>
     <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · KOVELIA · реестр АПК</div>
     <div class="row"><b>ИНН</b><span>${escHtml(data.inn)}</span></div>
     ${data.ogrn ? `<div class="row"><b>ОГРН</b><span>${escHtml(data.ogrn)}</span></div>` : ''}
@@ -1513,21 +1513,96 @@ function classifyProd(name) {
   return CROP_OTHER;
 }
 
+// Объём партии из произвольной формулировки реестра в тонны. Разбор совпадает
+// с backend/services/batchSize.js — держать в синхроне при правках любой из
+// версий; там же разобраны все форматы, которые встречаются в данных.
+const BATCH_UNIT_TON = '(?:тонн[а-яё]*|тн|т)(?![а-яё])';
+const BATCH_UNIT_KG  = '(?:килограмм[а-яё]*|кг)(?![а-яё])';
+const BATCH_UNIT_CT  = '(?:центнер[а-яё]*|ц)(?![а-яё])';
+const BATCH_NUM      = '(\\d+(?:[.,]\\d+)?)';
+const BATCH_FIRST_RE = new RegExp(`${BATCH_NUM}\\s*(${BATCH_UNIT_TON}|${BATCH_UNIT_KG}|${BATCH_UNIT_CT})`, 'i');
+const BATCH_KG_TAIL_RE = new RegExp(`${BATCH_NUM}\\s*${BATCH_UNIT_KG}`, 'i');
+const BATCH_BARE_RE  = new RegExp(`^\\s*${BATCH_NUM}`);
+const BATCH_KG_ONLY  = new RegExp(`^${BATCH_UNIT_KG}$`, 'i');
+const BATCH_CT_ONLY  = new RegExp(`^${BATCH_UNIT_CT}$`, 'i');
+
 function parseTon(s) {
   if (!s) return 0;
-  const str = String(s).replace(/\s/g,'').toLowerCase();
-  const n = parseFloat(str.replace(',','.'));
-  if (isNaN(n) || n <= 0) return 0;
-  if (/цент|^\d+ц[^и]/.test(str)) return n / 10;
-  if (/кг|кило/.test(str)) return n / 1000;
-  return n;
+  let str = String(s).toLowerCase().replace(/\([^)]*\)/g, ' ');
+  str = str.replace(/(\d)[   ]+(?=\d)/g, '$1');
+  str = str.replace(/(\d),[   ]+(?=\d)/g, '$1,');
+  str = str.replace(/\d{1,3}(?:,\d{3}){2,}/g, m => m.replace(/,/g, ''));
+
+  const m = BATCH_FIRST_RE.exec(str);
+  if (!m) {
+    const bare = BATCH_BARE_RE.exec(str);
+    const n = bare ? parseFloat(bare[1].replace(',', '.')) : NaN;
+    return isNaN(n) || n <= 0 ? 0 : n;
+  }
+
+  const value = parseFloat(m[1].replace(',', '.'));
+  if (isNaN(value) || value <= 0) return 0;
+  if (BATCH_KG_ONLY.test(m[2])) return value / 1000;
+  if (BATCH_CT_ONLY.test(m[2])) return value / 10;
+
+  if (Number.isInteger(value)) {
+    const tail = BATCH_KG_TAIL_RE.exec(str.slice(m.index + m[0].length));
+    if (tail) {
+      const kg = parseFloat(tail[1].replace(',', '.'));
+      if (!isNaN(kg) && kg > 0 && kg < 1000) return value + kg / 1000;
+    }
+  }
+  return value;
+}
+
+// Название компании для показа: организационная форма — аббревиатурой, частник
+// без формы — с «ИП». Разбор совпадает с backend/services/companyName.js —
+// держать в синхроне. В данных ничего не меняется: поиск, группировка,
+// избранное и выгрузки работают с исходной строкой.
+const COMPANY_FORM_RULES = [
+  [/^общество\s+с\s+ограниченной\s+ответственностью/i, 'ООО'],
+  [/^публичное\s+акционерное\s+общество/i, 'ПАО'],
+  [/^непубличное\s+акционерное\s+общество/i, 'НАО'],
+  [/^закрытое\s+акционерное\s+общество/i, 'ЗАО'],
+  [/^открытое\s+акционерное\s+общество/i, 'ОАО'],
+  [/^акционерное\s+общество/i, 'АО'],
+  [/^индивидуальный\s+предприниматель/i, 'ИП'],
+  [/^физическое\s+лицо[\s-]*предприниматель/i, 'ИП'],
+  [/^флп(?![а-яё])/i, 'ИП'],
+  [/^глав[аы]\s+крестьянск(?:ого|их)?\s*(?:\([^)]*\)|фермерского)?\s*хозяйств[ао]?/i, 'КФХ'],
+  [/^крестьянск(?:ое|ого)\s*(?:\([^)]*\)|фермерское)?\s*хозяйств[ао]?/i, 'КФХ'],
+  [/^фермерское\s+хозяйство/i, 'КФХ'],
+  [/^сельскохозяйственн[а-яё]*\s+производственн[а-яё]*\s+кооператив[а-яё]*/i, 'СПК'],
+  [/^к\s*\(\s*ф\s*\)\s*х(?![а-яё])/i, 'КФХ'],
+  [/^к\s*\/\s*х(?![а-яё])/i, 'КФХ'],
+  [/^кх(?![а-яё])/i, 'КФХ'],
+  [/^фх(?![а-яё])/i, 'КФХ'],
+];
+const COMPANY_PATRONYMIC_RE = /(ович|овича|евич|евича|ьич|ича|овна|овны|евна|евны|ична|инична)$/i;
+const COMPANY_INITIALS_RE = /^[А-ЯЁ][А-ЯЁа-яё-]+\s+[А-ЯЁ]\.\s*[А-ЯЁ]\.?$/;
+
+function fmtCompany(name) {
+  if (!name) return '';
+  const str = String(name).replace(/\s+/g, ' ').trim();
+  if (!str) return '';
+  for (const [re, abbr] of COMPANY_FORM_RULES) {
+    const m = re.exec(str);
+    if (!m) continue;
+    const rest = str.slice(m[0].length).replace(/^[\s,.:-]+/, '');
+    return rest ? `${abbr} ${rest}` : abbr;
+  }
+  if (/["«»()\d]/.test(str)) return str;
+  const words = str.split(/\s+/);
+  const person = (words.length === 3 && COMPANY_PATRONYMIC_RE.test(words[2])) || COMPANY_INITIALS_RE.test(str);
+  return person ? `ИП ${str}` : str;
 }
 
 function fmtTon(t) {
   if (!t) return '—';
   if (t >= 1000000) return (t / 1000000).toFixed(2) + ' млн т';
   if (t >= 1000)    return (t / 1000).toFixed(1) + ' тыс.т';
-  return Math.round(t).toLocaleString('ru') + ' т';
+  // До тысячи тонн килограммы ещё различимы: «995,78 т» вместо «996 т».
+  return (Math.round(t * 100) / 100).toLocaleString('ru', { maximumFractionDigits: 2 }) + ' т';
 }
 
 function harvestYearOf(regDate, ys) {
@@ -1660,7 +1735,7 @@ async function openDetail(id, fromCompany = false) {
       </div>
       <div class="dsec"><h4>Изготовитель</h4>
         <div class="dg">
-          <div class="df full"><div class="df-l">Наименование</div><div class="df-v">${r.shortName||'—'}</div></div>
+          <div class="df full"><div class="df-l">Наименование</div><div class="df-v">${fmtCompany(r.shortName)||'—'}</div></div>
           ${r.inn ? `<div class="df"><div class="df-l">ИНН</div><div class="df-v">${r.inn}</div></div>` : ''}
           ${r.farmerType && r.farmerType !== 'unknown' ? `<div class="df"><div class="df-l">Тип компании</div><div class="df-v">${
             r.farmerType === 'farmer'        ? '<span class="ft ft-farmer">Производитель</span>' :
@@ -3142,7 +3217,7 @@ async function loadMydbPrivate(page) {
 
     listEl.innerHTML = rows.length ? rows.map(r => `
       <div style="padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-        <div style="flex:1;min-width:120px;font-weight:500">${escHtml(r.companyName || '—')}</div>
+        <div style="flex:1;min-width:120px;font-weight:500">${escHtml(fmtCompany(r.companyName) || '—')}</div>
         ${r.inn ? `<div style="color:var(--muted);font-size:12px">ИНН: ${escHtml(r.inn)}</div>` : ''}
         ${r.contactName ? `<div style="font-size:12px">👤 ${escHtml(r.contactName)}</div>` : ''}
         ${r.phone ? `<div style="color:#0e4a3c">📞 ${escHtml(r.phone)}${r.phone2 ? ' · ' + escHtml(r.phone2) : ''}</div>` : ''}
