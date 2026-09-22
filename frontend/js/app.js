@@ -1528,39 +1528,54 @@ const BATCH_CT_ONLY  = new RegExp(`^${BATCH_UNIT_CT}$`, 'i');
 
 function parseTon(s) {
   if (!s) return 0;
-  let str = String(s).toLowerCase().replace(/\([^)]*\)/g, ' ');
-  str = str.replace(/(\d)[   ]+(?=\d)/g, '$1');
-  str = str.replace(/(\d),[   ]+(?=\d)/g, '$1,');
-  // Несколько запятых («1,450,544») — последняя десятичная, предыдущие были
-  // разделителями тысяч. Обоснование — в backend/services/batchSize.js.
+  // Скобки — меткой, а не пробелом: иначе числа по обе стороны склеятся при
+  // сборке разрядов. Обоснование всех правил — в backend/services/batchSize.js.
+  let str = String(s).toLowerCase().replace(/\([^)]*\)/g, ' \u0001 ');
+  // К числу приклеиваем только группы ровно по три цифры; хвост вроде «00» в
+  // «66 000 000 00 кг» отбрасываем. Обоснование — в backend/services/batchSize.js.
+  let prev;
+  do {
+    prev = str;
+    str = str.replace(/(\d)[\u0020\u00a0]+(\d{3})(?!\d)/g, '$1$2');
+  } while (str !== prev);
+  str = str.replace(/(\d)[\u0020\u00a0]+(\d+)(?!\d)/g, '$1.$2');
+  str = str.replace(/(\d),[\u0020\u00a0]+(?=\d)/g, '$1,');
   str = str.replace(/\d{1,3}(?:,\d{3})+/g, m => {
     const last = m.lastIndexOf(',');
     return m.slice(0, last).replace(/,/g, '') + ',' + m.slice(last + 1);
   });
+  str = str.replace(/\u0001/g, ' ');
+
+  // Партии больше 500 тыс. т не бывает: в реестре попадаются записи с потерянной
+  // запятой («2 110 594 тонн» — это 2110,594 т). Сдвиг кратен тысяче.
+  const plausible = v => {
+    let n = v;
+    for (let i = 0; i < 2 && n > 500000; i++) n /= 1000;
+    return n > 500000 ? 0 : n;
+  };
 
   const m = BATCH_FIRST_RE.exec(str);
   if (!m) {
-    // Число без единицы измерения: до миллиона — тонны, от миллиона —
-    // килограммы. Обоснование порога — в backend/services/batchSize.js.
+    // Число без единицы измерения: до миллиона — тонны, от миллиона — килограммы.
     const bare = BATCH_BARE_RE.exec(str);
     const num = bare ? parseFloat(bare[1].replace(',', '.')) : NaN;
     if (isNaN(num) || num <= 0) return 0;
-    return num >= 1000000 ? num / 1000 : num;
+    return plausible(num >= 1000000 ? num / 1000 : num);
   }
 
   const value = parseFloat(m[1].replace(',', '.'));
   if (isNaN(value) || value <= 0) return 0;
-  if (BATCH_KG_ONLY.test(m[2])) return value / 1000;
-  if (BATCH_CT_ONLY.test(m[2])) return value / 10;
+  if (BATCH_KG_ONLY.test(m[2])) return plausible(value / 1000);
+  if (BATCH_CT_ONLY.test(m[2])) return plausible(value / 10);
 
   if (Number.isInteger(value)) {
     const tail = BATCH_KG_TAIL_RE.exec(str.slice(m.index + m[0].length));
     if (tail) {
       const kg = parseFloat(tail[1].replace(',', '.'));
-      if (!isNaN(kg) && kg > 0 && kg < 1000) return value + kg / 1000;
+      if (!isNaN(kg) && kg > 0 && kg < 1000) return plausible(value + kg / 1000);
     }
   }
-  return value;
+  return plausible(value);
 }
 
 // Название компании для показа: организационная форма — аббревиатурой, частник
