@@ -36,6 +36,20 @@ function isImported(filename) {
   return !!db.prepare('SELECT 1 FROM opendata_imports WHERE filename = ?').get(filename);
 }
 
+/**
+ * Тот же период, но с другой датой структуры. ФСА перевыпускает архив, когда
+ * меняет схему выгрузки: имя файла становится другим, а срез данных тот же.
+ * Сверка по полному имени считала такой архив новым и качала его каждую ночь
+ * заново — гигабайт трафика впустую, тем более что записи ложатся через
+ * INSERT OR IGNORE по id и ничего бы не добавили.
+ */
+function isPeriodImported(filename) {
+  const m = /^data-(\d{8})-/.exec(filename);
+  if (!m) return false;
+  const row = db.prepare("SELECT filename FROM opendata_imports WHERE filename LIKE ?").get(`data-${m[1]}-%`);
+  return row ? row.filename : null;
+}
+
 function rmSafe(p) {
   try { fs.rmSync(p, { force: true }); } catch (e) { log.warn(`opendata: не удалось удалить ${p}: ${e.message}`); }
 }
@@ -70,7 +84,15 @@ async function runOpendataImport(cfg, opts = {}) {
 
   log.info('opendata: проверка новых архивов...');
   const archives = await opendataClient.listAvailableArchives(cfg.opendata.pageUrl);
-  const pending = archives.filter((a) => !isImported(a.filename));
+  const pending = archives.filter((a) => {
+    if (isImported(a.filename)) return false;
+    const already = isPeriodImported(a.filename);
+    if (already) {
+      log.info(`opendata: ${a.filename} — тот же период уже загружен из ${already}, пропуск`);
+      return false;
+    }
+    return true;
+  });
   const toProcess = opts.limit ? pending.slice(0, opts.limit) : pending;
 
   if (!toProcess.length) {

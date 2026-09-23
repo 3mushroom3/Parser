@@ -48,17 +48,28 @@ async function downloadArchive(archive, destDir) {
   const tmp = dest + '.part';
   const res = await axios.get(archive.url, {
     responseType: 'stream',
-    timeout: 300000,
+    // Архивы бывают за гигабайт, пяти минут на такой не хватало — обрыв
+    // приходил раньше, чем заканчивалась загрузка.
+    timeout: 20 * 60 * 1000,
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; fsa-parser-opendata/1.0)' },
   });
 
-  await new Promise((resolve, reject) => {
-    const out = fs.createWriteStream(tmp);
-    res.data.pipe(out);
-    res.data.on('error', reject);
-    out.on('error', reject);
-    out.on('finish', resolve);
-  });
+  try {
+    await new Promise((resolve, reject) => {
+      const out = fs.createWriteStream(tmp);
+      res.data.pipe(out);
+      res.data.on('error', reject);
+      out.on('error', reject);
+      out.on('finish', resolve);
+    });
+  } catch (err) {
+    // Оборванная загрузка оставляла .part на сотни мегабайт, и следующая
+    // попытка писала файл заново — на диске копился мусор. Докачку сервер
+    // открытых данных не поддерживает (ни content-length, ни accept-ranges),
+    // так что хвост просто удаляем.
+    try { fs.rmSync(tmp, { force: true }); } catch (_) {}
+    throw err;
+  }
   fs.renameSync(tmp, dest);
   log.info(`opendata: скачан ${archive.filename}`);
   return dest;
