@@ -51,6 +51,45 @@ function computeStats() {
   });
 }
 
+let homeCache = null; // { data, computedAt }
+
+/**
+ * Сводка для раздела «Главная». Оба запроса дешёвые: регионы берутся из уже
+ * посчитанного справочника geo_places (declCount там обновляет разметка НП),
+ * помесячная динамика — группировка по первым семи символам даты (regDate
+ * хранится в ISO, «2025-05-13»). Ответ кешируется на те же 5 минут, что и
+ * статистика: страница открывается часто, а числа меняются раз в сутки.
+ */
+router.get('/home', auth, (req, res, next) => {
+  try {
+    if (homeCache && Date.now() - homeCache.computedAt < STATS_CACHE_TTL_MS) {
+      return res.json(homeCache.data);
+    }
+    const topRegions = db.prepare(`
+      SELECT region, SUM(declCount) AS count
+      FROM geo_places
+      WHERE region IS NOT NULL AND region != '' AND declCount > 0
+      GROUP BY region ORDER BY count DESC LIMIT 6
+    `).all();
+
+    const from = new Date();
+    from.setMonth(from.getMonth() - 11);
+    const fromYm = from.toISOString().slice(0, 7) + '-01';
+    const monthly = db.prepare(`
+      SELECT substr(regDate, 1, 7) AS ym, COUNT(*) AS count
+      FROM declarations
+      WHERE status = 'active' AND regDate >= ?
+      GROUP BY ym ORDER BY ym
+    `).all(fromYm);
+
+    const data = { topRegions, monthly };
+    homeCache = { data, computedAt: Date.now() };
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/stats', async (req, res, next) => {
   try {
     if (statsCache && Date.now() - statsCache.computedAt < STATS_CACHE_TTL_MS) {

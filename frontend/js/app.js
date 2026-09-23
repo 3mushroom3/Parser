@@ -265,6 +265,7 @@ function toggleSidebar() {
 }
 
 function showPage(name) {
+  document.getElementById('pg-home').className          = 'panel-page' + (name === 'home'      ? ' active' : '');
   document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
   document.getElementById('pg-map').style.display       = name === 'map'       ? 'block' : 'none';
   document.getElementById('pg-favorites').className     = 'panel-page' + (name === 'favorites' ? ' active' : '');
@@ -279,7 +280,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
   const TITLES = {
-    registry: 'Реестр', map: 'Карта', favorites: 'Избранные', folders: 'Папки',
+    home: 'Главная', registry: 'Реестр', map: 'Карта', favorites: 'Избранные', folders: 'Папки',
     notes: 'Заметки', mydb: 'Мои базы', profile: 'Профиль', feedback: 'Поддержка',
     crm: 'Выгрузка в CRM', admin: 'Администрирование',
   };
@@ -295,6 +296,7 @@ function showPage(name) {
     }
   }
 
+  if (name === 'home') loadHome();
   if (name === 'registry') loadRecentStrip();
   if (name === 'favorites') loadFavorites();
   if (name === 'notes') loadNotes();
@@ -488,7 +490,7 @@ function renderTable(data) {
           <span class="comp-name-link" onclick="event.stopPropagation();openCompany('${safeInn}','${safeName}')">${hl(fmtCompany(p.name), _csManuf)}${badge}${dormantBadge}</span>${innHint}
         </td>
         <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—', _csAddr)}</td>
-        <td style="font-size:12px" title="${firstProduct}">${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
+        <td style="font-size:12px" title="${firstProduct}">${cropChip(firstProduct)}${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
         <td class="actions" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
           <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="${isFav?'Убрать из избранного':'Добавить в избранное'}">★</button>
           <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="В папку">📁</button>
@@ -529,6 +531,141 @@ function renderPagination(page, pages) {
 function goPage(p) { State.curPage = p; loadTable(); }
 
 // ── Status & Stats ────────────────────────────────────────────────────────
+// ── Главная ───────────────────────────────────────────────────────────────
+async function loadHome() {
+  drawHomeHero();
+  try {
+    const s = await apiFetch('/api/system/stats');
+    document.getElementById('hmTotal').textContent   = (s.total || 0).toLocaleString('ru');
+    document.getElementById('hmDecls').textContent   = (s.totalDecls || 0).toLocaleString('ru');
+    document.getElementById('hmFarmers').textContent = (s.farmerProducers || 0).toLocaleString('ru');
+    document.getElementById('hmTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
+  } catch (_) {}
+
+  try {
+    const d = await apiFetch('/api/system/home');
+    renderHomeRegions(d.topRegions || []);
+    drawHomeChart(d.monthly || []);
+  } catch (_) {
+    document.getElementById('hmRegions').innerHTML = '<div class="home-skel">Не удалось загрузить</div>';
+  }
+
+  try {
+    const recent = await apiFetch('/api/declarations/recent?limit=6');
+    const list = document.getElementById('hmRecent');
+    const items = recent.items || recent || [];
+    list.innerHTML = items.length ? items.map(r => `
+      <div class="item" onclick="openCompany('${(r.inn || '').replace(/'/g, "\\'")}','${(r.shortName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" style="cursor:pointer">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:500">${escHtml(fmtCompany(r.shortName || r.applicantName || '—'))}</div>
+          <div style="font-size:11px;color:var(--muted)">${escHtml((r.address || '').slice(0, 60))}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);white-space:nowrap">${escHtml(r.regDate || '')}</div>
+      </div>`).join('') : '<div class="home-skel">Пока пусто</div>';
+  } catch (_) {}
+}
+
+function renderHomeRegions(rows) {
+  const el = document.getElementById('hmRegions');
+  if (!rows.length) { el.innerHTML = '<div class="home-skel">Регионы ещё не размечены</div>'; return; }
+  const max = rows[0].count || 1;
+  el.innerHTML = rows.map(r => `
+    <div class="home-region">
+      <span class="home-region-name" title="${escHtml(r.region)}">${escHtml(r.region)}</span>
+      <span class="home-region-bar"><i style="width:${Math.max(4, Math.round(r.count / max * 100))}%"></i></span>
+      <span class="home-region-val">${(r.count || 0).toLocaleString('ru')}</span>
+    </div>`).join('');
+}
+
+// Закат над полем — тот же мотив, что на экране входа, но пропорции считаются
+// от высоты баннера, иначе облака и колосья выходят в несколько раз крупнее.
+function drawHomeHero() {
+  const cv = document.getElementById('homeHeroCanvas');
+  if (!cv) return;
+  const ctx = cv.getContext('2d');
+  cv.width = cv.offsetWidth || 900;
+  cv.height = cv.offsetHeight || 190;
+  const w = cv.width, h = cv.height, horizon = h * 0.56;
+
+  const sky = ctx.createLinearGradient(0, 0, 0, horizon);
+  sky.addColorStop(0, '#123040'); sky.addColorStop(0.45, '#3a6b66');
+  sky.addColorStop(0.78, '#b9723c'); sky.addColorStop(1, '#efb455');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, horizon);
+
+  const sx = w * 0.76, sy = horizon - h * 0.06, r = h * 0.11;
+  const glow = ctx.createRadialGradient(sx, sy, r * 0.4, sx, sy, r * 5);
+  glow.addColorStop(0, 'rgba(255,214,130,0.55)'); glow.addColorStop(1, 'rgba(255,214,130,0)');
+  ctx.fillStyle = glow; ctx.fillRect(0, 0, w, horizon);
+  ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,233,170,0.92)'; ctx.fill();
+
+  const field = ctx.createLinearGradient(0, horizon, 0, h);
+  field.addColorStop(0, '#a9873a'); field.addColorStop(0.4, '#6f7a30'); field.addColorStop(1, '#20341f');
+  ctx.fillStyle = field; ctx.fillRect(0, horizon, w, h - horizon);
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, horizon, w, h - horizon); ctx.clip();
+  for (let i = -6; i <= 14; i++) {
+    ctx.strokeStyle = 'rgba(232,190,110,0.12)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx, horizon); ctx.lineTo(sx + i * w * 0.13, h); ctx.stroke();
+  }
+  ctx.restore();
+
+  const fade = ctx.createLinearGradient(0, 0, w * 0.62, 0);
+  fade.addColorStop(0, 'rgba(2,26,22,0.94)'); fade.addColorStop(0.55, 'rgba(2,26,22,0.72)');
+  fade.addColorStop(1, 'rgba(2,26,22,0)');
+  ctx.fillStyle = fade; ctx.fillRect(0, 0, w * 0.62, h);
+}
+
+function drawHomeChart(monthly) {
+  const cv = document.getElementById('homeChart');
+  const empty = document.getElementById('hmChartEmpty');
+  if (!cv) return;
+  if (!monthly.length) { cv.style.display = 'none'; if (empty) empty.style.display = ''; return; }
+  cv.style.display = ''; if (empty) empty.style.display = 'none';
+
+  const ctx = cv.getContext('2d');
+  cv.width = cv.offsetWidth || 500;
+  const w = cv.width, h = cv.height;
+  const padL = 34, padB = 22, padT = 10, padR = 8;
+  ctx.clearRect(0, 0, w, h);
+
+  const max = Math.max(...monthly.map(m => m.count), 1);
+  const x = i => padL + (w - padL - padR) * (monthly.length === 1 ? 0.5 : i / (monthly.length - 1));
+  const y = v => padT + (h - padT - padB) * (1 - v / max);
+
+  ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1;
+  ctx.fillStyle = '#93a3a3'; ctx.font = '10px Segoe UI'; ctx.textAlign = 'right';
+  for (let g = 0; g <= 2; g++) {
+    const v = max * g / 2, yy = Math.round(y(v)) + 0.5;
+    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
+    ctx.fillText(Math.round(v).toLocaleString('ru'), padL - 6, yy + 3);
+  }
+
+  const area = ctx.createLinearGradient(0, padT, 0, h - padB);
+  area.addColorStop(0, 'rgba(7,92,68,0.22)'); area.addColorStop(1, 'rgba(7,92,68,0)');
+  ctx.beginPath(); ctx.moveTo(x(0), y(monthly[0].count));
+  monthly.forEach((m, i) => ctx.lineTo(x(i), y(m.count)));
+  ctx.lineTo(x(monthly.length - 1), h - padB); ctx.lineTo(x(0), h - padB); ctx.closePath();
+  ctx.fillStyle = area; ctx.fill();
+
+  ctx.beginPath();
+  monthly.forEach((m, i) => i ? ctx.lineTo(x(i), y(m.count)) : ctx.moveTo(x(i), y(m.count)));
+  ctx.strokeStyle = '#075c44'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+  monthly.forEach((m, i) => {
+    ctx.beginPath(); ctx.arc(x(i), y(m.count), 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#075c44'; ctx.fill();
+  });
+
+  ctx.fillStyle = '#93a3a3'; ctx.textAlign = 'center';
+  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  monthly.forEach((m, i) => {
+    if (monthly.length > 6 && i % 2) return;
+    const mm = parseInt((m.ym || '').slice(5, 7), 10);
+    ctx.fillText(MONTHS[mm - 1] || '', x(i), h - 7);
+  });
+}
+
 async function loadStats() {
   try {
     const s = await apiFetch('/api/system/stats');
@@ -541,6 +678,20 @@ async function loadStats() {
     document.getElementById('stTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
     document.getElementById('stTraderDecls').textContent = (s.traderDecls || 0).toLocaleString('ru') + ' деклараций';
     document.getElementById('sideTotalRec').textContent = (s.total || 0).toLocaleString('ru');
+
+    // Счётчики у фильтра по типу: сколько компаний скрывается за каждым
+    // вариантом. Числа берём готовыми из статистики, отдельных запросов нет.
+    const ftCounts = {
+      '': s.activeProducers, farmer: s.farmerProducers,
+      trader: s.traderProducers, unknown: s.unknownProducers,
+    };
+    document.querySelectorAll('.ftf-btn').forEach(btn => {
+      const n = ftCounts[btn.dataset.ft];
+      let el = btn.querySelector('.ftf-count');
+      if (n == null) { if (el) el.remove(); return; }
+      if (!el) { el = document.createElement('span'); el.className = 'ftf-count'; btn.appendChild(el); }
+      el.textContent = n.toLocaleString('ru');
+    });
   } catch(_) {}
 }
 
@@ -1620,6 +1771,30 @@ function fmtCompany(name) {
   const words = str.split(/\s+/);
   const person = (words.length === 3 && COMPANY_PATRONYMIC_RE.test(words[2])) || COMPANY_INITIALS_RE.test(str);
   return person ? `ИП ${str}` : str;
+}
+
+// Культура из названия продукции — для плашки в таблице. Список собран по
+// реальным названиям реестра: покрывает 86% действующих деклараций, остальные
+// сформулированы обобщённо («зерновые», «овощебахчевые») и плашки не получают.
+// Семейство задаёт цвет: зерновые — янтарный, масличные — зелёный,
+// зернобобовые — мятный, чтобы список можно было просматривать по культуре.
+const CROP_DICT = [
+  ['пшениц', 'Пшеница', 'grain'], ['ячмен', 'Ячмень', 'grain'], ['кукуруз', 'Кукуруза', 'grain'],
+  ['тритикал', 'Тритикале', 'grain'], ['рожь', 'Рожь', 'grain'], ['ржи', 'Рожь', 'grain'],
+  ['овёс', 'Овёс', 'grain'], ['овес', 'Овёс', 'grain'], ['просо', 'Просо', 'grain'],
+  ['сорго', 'Сорго', 'grain'], ['рис', 'Рис', 'grain'],
+  ['подсолнечник', 'Подсолнечник', 'oil'], ['рапс', 'Рапс', 'oil'], ['соя', 'Соя', 'oil'],
+  ['сои', 'Соя', 'oil'], ['лён', 'Лён', 'oil'], ['лен', 'Лён', 'oil'],
+  ['горчиц', 'Горчица', 'oil'], ['сафлор', 'Сафлор', 'oil'],
+  ['горох', 'Горох', 'bean'], ['нут', 'Нут', 'bean'], ['чечевиц', 'Чечевица', 'bean'],
+  ['люпин', 'Люпин', 'bean'], ['вик', 'Вика', 'bean'], ['гречих', 'Гречиха', 'bean'],
+];
+
+function cropChip(productName) {
+  const t = String(productName || '').toLowerCase();
+  const hit = CROP_DICT.find(([key]) => t.includes(key));
+  if (!hit) return '';
+  return `<span class="crop crop-${hit[2]}">${hit[1]}</span>`;
 }
 
 function fmtTon(t) {
@@ -2731,6 +2906,7 @@ function initApp() {
     }
   } catch(_) {}
   loadFavsCache();
+  showPage('home');
   loadStats();
   loadSubscriptionStatus();
   loadTable().catch(err => {

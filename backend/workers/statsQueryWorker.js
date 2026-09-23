@@ -53,6 +53,7 @@ try {
     fsa: sourceStats.find(s => s.source === 'fsa')?.count || 0,
     farmerProducers: producerCountByType('farmer'),
     traderProducers: producerCountByType('trader'),
+    unknownProducers: producerCountByType('unknown'),
     farmerDecls: declCountByType('farmer'),
     traderDecls: declCountByType('trader'),
   };
