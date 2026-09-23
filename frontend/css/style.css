@@ -84,6 +84,20 @@ body.logged-in .site-footer{left:216px}
   .rail-user-info{display:none}
 }
 
+/* ── Карточка компании ───────────────────────────────────── */
+.comp-hdr{display:flex;align-items:flex-start;gap:14px;margin-bottom:16px}
+.comp-back{flex:0 0 auto}
+.comp-title{font-size:20px;font-weight:800;letter-spacing:-.3px;line-height:1.2;overflow-wrap:anywhere}
+.comp-sub{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+.comp-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.comp-metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:12px 14px}
+.comp-metric-l{font-size:11px;color:var(--muted);margin-bottom:3px}
+.comp-metric-v{font-size:19px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.3px}
+.comp-body{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:18px 20px}
+.comp-foot{margin-top:14px}
+@media (max-width: 900px){ .comp-metrics{grid-template-columns:repeat(2,1fr)} }
+@media (max-width: 640px){ .comp-title{font-size:17px} .comp-body{padding:14px} }
+
 /* ── Главная ─────────────────────────────────────────────── */
 .home-hero{position:relative;height:190px;border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
 .home-hero canvas{width:100%;height:100%;display:block}

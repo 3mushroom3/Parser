@@ -172,6 +172,20 @@
     </section>
   </div>
 
+  <!-- COMPANY PAGE -->
+  <div class="panel-page" id="pg-company">
+    <div class="comp-hdr">
+      <button class="btn btn-sm comp-back" onclick="backFromCompany()">← Назад</button>
+      <div style="min-width:0;flex:1">
+        <h2 id="compModalName" class="comp-title"></h2>
+        <div id="compModalSub" class="comp-sub"></div>
+      </div>
+    </div>
+    <div class="comp-metrics" id="compMetrics"></div>
+    <div id="compModalBody" class="comp-body"></div>
+    <div id="compModalFoot" class="comp-foot"></div>
+  </div>
+
   <!-- REGISTRY PAGE -->
   <div id="pg-registry" class="page-h">
     <div class="body">
@@ -812,19 +826,7 @@
 </div>
 </div>
 
-<div class="ov" id="compModal" style="display:none">
-<div class="modal" style="max-width:760px;display:flex;flex-direction:column;overflow:hidden">
-  <div class="mh" style="padding-bottom:12px;flex:0 0 auto">
-    <div style="min-width:0;flex:1">
-      <h3 id="compModalName" style="font-size:16px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></h3>
-      <div id="compModalSub" style="font-size:12px;color:var(--muted);margin-top:3px;line-height:1.4"></div>
-    </div>
-    <button class="mcl" onclick="closeModal('compModal')">✕</button>
-  </div>
-  <div class="mb" id="compModalBody" style="padding-top:16px;flex:1;min-height:0;overflow-y:auto"></div>
-  <div class="mf" id="compModalFoot" style="flex:0 0 auto"></div>
-</div>
-</div>
+
 
 <div class="ov" id="settingsModal" style="display:none">
 <div class="modal" style="max-width:480px">

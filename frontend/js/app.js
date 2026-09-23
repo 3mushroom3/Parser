@@ -23,6 +23,7 @@ const State = {
   detailRecord: null,
   // Навигация по производителям (текущая страница таблицы)
   navItems: [],
+  currentPage: null,
   navIndex: -1,
   // Навигация по декларациям внутри карточки компании
   navDeclIds: [],
@@ -265,7 +266,9 @@ function toggleSidebar() {
 }
 
 function showPage(name) {
+  State.currentPage = name;
   document.getElementById('pg-home').className          = 'panel-page' + (name === 'home'      ? ' active' : '');
+  document.getElementById('pg-company').className       = 'panel-page' + (name === 'company'   ? ' active' : '');
   document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
   document.getElementById('pg-map').style.display       = name === 'map'       ? 'block' : 'none';
   document.getElementById('pg-favorites').className     = 'panel-page' + (name === 'favorites' ? ' active' : '');
@@ -280,7 +283,7 @@ function showPage(name) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.toggle('active', t.dataset.page === name));
 
   const TITLES = {
-    home: 'Главная', registry: 'Реестр', map: 'Карта', favorites: 'Избранные', folders: 'Папки',
+    home: 'Главная', registry: 'Реестр', map: 'Карта', company: 'Компания', favorites: 'Избранные', folders: 'Папки',
     notes: 'Заметки', mydb: 'Мои базы', profile: 'Профиль', feedback: 'Поддержка',
     crm: 'Выгрузка в CRM', admin: 'Администрирование',
   };
@@ -1355,14 +1358,47 @@ function _updateDeclNavButtons() {
 // Глобальный обработчик стрелок: работает пока открыта соответствующая модалка
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-  const compOpen = document.getElementById('compModal')?.classList.contains('open');
+  const compOpen = document.getElementById('pg-company')?.classList.contains('active');
   const detOpen  = document.getElementById('detModal')?.classList.contains('open');
   if (e.key === 'ArrowLeft')  { if (detOpen) navDecl(-1); else if (compOpen) navProducer(-1); }
   if (e.key === 'ArrowRight') { if (detOpen) navDecl(+1); else if (compOpen) navProducer(+1); }
 });
 
 // ── Company Card ──────────────────────────────────────────────────────────
+// Куда вернуться из карточки компании: карточка теперь отдельный раздел, а не
+// модалка поверх списка, поэтому запоминаем, откуда пришли.
+let _compBackPage = 'registry';
+
+function backFromCompany() {
+  showPage(_compBackPage || 'registry');
+}
+
+// Ключевые показатели над карточкой — как в макете: сколько деклараций, за
+// какой период, сколько культур и суммарный объём.
+function renderCompMetrics(p) {
+  const el = document.getElementById('compMetrics');
+  if (!el) return;
+  const decls = p.decls || [];
+  const tons = decls.reduce((s, d) => s + parseTon(d.batchSize), 0);
+  const crops = new Set();
+  decls.forEach(d => {
+    const chip = cropChip(d.productName || '');
+    if (chip) crops.add(chip.replace(/<[^>]+>/g, ''));
+  });
+  const years = decls.map(d => (d.regDate || '').slice(0, 4)).filter(Boolean).sort();
+  const period = years.length ? (years[0] === years[years.length - 1] ? years[0] : years[0] + '–' + years[years.length - 1]) : '—';
+  const metrics = [
+    ['Деклараций', decls.length.toLocaleString('ru')],
+    ['Объём по декларациям', tons > 0 ? fmtTon(tons) : '—'],
+    ['Культур', crops.size || '—'],
+    ['Период', period],
+  ];
+  el.innerHTML = metrics.map(([l, v]) =>
+    `<div class="comp-metric"><div class="comp-metric-l">${l}</div><div class="comp-metric-v">${v}</div></div>`).join('');
+}
+
 async function openCompany(inn, name) {
+  if (State.currentPage && State.currentPage !== 'company') _compBackPage = State.currentPage;
   // Запоминаем позицию в списке
   const idx = State.navItems.findIndex(p => (inn && p.inn && p.inn === inn) || p.name === name);
   State.navIndex = idx;
@@ -1375,7 +1411,8 @@ async function openCompany(inn, name) {
   document.getElementById('compModalSub').textContent = inn ? 'ИНН: ' + inn + '  Загрузка...' : 'Загрузка...';
   document.getElementById('compModalBody').innerHTML = '<div style="color:var(--muted);padding:20px 0;text-align:center">Загрузка данных...</div>';
   document.getElementById('compModalFoot').innerHTML = '';
-  openModal('compModal');
+  document.getElementById('compMetrics').innerHTML = '';
+  showPage('company');
 
   let p;
   try {
@@ -1465,6 +1502,7 @@ async function openCompany(inn, name) {
       <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить заметку</button>
     </div>`;
 
+  renderCompMetrics(p);
   renderCompContacts();
   updateCropTabs();
   loadUserContactsForCard(p.inn, p.name || name);
@@ -1485,7 +1523,7 @@ async function openCompany(inn, name) {
         ${p.inn ? `<button class="btn btn-sm" onclick="openDueDiligenceReport('${safeInn}')">📄 Отчёт о контрагенте</button>` : ''}
         <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
         <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
-        <button class="btn btn-p btn-sm" onclick="closeModal('compModal')">Закрыть</button>
+        <button class="btn btn-p btn-sm" onclick="backFromCompany()">← К списку</button>
       </div>
     </div>`;
   _updateCompNavButtons();
@@ -1559,7 +1597,7 @@ async function saveCompanyDesc(inn, name) {
   const desc = document.getElementById('compDescInput').value.trim();
   try {
     await apiFetch('/api/business/company/notes', { method: 'PUT', body: JSON.stringify({ inn, name, description: desc }) });
-    closeModal('compModal');
+    backFromCompany();
     showAlert('Сохранено');
   } catch(e) { showAlert(e.message, 'err'); }
 }
@@ -1891,7 +1929,7 @@ function updateCropTabs() {
       <td title="${(d.productName||'').replace(/"/g,'&quot;')}">${(d.productName||'—').slice(0,45)}</td>
       <td style="color:var(--muted)">${parseTon(d.batchSize) > 0 ? fmtTon(parseTon(d.batchSize)) : (d.batchSize||'—')}</td>
       <td>${sbadge[d.status] || d.status || '—'}</td>
-      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="closeModal('compModal');openDetail('${d.id}',true)">↗</button></td>
+      <td><button class="btn btn-sm" style="padding:2px 8px;font-size:11px" onclick="openDetail('${d.id}',true)">↗</button></td>
     </tr>`).join('')
     : `<tr><td colspan="6" style="color:var(--muted);padding:12px 0">Нет деклараций за выбранный период</td></tr>`;
 
@@ -2378,7 +2416,7 @@ function showAlert(msg, type = 'ok') {
   setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-['addModal','detModal','settingsModal','compModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal','noAccessModal','noteModal'].forEach(id => {
+['addModal','detModal','settingsModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal','noAccessModal','noteModal'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('click', function(e) { if (e.target === this) closeModal(id); });
 });
