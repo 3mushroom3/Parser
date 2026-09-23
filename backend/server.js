@@ -45,6 +45,7 @@ const maxBot = require('./services/maxBot');
 const { runNotifyJob } = require('./services/notifyJob');
 const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
 const { runGeoJob } = require('./services/geoEnricher');
+const { runPhoneBackfill } = require('./services/phoneBackfill');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -307,6 +308,14 @@ if (process.env.NODE_ENV !== 'test') {
     // (напоминания зависят от времени, дольше 2 мин — заметный лаг для пользователя)
     cron.schedule(process.env.NOTIFY_CRON_SCHEDULE || '*/2 * * * *', () => {
       runNotifyJob().catch(e => logger.error('[MAX] Ошибка уведомлений: %s', e.message));
+    });
+
+    // Телефоны: в открытых данных контактов нет вовсе, их отдаёт только
+    // карточка декларации в живом API. Ночью обходим компании без телефона —
+    // по одной карточке на компанию, дневным лимитом, чтобы не ловить WAF.
+    cron.schedule(process.env.PHONE_CRON_SCHEDULE || '30 1 * * *', () => {
+      const limit = parseInt(process.env.PHONE_DAILY_LIMIT || '2000', 10);
+      runPhoneBackfill({ limit }).catch(e => logger.error('[PHONES] Задание упало: %s', e.message));
     });
 
     // Run parser after 5 seconds
