@@ -53,6 +53,13 @@ function main() {
   }
 
   db.prepare('UPDATE declarations SET batchTons = NULL WHERE batchTons = -1').run();
+
+  // Массовая перезапись раздувает WAL (после прогона по 600 тыс. строк он
+  // остаётся под 900 МБ), а сам по себе файл не сжимается — только до
+  // высшей отметки. Сводим страницы в базу и обрезаем файл.
+  const cp = db.pragma('wal_checkpoint(TRUNCATE)');
+  console.log(`WAL сведён в базу: ${JSON.stringify(cp)}`);
+
   console.log(`Готово. Обработано: ${processed}. Не распознано (оставлено NULL): ${unresolved}.`);
 }
 
