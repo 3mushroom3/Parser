@@ -102,7 +102,7 @@ function issueAndSendCode(userId, email) {
 }
 
 // Регистрация по email вместо логина/пароля без проверки — код подтверждения
-// на почту через Unisender Go (services/mailer.js), без стороннего
+// на почту через Resend (services/mailer.js), без стороннего
 // платного flash-call сервиса, который используют конкуренты для телефона.
 router.post('/register', async (req, res) => {
   const ip = req.ip || req.connection.remoteAddress;

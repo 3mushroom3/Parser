@@ -2,7 +2,7 @@
  * Проверка отправки писем. Регистрация завязана на код подтверждения, и пока
  * почта не настроена, /api/auth/register отвечает 503 — пользователь не может
  * завести аккаунт вовсе. Этот скрипт показывает, что именно не так: не заданы
- * переменные, не тот дата-центр, не подтверждён адрес отправителя.
+ * переменные, не тот ключ, не подтверждён домен отправителя.
  *
  * Запуск: node scripts/test-mail.js ваш@адрес.ру
  */
@@ -15,14 +15,13 @@ async function main() {
   const to = process.argv[2];
 
   console.log('Настройки почты:');
-  console.log('  UNISENDER_GO_API_KEY :', mask(process.env.UNISENDER_GO_API_KEY));
-  console.log('  UNISENDER_GO_API_URL :', process.env.UNISENDER_GO_API_URL || '(по умолчанию go1)');
-  console.log('  MAIL_FROM_EMAIL      :', process.env.MAIL_FROM_EMAIL || 'НЕ ЗАДАНО');
-  console.log('  MAIL_FROM_NAME       :', process.env.MAIL_FROM_NAME || '(по умолчанию KOVELIA)');
-  console.log('  Сервис настроен      :', mailer.isConfigured() ? 'да' : 'НЕТ — регистрация будет отвечать 503');
+  console.log('  RESEND_API_KEY  :', mask(process.env.RESEND_API_KEY));
+  console.log('  MAIL_FROM_EMAIL :', process.env.MAIL_FROM_EMAIL || 'НЕ ЗАДАНО');
+  console.log('  MAIL_FROM_NAME  :', process.env.MAIL_FROM_NAME || '(по умолчанию KOVELIA)');
+  console.log('  Сервис настроен :', mailer.isConfigured() ? 'да' : 'НЕТ — регистрация будет отвечать 503');
 
   if (!mailer.isConfigured()) {
-    console.log('\nЗаполните UNISENDER_GO_API_KEY и MAIL_FROM_EMAIL в backend/.env и перезапустите сервер.');
+    console.log('\nЗаполните RESEND_API_KEY и MAIL_FROM_EMAIL в backend/.env и перезапустите сервер.');
     process.exit(1);
   }
   if (!to) {
@@ -34,13 +33,13 @@ async function main() {
   try {
     const res = await mailer.sendVerificationCode(to, '123456');
     console.log('Отправлено. Ответ сервиса:', JSON.stringify(res));
-    console.log('Если письмо не пришло — проверьте папку «Спам» и статус адреса отправителя в Unisender Go.');
+    console.log('Если письмо не пришло — проверьте папку «Спам» и статус домена отправителя в Resend (Domains).');
   } catch (err) {
     console.log('ОШИБКА отправки:', err.message);
     console.log('\nЧастые причины:');
-    console.log('  • «unauthorized» / «api_key» — ключ неверный или от другого дата-центра;');
-    console.log('    URL должен быть от того же аккаунта: go1 или go2 (см. личный кабинет).');
-    console.log('  • «sender» / «from_email» — адрес отправителя не подтверждён в Unisender Go.');
+    console.log('  • «Invalid API key» — ключ неверный или отозван (Resend → API Keys).');
+    console.log('  • «domain is not verified» — MAIL_FROM_EMAIL не на подтверждённом домене');
+    console.log('    (Resend → Domains → Add Domain → добавить DNS-записи и дождаться проверки).');
     console.log('  • HTTP 000/timeout — сервер не отпускает исходящие запросы наружу.');
     process.exit(1);
   }
