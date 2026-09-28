@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const _secret = require('../config/jwtSecret');
 const { sendVerificationCode, isConfigured: mailerConfigured } = require('../services/mailer');
 const maxBot = require('../services/maxBot');
+const log = require('../services/logger');
 
 const MIN_PASSWORD_LEN = 8;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -142,13 +143,20 @@ router.post('/register', async (req, res) => {
         .run(normEmail, normEmail, passwordHash);
       userId = info.lastInsertRowid;
     }
-    await issueAndSendCode(userId, normEmail);
+    try {
+      await issueAndSendCode(userId, normEmail);
+    } catch (mailErr) {
+      log.error('[auth] отправка кода на %s не удалась: %s', normEmail, mailErr.message);
+      return res.status(502).json({
+        error: 'Не удалось отправить код на почту. Попробуйте позже или напишите в поддержку.',
+      });
+    }
     res.status(201).json({ email: normEmail, message: 'Код отправлен на почту' });
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT') {
       return res.status(400).json({ error: 'Не удалось зарегистрироваться. Попробуйте другой email.' });
     }
-    console.error('[auth] register:', err.message);
+    log.error('[auth] register: %s', err.message);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -198,7 +206,7 @@ router.post('/resend-code', async (req, res) => {
   // Отвечаем одинаково независимо от того, нашёлся пользователь или нет —
   // чтобы нельзя было перебором проверить, какие email зарегистрированы
   if (user && !user.emailVerified) {
-    try { await issueAndSendCode(user.id, normEmail); } catch (e) { console.error('[auth] resend-code:', e.message); }
+    try { await issueAndSendCode(user.id, normEmail); } catch (e) { log.error('[auth] resend-code: %s', e.message); }
   }
   res.json({ ok: true, message: 'Если email зарегистрирован, код отправлен повторно' });
 });

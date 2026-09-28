@@ -21,6 +21,7 @@ node scripts/reset-admin-password.js [пароль]  # сброс пароля a
 node scripts/backfill-batch-tons.js --all        # пересчитать объём партии по всему реестру (после правок разбора)
 node scripts/rematch-user-contacts.js [--dry]    # пересверить загруженные базы с реестром (после правок сверки)
 node scripts/backfill-phones.js [--limit N]      # дозагрузить телефоны из карточек FSA API
+node scripts/test-mail.js вы@почта.ру              # проверить настройку отправки писем (регистрация)
 ```
 
 Тестов и линтера (в рабочем состоянии) нет.
