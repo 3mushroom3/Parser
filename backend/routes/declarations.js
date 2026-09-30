@@ -45,6 +45,82 @@ function computeAllProducers(dataQuery, params, orderParams) {
   });
 }
 
+// Культуры для фильтра «Продукция»: подстроки в lower(productName). Корни
+// подобраны так, чтобы не цеплять чужие слова: «рожь», а не «рож» (урожай),
+// «нут» только отдельным словом (внутренний, минут).
+const CROP_PATTERNS = {
+  wheat: ['%пшениц%'],
+  barley: ['%ячмен%'],
+  corn: ['%кукуруз%'],
+  sunflower: ['%подсолнеч%'],
+  rapeseed: ['%рапс%'],
+  soy: ['%соя%', '%сои %', '%соев%'],
+  peas: ['%горох%'],
+  rye: ['%рожь%', '%ржи %', '%ржан%'],
+  oats: ['%овес%', '%овёс%', '%овса%'],
+  flax: ['%льн%', '%лён%', '%лен %', '%лен-%'],
+  buckwheat: ['%гречих%'],
+  millet: ['%просо%', '%проса%'],
+  sorghum: ['%сорго%'],
+  triticale: ['%тритикале%'],
+  chickpea: ['нут%', '% нут%'],
+  lentil: ['%чечевиц%'],
+  rice: ['рис%', '% рис%'],
+  mustard: ['%горчиц%'],
+};
+
+function listParam(v) {
+  if (!v) return [];
+  return String(v).split(',').map(s => s.trim()).filter(Boolean).slice(0, 100);
+}
+
+// Ключи НП в радиусе от точки. Координаты есть только у геокодированных НП
+// (см. services/geoEnricher.js), остальные в радиус не попадают.
+function placeKeysInRadius(latQ, lonQ, radiusQ) {
+  const lat = Number(latQ), lon = Number(lonQ), r = Number(radiusQ);
+  if (!latQ || !lonQ || !radiusQ || !Number.isFinite(lat) || !Number.isFinite(lon) || !(r > 0)) return null;
+  const km = Math.min(r, 1000);
+  const dLat = km / 111;
+  const dLon = km / (111 * Math.max(Math.cos(lat * Math.PI / 180), 0.05));
+  const rows = db.prepare('SELECT key, lat, lon FROM geo_places WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?')
+    .all(lat - dLat, lat + dLat, lon - dLon, lon + dLon);
+  const rad = Math.PI / 180;
+  return rows.filter(p => {
+    const a = Math.sin((p.lat - lat) * rad / 2) ** 2
+      + Math.cos(lat * rad) * Math.cos(p.lat * rad) * Math.sin((p.lon - lon) * rad / 2) ** 2;
+    return 12742 * Math.asin(Math.sqrt(a)) <= km;
+  }).map(p => p.key);
+}
+
+// GET /api/declarations/filter-options?regions=a,b&district=x&q=… — списки для
+// панели фильтров: регионы, районы выбранных регионов, НП (топ по числу
+// действующих деклараций, с поиском по названию). Всё из справочника
+// geo_places — это 34 тыс. строк, а не 600 тыс. деклараций.
+router.get('/filter-options', auth, requireSubscription, dataReadLimiter, (req, res) => {
+  const regions = listParam(req.query.regions);
+  const out = {
+    regions: db.prepare(`SELECT region v, SUM(declCount) count FROM geo_places
+      WHERE region IS NOT NULL AND region <> '' GROUP BY region ORDER BY region`).all(),
+    districts: [],
+    places: [],
+  };
+  if (!regions.length) return res.json(out);
+
+  const rj = JSON.stringify(regions);
+  out.districts = db.prepare(`SELECT district v, SUM(declCount) count FROM geo_places
+    WHERE region IN (SELECT value FROM json_each(?)) AND district IS NOT NULL AND district <> ''
+    GROUP BY district ORDER BY district`).all(rj);
+
+  let sql = `SELECT key, label, district, region, lat, lon, declCount count FROM geo_places
+    WHERE region IN (SELECT value FROM json_each(?)) AND type <> 'р-н'`;
+  const params = [rj];
+  if (req.query.district) { sql += ' AND district = ?'; params.push(String(req.query.district)); }
+  const q = String(req.query.q || '').trim().toLowerCase();
+  if (q) { sql += ' AND lower_u(name) LIKE ?'; params.push(`%${q}%`); }
+  out.places = db.prepare(sql + ' ORDER BY declCount DESC LIMIT 200').all(...params);
+  res.json(out);
+});
+
 router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req, res, next) => {
   const {
     page = 0,
@@ -57,11 +133,16 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req,
     dateTo = '',
     farmerType = '',
     batchMin = '',
-    batchMax = ''
+    batchMax = '',
+    status = ''
   } = req.query;
 
   let baseQuery = 'FROM declarations WHERE 1=1';
   let params = [];
+  // «Архивные» — компании без единой действующей декларации: условие на
+  // группу, а не на строку, иначе компания с одной старой декларацией
+  // попадала бы в оба списка сразу
+  let havingClause = '';
 
   if (search) {
     baseQuery += ' AND (lower_u(applicantName) LIKE ? OR lower_u(shortName) LIKE ? OR lower_u(lastName) LIKE ? OR lower_u(productName) LIKE ? OR lower_u(address) LIKE ? OR inn LIKE ?)';
@@ -85,9 +166,44 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req,
       baseQuery += " AND farmerType IN ('farmer','farmer_trader')";
     } else if (farmerType === 'trader') {
       baseQuery += " AND farmerType IN ('trader','trader_farmer')";
+    } else if (farmerType === 'processor') {
+      // Переработчиков в классификации farmerType нет — узнаём по ОКВЭД
+      // (10.* пищевое производство, 11.* напитки: мельницы, маслозаводы, солод)
+      baseQuery += " AND (okved LIKE '10.%' OR okved LIKE '11.%')";
     } else {
       baseQuery += ' AND farmerType = ?'; params.push(farmerType);
     }
+  }
+  if (status === 'active') baseQuery += " AND status = 'active'";
+  else if (status === 'archive') havingClause = "HAVING SUM(status = 'active') = 0";
+
+  const regions = listParam(req.query.regions);
+  if (regions.length) {
+    baseQuery += ' AND placeKey IN (SELECT key FROM geo_places WHERE region IN (SELECT value FROM json_each(?))';
+    params.push(JSON.stringify(regions));
+    if (req.query.district) { baseQuery += ' AND district = ?'; params.push(String(req.query.district)); }
+    baseQuery += ')';
+  }
+  if (req.query.place) { baseQuery += ' AND placeKey = ?'; params.push(String(req.query.place)); }
+  const radiusKeys = placeKeysInRadius(req.query.lat, req.query.lon, req.query.radius);
+  if (radiusKeys) {
+    baseQuery += ' AND placeKey IN (SELECT value FROM json_each(?))';
+    params.push(JSON.stringify(radiusKeys));
+  }
+
+  const crops = listParam(req.query.crops).filter(c => CROP_PATTERNS[c]);
+  if (crops.length) {
+    const likes = crops.flatMap(c => CROP_PATTERNS[c]);
+    baseQuery += ' AND (' + likes.map(() => 'lower_u(productName) LIKE ?').join(' OR ') + ')';
+    params.push(...likes);
+  }
+  const harvest = /^\d{4}$/.test(req.query.harvest || '') ? req.query.harvest : '';
+  if (harvest) {
+    // Год урожая обычно есть в названии продукции («…урожай 2025 года»);
+    // где его нет — берём год регистрации декларации
+    baseQuery += ` AND ((lower_u(productName) LIKE '%урож%' AND productName LIKE ?)
+      OR (lower_u(productName) NOT LIKE '%урож%' AND regDate LIKE ?))`;
+    params.push(`%${harvest}%`, `${harvest}%`);
   }
 
   // By default, show producers with the most recently registered declaration
@@ -125,6 +241,7 @@ router.get('/producers', auth, requireSubscription, dataReadLimiter, async (req,
       GROUP_CONCAT(id) as declIds
     ${baseQuery}
     GROUP BY producerKey
+    ${havingClause}
     ${orderClause}
   `;
 

@@ -183,62 +183,6 @@
   <!-- REGISTRY PAGE -->
   <div id="pg-registry" class="page-h">
     <div class="body">
-      <!-- SIDEBAR -->
-      <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Свернуть/развернуть фильтры">‹</button>
-      <div class="sidebar" id="mainSidebar">
-        <div class="admin-only">
-          <div class="fs-title">Статус парсера</div>
-          <div class="pstatus">
-            <div class="pst-row">
-              <div class="dot dot-idle" id="stDot"></div>
-              <span id="stText" style="font-size:12px;color:var(--muted)">Загрузка...</span>
-            </div>
-            <div class="bar"><div class="bar-fill" id="stBar" style="width:0%"></div></div>
-            <span id="stTime" style="font-size:11px;color:var(--muted)"></span>
-          </div>
-        </div>
-
-        <div>
-          <div class="fs-title">Дата регистрации</div>
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <span style="font-size:12px;color:var(--muted);min-width:20px">От</span>
-            <input type="text" class="fi date-mask" id="flDateF" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off" onchange="applyFilters()" style="flex:1">
-          </div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <span style="font-size:12px;color:var(--muted);min-width:20px">До</span>
-            <input type="text" class="fi date-mask" id="flDateT" placeholder="дд.мм.гггг" maxlength="10" inputmode="numeric" autocomplete="off" onchange="applyFilters()" style="flex:1">
-          </div>
-        </div>
-        <div>
-          <div class="fs-title">Объём партии, т</div>
-          <div style="display:flex;align-items:center;gap:6px">
-            <input type="number" min="0" class="fi" id="flBatchMin" placeholder="От" autocomplete="off" onchange="applyFilters()" style="flex:1">
-            <input type="number" min="0" class="fi" id="flBatchMax" placeholder="До" autocomplete="off" onchange="applyFilters()" style="flex:1">
-          </div>
-        </div>
-        <div>
-          <div class="fs-title">Тип компании</div>
-          <div class="ftf" id="ftfBar">
-            <button class="ftf-btn act" data-ft="" onclick="setFarmerFilter(this,'')">Все</button>
-            <button class="ftf-btn" data-ft="farmer" onclick="setFarmerFilter(this,'farmer')">Производители</button>
-            <button class="ftf-btn" data-ft="trader" onclick="setFarmerFilter(this,'trader')">Трейдеры</button>
-            <button class="ftf-btn" data-ft="unknown" onclick="setFarmerFilter(this,'unknown')">Не опред.</button>
-          </div>
-        </div>
-        <button class="btn" style="width:100%" onclick="resetFilters()">✕ Сбросить фильтры</button>
-        <button class="btn btn-sm" style="width:100%;margin-top:6px" onclick="subscribeCurrentFilter()" title="Уведомление в MAX о новых декларациях по этому фильтру">🔔 Подписаться на фильтр</button>
-
-        <div style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border)">
-          <div class="admin-only" style="font-size:11px;color:var(--muted);line-height:1.6;margin-bottom:4px">
-            <b>Авто-парсинг:</b> каждые 30 мин.
-          </div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.7">
-            Записей: <b id="sideTotalRec">—</b><br>
-            Обновлено: <span id="sideLastUpd">—</span>
-          </div>
-        </div>
-      </div>
-
       <!-- MAIN -->
       <div class="main">
         <!-- Stats -->
@@ -300,12 +244,26 @@
         </div>
         <style>@keyframes recentPulse{0%,100%{opacity:1}50%{opacity:.3}}</style>
 
+        <!-- Статус парсера (только админ) -->
+        <div class="admin-only pstrip">
+          <div class="dot dot-idle" id="stDot"></div>
+          <span id="stText">Загрузка...</span>
+          <div class="bar"><div class="bar-fill" id="stBar" style="width:0%"></div></div>
+          <span id="stTime"></span>
+          <span>Записей: <b id="sideTotalRec">—</b> · Обновлено: <span id="sideLastUpd">—</span></span>
+        </div>
+
         <!-- Toolbar -->
         <div class="tb">
           <div class="sw">
-            <span class="sw-ic">🔍</span>
-            <input type="text" id="globalQ" placeholder="Поиск по всем полям..." oninput="applyFiltersDebounced()">
+            <svg class="sw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input type="text" id="globalQ" placeholder="Поиск по компании, ИНН, адресу, продукции..." oninput="applyFiltersDebounced()">
+            <kbd class="sw-kbd">Ctrl + K</kbd>
           </div>
+          <button class="btn btn-p flt-open-btn" id="fltOpenBtn" onclick="toggleFilters()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5L3 5z"/></svg>
+            Фильтры<span id="fltCount"></span>
+          </button>
           <select class="btn" id="sortF" onchange="applyFilters()">
             <option value="regDate">По дате рег.</option>
             <option value="applicantName">По заявителю</option>
@@ -322,6 +280,17 @@
             <option value="50">50 / стр.</option>
             <option value="100">100 / стр.</option>
           </select>
+        </div>
+
+        <!-- Активные фильтры -->
+        <div class="fchips-row">
+          <div class="fchips" id="fltChips"></div>
+          <button class="btn fchip-add" onclick="openFilters()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
+            Добавить фильтр
+          </button>
+          <button class="btn btn-sm" onclick="subscribeCurrentFilter()" title="Уведомление в MAX о новых декларациях по этому фильтру">🔔 Подписаться</button>
+          <a class="fchips-reset" id="fltResetAll" onclick="resetFilters()">Сбросить всё</a>
         </div>
 
         <!-- Table -->
@@ -362,6 +331,86 @@
         </div>
         <div class="pg" id="pgBar"></div>
       </div>
+
+      <!-- FILTERS DRAWER -->
+      <div class="fdr-backdrop" onclick="closeFilters()"></div>
+      <aside class="fdr" id="fltDrawer" aria-label="Фильтры">
+        <div class="fdr-hdr">
+          <h3>Фильтры</h3>
+          <button class="fdr-x" onclick="closeFilters()" title="Закрыть">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="fdr-body">
+          <section class="fdr-sec">
+            <div class="fdr-t">Регион</div>
+            <div class="dd" id="ddRegion"></div>
+            <div class="fdr-l">Муниципальный район</div>
+            <div class="dd" id="ddDistrict"></div>
+            <div class="fdr-l">Населённый пункт</div>
+            <div class="dd" id="ddPlace"></div>
+            <div class="fdr-l">Радиус от точки</div>
+            <div class="fdr-radius">
+              <div class="fdr-num"><input type="number" min="0" max="1000" id="fRadius" placeholder="—" oninput="onRadiusInput()"><span>км</span></div>
+              <button class="fdr-pin" id="fPinBtn" onclick="useMyLocation()" title="От моего местоположения">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0112 2.5a7 7 0 017 7C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+              </button>
+            </div>
+            <div class="fdr-hint" id="fRadiusHint"></div>
+          </section>
+
+          <section class="fdr-sec">
+            <div class="fdr-t">Продукция</div>
+            <div class="dd" id="ddCrops"></div>
+          </section>
+
+          <section class="fdr-sec">
+            <div class="fdr-t">Урожай (по декларациям)</div>
+            <div class="seg" id="segHarvest"></div>
+          </section>
+
+          <section class="fdr-sec">
+            <div class="fdr-t">Объём продукции, т</div>
+            <div class="seg" id="segVolume">
+              <button data-v="">Любой</button>
+              <button data-v="500">&gt; 500</button>
+              <button data-v="1000">&gt; 1 000</button>
+              <button data-v="5000">&gt; 5 000</button>
+            </div>
+            <button class="seg-own" id="segVolumeOwn" onclick="setVolume('custom')">Свой диапазон
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="fdr-range" id="fVolRange" hidden>
+              <input type="number" min="0" class="fi" id="flBatchMin" placeholder="От" oninput="onVolumeRange()">
+              <span>—</span>
+              <input type="number" min="0" class="fi" id="flBatchMax" placeholder="До" oninput="onVolumeRange()">
+            </div>
+          </section>
+
+          <section class="fdr-sec">
+            <div class="fdr-t">Роль участника</div>
+            <div class="radio-grid" id="rgRole">
+              <button data-v=""><i></i>Все</button>
+              <button data-v="farmer"><i></i>Производители</button>
+              <button data-v="trader"><i></i>Трейдеры</button>
+              <button data-v="processor"><i></i>Переработчики</button>
+            </div>
+          </section>
+
+          <section class="fdr-sec">
+            <div class="fdr-t">Статус компании</div>
+            <div class="seg seg-3" id="segStatus">
+              <button data-v="">Все</button>
+              <button data-v="active">Действующие</button>
+              <button data-v="archive">Архивные</button>
+            </div>
+          </section>
+        </div>
+        <div class="fdr-foot">
+          <button class="btn fdr-reset" onclick="resetFilters()">Сбросить всё</button>
+          <button class="btn btn-p fdr-apply" id="fltApplyBtn" onclick="closeFilters()">Показать</button>
+        </div>
+      </aside>
     </div>
   </div>
 

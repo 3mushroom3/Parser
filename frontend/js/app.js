@@ -256,15 +256,6 @@ function checkAuth() {
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────
-function toggleSidebar() {
-  const body = document.querySelector('.body');
-  const btn  = document.getElementById('sidebarToggle');
-  const collapsed = body.classList.toggle('sidebar-collapsed');
-  document.getElementById('mainSidebar').classList.toggle('collapsed', collapsed);
-  btn.textContent = collapsed ? '›' : '‹';
-  try { localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0'); } catch(_) {}
-}
-
 function showPage(name) {
   State.currentPage = name;
   document.getElementById('pg-home').className          = 'panel-page' + (name === 'home'      ? ' active' : '');
@@ -362,30 +353,104 @@ async function loadTable() {
   }
 }
 
+// ── Фильтры реестра (правая выдвижная панель) ─────────────────────────────
+// Состояние панели живёт здесь, в DOM только отрисовка: чипы над таблицей,
+// счётчик на кнопке «Фильтры (N)» и сама панель строятся из одного объекта.
+const FILTER_CROPS = [
+  ['wheat', 'Пшеница'], ['barley', 'Ячмень'], ['corn', 'Кукуруза'], ['sunflower', 'Подсолнечник'],
+  ['rapeseed', 'Рапс'], ['soy', 'Соя'], ['peas', 'Горох'], ['rye', 'Рожь'], ['oats', 'Овёс'],
+  ['flax', 'Лён'], ['buckwheat', 'Гречиха'], ['millet', 'Просо'], ['sorghum', 'Сорго'],
+  ['triticale', 'Тритикале'], ['chickpea', 'Нут'], ['lentil', 'Чечевица'], ['rice', 'Рис'], ['mustard', 'Горчица'],
+];
+const CROP_LABEL = Object.fromEntries(FILTER_CROPS);
+const ROLE_LABEL = { farmer: 'Производители', trader: 'Трейдеры', processor: 'Переработчики' };
+const STATUS_LABEL = { active: 'Действующие', archive: 'Архивные' };
+
+const F = {
+  regions: [], district: '', place: null, radius: '', center: null,
+  crops: [], harvest: '', volume: '', role: '', status: '',
+};
+const _dd = {};
+const _optCache = new Map();
+
+// «Ростовская обл» → «Ростовская область»: в справочнике НП регионы хранятся
+// в сокращённой форме адреса ФИАС
+function regionLabel(r) {
+  return String(r || '')
+    .replace(/^Респ (.+)$/, 'Республика $1')
+    .replace(/ Респ$/, ' Республика')
+    .replace(/ обл$/, ' область')
+    .replace(/ АО$/, ' автономный округ')
+    .replace(/^г /, 'г. ');
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+
+async function filterOptions(params) {
+  const key = JSON.stringify(params);
+  if (!_optCache.has(key)) {
+    const p = apiFetch('/api/declarations/filter-options' + buildQS(params));
+    _optCache.set(key, p);
+    p.catch(() => _optCache.delete(key));
+  }
+  return _optCache.get(key);
+}
+
+// Центр радиуса: своё местоположение либо выбранный НП (если он геокодирован)
+function radiusCenter() {
+  if (!(Number(F.radius) > 0)) return null;
+  if (F.center) return F.center;
+  if (F.place && F.place.lat != null) return { lat: F.place.lat, lon: F.place.lon };
+  return null;
+}
+
+function volumeRange() {
+  if (F.volume === 'custom') {
+    return { min: document.getElementById('flBatchMin').value || '', max: document.getElementById('flBatchMax').value || '' };
+  }
+  return { min: F.volume, max: '' };
+}
+
 function getFilters() {
-  return {
+  const vol = volumeRange();
+  const f = {
     page: State.curPage,
     size: document.getElementById('pgSize').value || 20,
     search: document.getElementById('globalQ').value || '',
-    dateFrom: ruToIso(document.getElementById('flDateF').value),
-    dateTo: ruToIso(document.getElementById('flDateT').value),
     manufacturer: document.getElementById('csManuf').value || '',
     address: document.getElementById('csAddress').value || '',
     product: document.getElementById('csProduct').value || '',
     sortField: document.getElementById('sortF').value || 'regDate',
     sortDir: document.getElementById('sortD').value || 'desc',
-    farmerType: State.curFarmerFilter,
-    batchMin: document.getElementById('flBatchMin').value || '',
-    batchMax: document.getElementById('flBatchMax').value || ''
+    farmerType: F.role,
+    status: F.status,
+    crops: F.crops.join(','),
+    harvest: F.harvest,
+    batchMin: vol.min,
+    batchMax: vol.max,
   };
+  // Радиус заменяет регион/район/НП: «50 км от хутора» не должно обрезаться
+  // границей области
+  const c = radiusCenter();
+  if (c) Object.assign(f, { lat: c.lat.toFixed(5), lon: c.lon.toFixed(5), radius: F.radius });
+  else Object.assign(f, { regions: F.regions.join(','), district: F.district, place: F.place ? F.place.key : '' });
+  return f;
 }
 
 function buildQS(p) {
-  return '?' + Object.entries(p).filter(([,v]) => v !== '').map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  return '?' + Object.entries(p).filter(([,v]) => v !== '' && v != null).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
 }
 
 function applyFilters() {
   State.curPage = 0;
+  renderFilterState();
+  const btn = document.getElementById('fltApplyBtn');
+  if (btn) btn.textContent = 'Показать…';
   loadTable();
 }
 
@@ -401,18 +466,274 @@ function clearColSearch() {
 }
 
 function resetFilters() {
-  ['flDateF','flDateT','globalQ','flBatchMin','flBatchMax'].forEach(id => document.getElementById(id).value = '');
-  ['csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
-  State.curFarmerFilter = '';
-  document.querySelectorAll('.ftf-btn').forEach(b => b.classList.toggle('act', b.dataset.ft === ''));
+  Object.assign(F, { regions: [], district: '', place: null, radius: '', center: null, crops: [], harvest: '', volume: '', role: '', status: '' });
+  ['globalQ','flBatchMin','flBatchMax','fRadius','csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
   applyFilters();
 }
 
-function setFarmerFilter(btn, val) {
-  State.curFarmerFilter = val;
-  document.querySelectorAll('.ftf-btn').forEach(b => b.classList.toggle('act', b === btn));
-  State.curPage = 0;
-  loadTable();
+function updateApplyBtn(total) {
+  const btn = document.getElementById('fltApplyBtn');
+  if (!btn) return;
+  const n = total || 0;
+  btn.textContent = `Показать ${n.toLocaleString('ru')} ${plural(n, 'компанию', 'компании', 'компаний')}`;
+}
+
+// ── Открытие / закрытие панели ──
+function setFiltersOpen(open) {
+  document.querySelector('#pg-registry .body').classList.toggle('fdr-open', open);
+  document.getElementById('fltOpenBtn').classList.toggle('on', open);
+  if (!open) Object.values(_dd).forEach(d => d.close());
+  // На телефоне панель перекрывает таблицу — там её состояние не запоминаем
+  if (window.innerWidth > 1024) { try { localStorage.setItem('filtersOpen', open ? '1' : '0'); } catch(_) {} }
+}
+function openFilters() { setFiltersOpen(true); }
+function closeFilters() { setFiltersOpen(false); }
+function toggleFilters() {
+  setFiltersOpen(!document.querySelector('#pg-registry .body').classList.contains('fdr-open'));
+}
+
+// ── Выпадающий список с поиском (одиночный или множественный выбор) ──
+function makeDD(el, o) {
+  el.innerHTML = `
+    <div class="dd-box"><div class="dd-val"></div>
+      <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="dd-pop" hidden>
+      ${o.search ? '<input class="dd-q" placeholder="Поиск…" autocomplete="off">' : ''}
+      <div class="dd-list"></div>
+    </div>`;
+  const box = el.querySelector('.dd-box'), pop = el.querySelector('.dd-pop');
+  const list = el.querySelector('.dd-list'), q = el.querySelector('.dd-q');
+  let items = [], seq = 0, t = null;
+
+  async function fill() {
+    const my = ++seq;
+    list.innerHTML = '<div class="dd-empty">Загрузка…</div>';
+    try {
+      const r = await o.load(q ? q.value.trim().toLowerCase() : '');
+      if (my !== seq) return;
+      items = r;
+      draw();
+    } catch (e) {
+      if (my === seq) list.innerHTML = `<div class="dd-empty">${escHtml(e.message)}</div>`;
+    }
+  }
+  function draw() {
+    const sel = o.selected();
+    let html = o.multi ? '' : `<div class="dd-opt${sel.length ? '' : ' on'}" data-i="-1"><span>${escHtml(o.placeholder)}</span></div>`;
+    html += items.map((it, i) => `<div class="dd-opt${sel.includes(it.v) ? ' on' : ''}" data-i="${i}">
+      ${o.multi ? '<i class="dd-ck"></i>' : ''}<span>${escHtml(it.label)}${it.sub ? `<small>${escHtml(it.sub)}</small>` : ''}</span>
+      ${it.count != null ? `<em>${Number(it.count).toLocaleString('ru')}</em>` : ''}</div>`).join('');
+    if (!items.length) html += '<div class="dd-empty">Ничего не найдено</div>';
+    list.innerHTML = html;
+  }
+  function render() {
+    const v = el.querySelector('.dd-val');
+    const sel = o.selected();
+    const disabled = !!(o.disabled && o.disabled());
+    el.classList.toggle('disabled', disabled);
+    if (!sel.length) v.innerHTML = `<span class="dd-ph">${escHtml(disabled && o.disabledText ? o.disabledText : o.placeholder)}</span>`;
+    else if (o.multi) v.innerHTML = sel.map(x => `<span class="dd-chip">${escHtml(o.labelOf(x))}<b data-rm="${escHtml(x)}" title="Убрать">×</b></span>`).join('');
+    else v.innerHTML = `<span class="dd-one">${escHtml(o.labelOf(sel[0]))}</span>`;
+  }
+  function open() {
+    Object.values(_dd).forEach(d => d !== api && d.close());
+    el.classList.add('open'); pop.hidden = false;
+    if (q) { q.value = ''; setTimeout(() => q.focus()); }
+    fill();
+  }
+  function close() { el.classList.remove('open'); pop.hidden = true; }
+
+  box.onclick = e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { e.stopPropagation(); o.pick({ v: rm.dataset.rm }); return; }
+    if (el.classList.contains('disabled')) return;
+    pop.hidden ? open() : close();
+  };
+  list.onclick = e => {
+    e.stopPropagation(); // draw() заменит e.target — иначе общий обработчик решит, что клик был снаружи
+    const opt = e.target.closest('.dd-opt');
+    if (!opt) return;
+    const i = +opt.dataset.i;
+    o.pick(i < 0 ? null : items[i]);
+    if (o.multi) draw(); else close();
+  };
+  if (q) q.oninput = () => { clearTimeout(t); t = setTimeout(fill, o.remote ? 250 : 0); };
+  const api = { el, render, close };
+  return api;
+}
+
+document.addEventListener('click', e => {
+  Object.values(_dd).forEach(d => !d.el.contains(e.target) && d.close());
+});
+
+function initFilters() {
+  const localFilter = (arr, q) => q ? arr.filter(it => it.label.toLowerCase().includes(q)) : arr;
+  const regionOpts = async () => (await filterOptions({})).regions
+    .map(r => ({ v: r.v, label: regionLabel(r.v), count: r.count }));
+
+  _dd.region = makeDD(document.getElementById('ddRegion'), {
+    multi: true, search: true, placeholder: 'Все регионы',
+    load: async q => localFilter(await regionOpts(), q),
+    selected: () => F.regions,
+    labelOf: regionLabel,
+    pick: it => {
+      if (!it) return;
+      F.regions = F.regions.includes(it.v) ? F.regions.filter(x => x !== it.v) : [...F.regions, it.v];
+      F.district = ''; F.place = null;
+      applyFilters();
+    },
+  });
+  _dd.district = makeDD(document.getElementById('ddDistrict'), {
+    search: true, placeholder: 'Все районы', disabledText: 'Сначала выберите регион',
+    disabled: () => !F.regions.length,
+    load: async q => localFilter((await filterOptions({ regions: F.regions.join(',') })).districts
+      .map(d => ({ v: d.v, label: d.v + ' р-н', count: d.count })), q),
+    selected: () => F.district ? [F.district] : [],
+    labelOf: v => v + ' р-н',
+    pick: it => { F.district = it ? it.v : ''; F.place = null; applyFilters(); },
+  });
+  _dd.place = makeDD(document.getElementById('ddPlace'), {
+    search: true, remote: true, placeholder: 'Все населённые пункты', disabledText: 'Сначала выберите регион',
+    disabled: () => !F.regions.length,
+    load: async q => (await filterOptions({ regions: F.regions.join(','), district: F.district, q })).places
+      .map(p => ({ v: p.key, label: p.label, sub: F.district ? '' : (p.district ? p.district + ' р-н' : ''), count: p.count, raw: p })),
+    selected: () => F.place ? [F.place.key] : [],
+    labelOf: () => F.place ? F.place.label : '',
+    pick: it => {
+      F.place = it ? { key: it.v, label: it.label, lat: it.raw.lat, lon: it.raw.lon } : null;
+      applyFilters();
+    },
+  });
+  _dd.crops = makeDD(document.getElementById('ddCrops'), {
+    multi: true, search: true, placeholder: 'Любая продукция',
+    load: async q => localFilter(FILTER_CROPS.map(([v, label]) => ({ v, label })), q),
+    selected: () => F.crops,
+    labelOf: v => CROP_LABEL[v] || v,
+    pick: it => {
+      if (!it) return;
+      F.crops = F.crops.includes(it.v) ? F.crops.filter(x => x !== it.v) : [...F.crops, it.v];
+      applyFilters();
+    },
+  });
+
+  // Урожай: текущий год и три предыдущих
+  const y = new Date().getFullYear();
+  document.getElementById('segHarvest').innerHTML = ['', y, y - 1, y - 2, y - 3]
+    .map(v => `<button data-v="${v}">${v || 'Все'}</button>`).join('');
+
+  const bindSeg = (id, key) => document.getElementById(id).addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (!b) return;
+    F[key] = b.dataset.v;
+    applyFilters();
+  });
+  bindSeg('segHarvest', 'harvest');
+  bindSeg('segVolume', 'volume');
+  bindSeg('rgRole', 'role');
+  bindSeg('segStatus', 'status');
+
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK' && State.currentPage === 'registry') {
+      e.preventDefault();
+      document.getElementById('globalQ').focus();
+    } else if (e.key === 'Escape' && document.querySelector('#pg-registry .body.fdr-open')) {
+      const anyOpen = Object.values(_dd).some(d => d.el.classList.contains('open'));
+      if (anyOpen) Object.values(_dd).forEach(d => d.close());
+      else closeFilters();
+    }
+  });
+
+  let saved = null;
+  try { saved = localStorage.getItem('filtersOpen'); } catch(_) {}
+  setFiltersOpen(window.innerWidth > 1024 && (saved === '1' || (saved === null && window.innerWidth > 1280)));
+  renderFilterState();
+}
+
+function setVolume(v) {
+  F.volume = F.volume === v ? '' : v;
+  applyFilters();
+}
+function onVolumeRange() { applyFiltersDebounced(); }
+
+function onRadiusInput() {
+  F.radius = document.getElementById('fRadius').value;
+  renderFilterState();
+  applyFiltersDebounced();
+}
+
+function useMyLocation() {
+  if (F.center) { F.center = null; applyFilters(); return; }
+  if (!navigator.geolocation) return showAlert('Браузер не умеет определять местоположение', 'err');
+  const btn = document.getElementById('fPinBtn');
+  btn.classList.add('busy');
+  navigator.geolocation.getCurrentPosition(pos => {
+    btn.classList.remove('busy');
+    F.center = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    if (!(Number(F.radius) > 0)) { F.radius = '50'; document.getElementById('fRadius').value = '50'; }
+    applyFilters();
+  }, () => {
+    btn.classList.remove('busy');
+    showAlert('Не удалось определить местоположение — разрешите доступ к геопозиции в браузере', 'err');
+  }, { timeout: 10000, maximumAge: 600000 });
+}
+
+// Чипы над таблицей: у каждого своя «отмена» одного условия
+function activeFilterChips() {
+  const chips = [];
+  const center = radiusCenter();
+  if (!center) {
+    F.regions.forEach(r => chips.push([regionLabel(r), () => { F.regions = F.regions.filter(x => x !== r); F.district = ''; F.place = null; }]));
+    if (F.district) chips.push([F.district + ' р-н', () => { F.district = ''; F.place = null; }]);
+    if (F.place) chips.push([F.place.label, () => { F.place = null; }]);
+  } else {
+    chips.push([`${F.radius} км от ${F.center ? 'меня' : F.place.label}`, () => { F.radius = ''; F.center = null; document.getElementById('fRadius').value = ''; }]);
+  }
+  F.crops.forEach(c => chips.push([CROP_LABEL[c], () => { F.crops = F.crops.filter(x => x !== c); }]));
+  if (F.harvest) chips.push(['Урожай ' + F.harvest, () => { F.harvest = ''; }]);
+  const vol = volumeRange();
+  if (vol.min || vol.max) {
+    const fmt = n => Number(n).toLocaleString('ru');
+    const label = vol.min && vol.max ? `Объём ${fmt(vol.min)}–${fmt(vol.max)} т`
+      : vol.min ? `Объём > ${fmt(vol.min)} т` : `Объём до ${fmt(vol.max)} т`;
+    chips.push([label, () => { F.volume = ''; document.getElementById('flBatchMin').value = ''; document.getElementById('flBatchMax').value = ''; }]);
+  }
+  if (F.role) chips.push([ROLE_LABEL[F.role], () => { F.role = ''; }]);
+  if (F.status) chips.push([STATUS_LABEL[F.status], () => { F.status = ''; }]);
+  return chips;
+}
+
+let _chipActions = [];
+function removeFilterChip(i) {
+  const fn = _chipActions[i];
+  if (fn) { fn(); applyFilters(); }
+}
+
+function renderFilterState() {
+  Object.values(_dd).forEach(d => d.render());
+  const setSeg = (id, v) => document.querySelectorAll(`#${id} button[data-v]`)
+    .forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
+  setSeg('segHarvest', F.harvest);
+  setSeg('segVolume', F.volume);
+  setSeg('rgRole', F.role);
+  setSeg('segStatus', F.status);
+  document.getElementById('segVolumeOwn').classList.toggle('on', F.volume === 'custom');
+  document.getElementById('fVolRange').hidden = F.volume !== 'custom';
+
+  const hint = document.getElementById('fRadiusHint');
+  document.getElementById('fPinBtn').classList.toggle('on', !!F.center);
+  if (F.center) hint.textContent = 'От вашего местоположения';
+  else if (!(Number(F.radius) > 0)) hint.textContent = '';
+  else if (!F.place) hint.textContent = 'Выберите населённый пункт или нажмите на метку — от вашего местоположения';
+  else if (F.place.lat == null) hint.textContent = 'У этого пункта пока нет координат — радиус не применяется';
+  else hint.textContent = 'От: ' + F.place.label;
+
+  const chips = activeFilterChips();
+  _chipActions = chips.map(c => c[1]);
+  document.getElementById('fltChips').innerHTML = chips.map(([label], i) =>
+    `<span class="fchip">${escHtml(label)}<button onclick="removeFilterChip(${i})" title="Убрать">×</button></span>`).join('');
+  document.getElementById('fltCount').textContent = chips.length ? ` (${chips.length})` : '';
+  document.getElementById('fltResetAll').hidden = !chips.length;
 }
 
 function showSkeleton() {
@@ -437,7 +758,8 @@ function renderTable(data) {
     if (key) State.producerDataCache.set(key, p);
   });
 
-  document.getElementById('tblCount').textContent = (total || 0).toLocaleString('ru') + ' компаний';
+  document.getElementById('tblCount').textContent = 'Найдено ' + (total || 0).toLocaleString('ru') + ' ' + plural(total || 0, 'компания', 'компании', 'компаний');
+  updateApplyBtn(total);
   document.getElementById('pgNow').textContent = (page || 0) + 1;
   document.getElementById('pgOf').textContent  = pages || 1;
   document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
@@ -2269,7 +2591,9 @@ async function deleteSavedSearch(id) {
 
 async function subscribeCurrentFilter() {
   const filters = getFilters();
-  const filter = { product: '', address: filters.address, farmerType: filters.farmerType, batchMin: filters.batchMin, batchMax: filters.batchMax };
+  // Подписка понимает только часть условий — роль «переработчики» в ней не поддерживается
+  const farmerType = ['farmer', 'trader'].includes(filters.farmerType) ? filters.farmerType : '';
+  const filter = { product: '', address: filters.address, farmerType, batchMin: filters.batchMin, batchMax: filters.batchMax };
   const name = prompt('Название подписки (для себя)', filters.address || filters.farmerType || 'Реестр');
   if (name === null) return;
   try {
@@ -2929,20 +3253,7 @@ async function adminDeleteUser(userId, username) {
 
 // ── Initialization ────────────────────────────────────────────────────────
 function initApp() {
-  try {
-    const saved = localStorage.getItem('sidebarCollapsed');
-    // На планшете/телефоне сайдбар перекрывает контент (position:absolute,
-    // см. media-запрос в style.css) — по умолчанию сворачиваем его, если
-    // пользователь ещё не выбирал предпочтение явно.
-    const shouldCollapse = saved === '1' || (saved === null && window.innerWidth <= 1024);
-    if (shouldCollapse) {
-      const body = document.querySelector('.body');
-      document.getElementById('mainSidebar').classList.add('collapsed');
-      body.classList.add('sidebar-collapsed');
-      const btn = document.getElementById('sidebarToggle');
-      if (btn) btn.textContent = '›';
-    }
-  } catch(_) {}
+  initFilters();
   loadFavsCache();
   showPage('home');
   loadStats();
