@@ -425,8 +425,6 @@ function getFilters() {
     manufacturer: document.getElementById('csManuf').value || '',
     address: document.getElementById('csAddress').value || '',
     product: document.getElementById('csProduct').value || '',
-    sortField: document.getElementById('sortF').value || 'regDate',
-    sortDir: document.getElementById('sortD').value || 'desc',
     farmerType: F.role,
     status: F.status,
     crops: F.crops.join(','),
