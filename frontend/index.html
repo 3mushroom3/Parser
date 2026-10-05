@@ -639,18 +639,20 @@
         <div class="fg" style="grid-template-columns:1fr">
           <div class="frow">
             <label>Текущий пароль</label>
-            <input type="password" id="profCurPass" class="fi" placeholder="Введите текущий пароль">
+            <input type="password" id="profCurPass" class="fi" placeholder="Введите текущий пароль" autocomplete="current-password">
           </div>
           <div class="frow">
             <label>Новый пароль</label>
-            <input type="password" id="profNewPass" class="fi" placeholder="Не менее 6 символов">
+            <input type="password" id="profNewPass" class="fi" placeholder="Не менее 8 символов" autocomplete="new-password">
           </div>
           <div class="frow">
             <label>Подтверждение</label>
-            <input type="password" id="profNewPass2" class="fi" placeholder="Повторите новый пароль">
+            <input type="password" id="profNewPass2" class="fi" placeholder="Повторите новый пароль" autocomplete="new-password"
+              onkeydown="if(event.key==='Enter')changePassword()">
           </div>
         </div>
-        <button class="btn btn-p" style="margin-top:12px" onclick="changePassword()">Сменить пароль</button>
+        <div id="profPassMsg" class="form-msg" hidden></div>
+        <button class="btn btn-p" style="margin-top:12px" id="profPassBtn" onclick="changePassword()">Сменить пароль</button>
       </div>
 
       <!-- Account info card -->

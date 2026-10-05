@@ -2892,19 +2892,28 @@ async function subscribeCurrentFilter() {
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
+// Результат пишем прямо под формой: всплывашка в углу экрана исчезала через
+// 3,5 с и выглядела одинаково для ошибки и успеха — её просто не замечали.
 async function changePassword() {
   const cur = document.getElementById('profCurPass').value;
   const nw  = document.getElementById('profNewPass').value;
   const nw2 = document.getElementById('profNewPass2').value;
-  if (!cur || !nw) return showAlert('Заполните все поля', 'err');
-  if (nw !== nw2) return showAlert('Пароли не совпадают', 'err');
+  const msg = document.getElementById('profPassMsg'), btn = document.getElementById('profPassBtn');
+  const say = (text, type) => { msg.textContent = text; msg.className = 'form-msg ' + type; msg.hidden = false; };
+  if (!cur || !nw || !nw2) return say('Заполните все три поля', 'err');
+  if (nw.length < 8) return say('Новый пароль должен быть не короче 8 символов', 'err');
+  if (nw !== nw2) return say('Новый пароль и подтверждение не совпадают', 'err');
+  if (nw === cur) return say('Новый пароль совпадает с текущим', 'err');
+  btn.disabled = true;
   try {
     await apiFetch('/api/auth/password', { method: 'PUT', body: JSON.stringify({ currentPassword: cur, newPassword: nw }) });
-    document.getElementById('profCurPass').value = '';
-    document.getElementById('profNewPass').value = '';
-    document.getElementById('profNewPass2').value = '';
-    showAlert('Пароль успешно изменён', 'ok');
-  } catch(e) { showAlert(e.message, 'err'); }
+    ['profCurPass', 'profNewPass', 'profNewPass2'].forEach(id => { document.getElementById(id).value = ''; });
+    say('Пароль изменён. Используйте новый пароль при следующем входе.', 'ok');
+  } catch (e) {
+    say(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────
@@ -3026,8 +3035,11 @@ function showAlert(msg, type = 'ok') {
   const el = document.getElementById('alertBox');
   const txt = document.getElementById('alertTxt');
   txt.textContent = msg;
+  el.classList.toggle('err', type === 'err');
   el.classList.add('show');
-  setTimeout(() => el.classList.remove('show'), 3500);
+  // Новое сообщение не должно гаснуть по таймеру предыдущего.
+  clearTimeout(showAlert._t);
+  showAlert._t = setTimeout(() => el.classList.remove('show'), type === 'err' ? 6000 : 3500);
 }
 
 ['addModal','detModal','settingsModal','subscriptionModal','tosModal','privacyModal','addToFolderModal','addToNoteModal','dedupeModal','noAccessModal','noteModal'].forEach(id => {

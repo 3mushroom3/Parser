@@ -238,8 +238,13 @@ router.put('/password', authMiddleware, (req, res) => {
     return res.status(400).json({ error: `Новый пароль: не короче ${MIN_PASSWORD_LEN} символов` });
   }
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  // 400, а не 401: фронтенд на любой 401 разлогинивает («сессия истекла»),
+  // и опечатка в текущем пароле выкидывала пользователя из аккаунта.
   if (!user || !bcrypt.compareSync(currentPassword, user.password)) {
-    return res.status(401).json({ error: 'Неверный текущий пароль' });
+    return res.status(400).json({ error: 'Неверный текущий пароль' });
+  }
+  if (bcrypt.compareSync(newPassword, user.password)) {
+    return res.status(400).json({ error: 'Новый пароль совпадает с текущим' });
   }
   db.prepare('UPDATE users SET password = ? WHERE id = ?').run(bcrypt.hashSync(newPassword, 12), req.user.id);
   res.json({ ok: true });

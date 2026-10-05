@@ -279,6 +279,10 @@ tbody td.muted{color:var(--muted);font-size:12px}
 .alert{display:none;position:fixed;bottom:24px;right:24px;z-index:600;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 18px;box-shadow:0 8px 24px rgba(0,0,0,.14);font-size:13px;max-width:360px;animation:alertIn .2s ease-out}
 @keyframes alertIn{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
 .alert.show{display:flex;align-items:center;gap:8px}
+.alert.err{border-color:var(--dng);background:var(--dngbg);color:var(--dng)}
+.form-msg{margin-top:12px;padding:9px 12px;border-radius:var(--r);font-size:13px}
+.form-msg.ok{background:var(--succbg);color:var(--succ)}
+.form-msg.err{background:var(--dngbg);color:var(--dng)}
 
 /* ── Login ───────────────────────────────────────────────── */
 .login-page{display:flex;align-items:center;justify-content:center;height:100vh;background:linear-gradient(135deg,#021a18 0%,#075c44 45%,#0b7355 75%,#17a06f 100%);overflow:hidden;position:relative}
