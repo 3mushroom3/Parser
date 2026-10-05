@@ -3130,6 +3130,9 @@ async function openSubscription() {
   } else {
     statusEl.innerHTML = `<div class="sub-status-err">Подписка не активна. Выберите тариф для оформления.</div>`;
   }
+  if (sub.testMode) {
+    statusEl.innerHTML += `<div class="sub-status-err" style="margin-top:8px">Тестовый режим ЮKassa: оплата тестовыми картами, деньги не списываются.</div>`;
+  }
 
   document.getElementById('subPlans').innerHTML = plansData.map(p => `
     <div class="sub-plan-card">

@@ -40,6 +40,7 @@ router.get('/subscription', auth, (req, res) => {
     subscriptionPlan: user.subscriptionPlan || null,
     isAdmin: user.role === 'admin',
     group: groupInfo,
+    testMode: yukassa.isConfigured() && yukassa.isTestMode(),
   });
 });
 
@@ -53,6 +54,12 @@ router.post('/create', auth, async (req, res) => {
     return res.status(503).json({ error: 'Платёжная система не настроена. Обратитесь к администратору.' });
   }
 
+  // Email нужен для кассового чека: ЮKassa отправляет чек покупателю на почту.
+  const { email } = db.prepare('SELECT email FROM users WHERE id = ?').get(req.user.id) || {};
+  if (yukassa.receiptEnabled && !email) {
+    return res.status(400).json({ error: 'Для оплаты нужен email — на него придёт кассовый чек. Укажите его в профиле.' });
+  }
+
   const paymentId = crypto.randomUUID();
   const baseUrl = process.env.APP_URL || 'http://localhost:3001';
   const returnUrl = `${baseUrl}/?payment_id=${paymentId}`;
@@ -61,6 +68,8 @@ router.post('/create', auth, async (req, res) => {
     const yPayment = await yukassa.createPayment({
       amount: plan.price,
       description: `Подписка «${plan.label}» — KOVELIA — реестр АПК`,
+      itemName: `Доступ к реестру KOVELIA: ${plan.label}`,
+      customerEmail: email,
       returnUrl,
       metadata: { paymentId, userId: req.user.id, planId },
     });
@@ -72,6 +81,7 @@ router.post('/create', auth, async (req, res) => {
 
     res.json({ paymentUrl: yPayment.confirmation.confirmation_url, paymentId });
   } catch (err) {
+    console.error('[payment] ошибка создания платежа:', err.message);
     res.status(500).json({ error: 'Ошибка создания платежа: ' + err.message });
   }
 });
@@ -91,10 +101,10 @@ router.get('/check/:paymentId', auth, async (req, res) => {
 
   try {
     const yPayment = await yukassa.getPayment(payment.providerPaymentId);
-    if (yPayment.status === 'succeeded' && payment.status !== 'succeeded') {
+    if (yPayment.status === 'succeeded' && Number(yPayment.amount?.value) === Number(payment.amount)) {
       activateSubscription(req.user.id, payment.plan, payment.id);
     } else if (yPayment.status === 'canceled') {
-      db.prepare("UPDATE payments SET status='canceled', updatedAt=CURRENT_TIMESTAMP WHERE id=?").run(payment.id);
+      markCanceled(payment.id);
     }
     res.json({ status: yPayment.status });
   } catch (err) {
@@ -112,7 +122,7 @@ router.get('/check/:paymentId', auth, async (req, res) => {
 // нашим серверным ключам — подделать ответ ЮКассы атакующий не может.
 router.post('/webhook', express.json(), async (req, res) => {
   const event = req.body;
-  if (!event || event.type !== 'payment.succeeded') return res.sendStatus(200);
+  if (!event || (event.event !== 'payment.succeeded' && event.event !== 'payment.canceled')) return res.sendStatus(200);
 
   const yPaymentId = event.object?.id;
   const meta = event.object?.metadata;
@@ -126,7 +136,10 @@ router.post('/webhook', express.json(), async (req, res) => {
   try {
     const verified = await yukassa.getPayment(yPaymentId);
     if (verified.status === 'succeeded' && Number(verified.amount?.value) === Number(payment.amount)) {
-      activateSubscription(Number(meta.userId), meta.planId, meta.paymentId);
+      // userId/planId — из нашей записи платежа, а не из тела вебхука.
+      activateSubscription(payment.userId, payment.plan, payment.id);
+    } else if (verified.status === 'canceled') {
+      markCanceled(payment.id);
     } else {
       console.warn(`[payment webhook] статус/сумма не подтверждены ЮКассой для ${yPaymentId}: status=${verified.status}`);
     }
@@ -136,9 +149,20 @@ router.post('/webhook', express.json(), async (req, res) => {
   res.sendStatus(200);
 });
 
-function activateSubscription(userId, planId, paymentId) {
+function markCanceled(paymentId) {
+  db.prepare("UPDATE payments SET status='canceled', updatedAt=CURRENT_TIMESTAMP WHERE id=? AND status='pending'").run(paymentId);
+}
+
+// Вебхук и /check (возврат пользователя со страницы оплаты) приходят почти
+// одновременно, и оба видят платёж ещё в pending — без атомарного «захвата»
+// подписка продлевалась бы дважды. Поэтому сначала переводим платёж в
+// succeeded условным UPDATE и продлеваем, только если это сделали именно мы.
+const activateSubscription = db.transaction((userId, planId, paymentId) => {
   const plan = PLANS[planId];
   if (!plan) return;
+  const claimed = db.prepare("UPDATE payments SET status='succeeded', updatedAt=CURRENT_TIMESTAMP WHERE id=? AND status!='succeeded'")
+    .run(paymentId).changes;
+  if (!claimed) return;
 
   const user = db.prepare('SELECT subscriptionUntil FROM users WHERE id = ?').get(userId);
   const base = user?.subscriptionUntil && new Date(user.subscriptionUntil) > new Date()
@@ -157,9 +181,6 @@ function activateSubscription(userId, planId, paymentId) {
     db.prepare('UPDATE users SET subscriptionUntil=?, subscriptionPlan=? WHERE id=?')
       .run(newUntil, planId, userId);
   }
-
-  db.prepare("UPDATE payments SET status='succeeded', updatedAt=CURRENT_TIMESTAMP WHERE id=?")
-    .run(paymentId);
-}
+});
 
 module.exports = router;
