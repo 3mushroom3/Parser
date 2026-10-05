@@ -191,6 +191,88 @@ function applyCache(records) {
   return updated;
 }
 
+const STALE_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Окончательный ли ответ лежит в кэше (тот же критерий, что в enrichExisting):
+// известный тип или найденная компания с ОКВЭД — навсегда; «не найдена» —
+// только 30 дней, потом переспрашиваем.
+function isSettled(entry) {
+  if (!entry) return false;
+  if (entry.farmerType !== 'unknown' || entry.okved) return true;
+  return !!entry.checkedAt && (Date.now() - new Date(entry.checkedAt).getTime()) <= STALE_MS;
+}
+
+/**
+ * Проставляет в декларации всё, что уже есть в кэше по ИНН, — без запросов к DaData.
+ * Раньше кэш доходил только до тех строк, что попали в ночную выборку, и тип
+ * десятков тысяч деклараций лежал в inn_cache.json, но не в базе.
+ */
+function applyCacheToDb() {
+  const cache = loadCache();
+  const stmt = db.prepare(`
+    UPDATE declarations
+    SET farmerType = ?, okved = COALESCE(NULLIF(?, ''), okved), updatedAt = CURRENT_TIMESTAMP
+    WHERE inn = ? AND (farmerType IS NULL OR farmerType = 'unknown')
+      AND (farmerType IS NOT ? OR (? != '' AND COALESCE(okved, '') != ?))
+  `);
+  const entries = Object.entries(cache).filter(([k, e]) => !k.startsWith('name:') && e && e.farmerType);
+  let updated = 0;
+  const run = db.transaction(batch => {
+    for (const [inn, e] of batch) {
+      const okved = e.okved || '';
+      updated += stmt.run(e.farmerType, okved, inn, e.farmerType, okved, okved).changes;
+    }
+  });
+  for (let i = 0; i < entries.length; i += 1000) run(entries.slice(i, i + 1000));
+  return updated;
+}
+
+/**
+ * Что отправлять в DaData: по одной действующей декларации на компанию, по которой
+ * в кэше ещё нет окончательного ответа; сначала компании с большим числом деклараций.
+ * Раньше бралось `... WHERE farmerType='unknown' LIMIT N` по всей таблице — каждую ночь
+ * одни и те же N архивных строк с уже известным «не аграрная», до действующих очередь не доходила.
+ * limit = 0 — без ограничения.
+ */
+function selectPendingRecords(limit = 0) {
+  const cache = loadCache();
+  const groups = db.prepare(`
+    SELECT MIN(id) id, COALESCE(NULLIF(inn, ''), 'name:' || COALESCE(NULLIF(shortName, ''), NULLIF(applicantName, ''), lastName, '')) k, COUNT(*) n
+    FROM declarations
+    WHERE status = 'active' AND (farmerType IS NULL OR farmerType = 'unknown')
+    GROUP BY k
+    ORDER BY n DESC
+  `).all();
+  const ids = [];
+  for (const g of groups) {
+    if (g.k === 'name:' || isSettled(cache[g.k])) continue;
+    ids.push(g.id);
+    if (limit > 0 && ids.length >= limit) break;
+  }
+  const byId = db.prepare('SELECT * FROM declarations WHERE id = ?');
+  return ids.map(id => byId.get(id)).filter(Boolean);
+}
+
+/**
+ * Сохраняет результат обогащения: саму декларацию и все ещё не определённые
+ * декларации той же компании (в выборку попадает одна строка на ИНН).
+ */
+function saveEnrichedRecords(records) {
+  const byId = db.prepare('UPDATE declarations SET farmerType = ?, okved = ?, inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
+  const byInn = db.prepare(`
+    UPDATE declarations
+    SET farmerType = ?, okved = COALESCE(NULLIF(?, ''), okved), updatedAt = CURRENT_TIMESTAMP
+    WHERE inn = ? AND id != ? AND (farmerType IS NULL OR farmerType = 'unknown')
+  `);
+  db.transaction(recs => {
+    for (const r of recs) {
+      if (!r.farmerType) continue;
+      byId.run(r.farmerType, r.okved, r.inn, r.id);
+      if (r.inn) byInn.run(r.farmerType, r.okved || '', r.inn, r.id);
+    }
+  })(records);
+}
+
 /**
  * Массовое обогащение существующих записей БД.
  * job = { running, done, total, errors, stop } — объект состояния (изменяется на месте).
@@ -230,10 +312,7 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
     //   раз в 30 дней (база DaData обновляется, новые компании появляются)
     if (cache[cacheKey]) {
       const cached = cache[cacheKey];
-      const isStaleUnknown = cached.farmerType === 'unknown' && !cached.okved;
-      const STALE_MS = 30 * 24 * 60 * 60 * 1000;
-      const isExpired = !cached.checkedAt || (Date.now() - new Date(cached.checkedAt).getTime()) > STALE_MS;
-      if (!isStaleUnknown || !isExpired) {
+      if (isSettled(cached)) {
         rec.farmerType = cached.farmerType;
         rec.okved = cached.okved || '';
         if (!rec.inn && cached.inn) rec.inn = cached.inn;
@@ -321,4 +400,4 @@ async function enrichExisting(records, job, saveDb, { batchSize = 50, savePer = 
   console.log(`[INN] Массовое обогащение завершено: ${job.done}/${job.total}, ошибок: ${job.errors}`);
 }
 
-module.exports = { enrichRecords, enrichExisting, applyCache, autoEnrichJob };
+module.exports = { enrichRecords, enrichExisting, applyCache, applyCacheToDb, selectPendingRecords, saveEnrichedRecords, autoEnrichJob };

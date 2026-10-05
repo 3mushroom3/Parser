@@ -43,7 +43,7 @@ const publicRoutes = require('./routes/public');
 const savedSearchRoutes = require('./routes/savedSearches');
 const maxBot = require('./services/maxBot');
 const { runNotifyJob } = require('./services/notifyJob');
-const { enrichExisting, autoEnrichJob } = require('./services/innEnricher');
+const { enrichExisting, autoEnrichJob, applyCacheToDb, selectPendingRecords, saveEnrichedRecords } = require('./services/innEnricher');
 const { runGeoJob } = require('./services/geoEnricher');
 const { runPhoneBackfill } = require('./services/phoneBackfill');
 
@@ -266,18 +266,17 @@ if (process.env.NODE_ENV !== 'test') {
       // непрерывной нагрузки; 3000 хватает на прирост дневных деклараций и
       // укладывается в ~75 мин, не мешая пиковому дневному трафику пользователей.
       const MAX_DAILY = parseInt(process.env.ENRICH_DAILY_LIMIT || '3000');
-      // Загружаем только столько записей, сколько успеем обработать за день —
-      // не весь массив целиком: на 4M+ строках это вызывает OOM.
-      const records = db.prepare(
-        "SELECT * FROM declarations WHERE farmerType IS NULL OR farmerType = 'unknown' LIMIT ?"
-      ).all(MAX_DAILY);
+      // Сначала доносим до деклараций то, что уже известно из кэша (без запросов к API),
+      // затем берём по одной действующей декларации на ещё не проверенную компанию.
+      const fromCache = applyCacheToDb();
+      if (fromCache) logger.info(`[AUTO-ENRICH] Из кэша проставлен тип ${fromCache} декларациям`);
+      const records = selectPendingRecords(MAX_DAILY);
       if (!records.length) {
         logger.info('[AUTO-ENRICH] Нет записей для обогащения');
         return;
       }
       Object.assign(autoEnrichJob, { running: true, done: 0, total: 0, errors: 0, apiCalls: 0, startedAt: new Date().toISOString() });
-      const updateStmt = db.prepare('UPDATE declarations SET farmerType = ?, okved = ?, inn = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?');
-      const saveDb = () => db.transaction(recs => recs.forEach(r => updateStmt.run(r.farmerType, r.okved, r.inn, r.id)))(records);
+      const saveDb = () => saveEnrichedRecords(records);
       setImmediate(() =>
         enrichExisting(records, autoEnrichJob, saveDb, { maxApiCalls: MAX_DAILY })
           .then(() => logger.info(`[AUTO-ENRICH] Завершено: ${autoEnrichJob.apiCalls} запросов API, обработано ${autoEnrichJob.done}/${autoEnrichJob.total}`))
