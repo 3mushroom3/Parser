@@ -147,23 +147,41 @@
       <div class="sc"><div class="sc-icon" style="background:var(--warnbg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg></div><div class="sc-info"><div class="sc-v" id="hmTraders">—</div><div class="sc-l">трейдеров</div></div></div>
     </div>
 
+    <section class="home-card dyn-card">
+      <div class="dyn-hdr">
+        <div>
+          <h3>Динамика деклараций</h3>
+          <div class="dyn-live" id="dynLive"><i class="dyn-dot"></i><span id="dynUpdated">загрузка…</span></div>
+        </div>
+        <div class="dyn-seg" role="tablist" aria-label="Период">
+          <button type="button" role="tab" data-range="days" class="act" aria-selected="true">30 дней</button>
+          <button type="button" role="tab" data-range="months" aria-selected="false">12 месяцев</button>
+        </div>
+      </div>
+      <div class="dyn-kpis">
+        <div class="dyn-kpi"><div class="dyn-kpi-l">Сегодня</div><div class="dyn-kpi-v" id="dynToday">—</div><div class="dyn-kpi-d" id="dynTodayD"></div></div>
+        <div class="dyn-kpi"><div class="dyn-kpi-l">За 7 дней</div><div class="dyn-kpi-v" id="dynWeek">—</div><div class="dyn-kpi-d" id="dynWeekD"></div></div>
+        <div class="dyn-kpi"><div class="dyn-kpi-l">С начала месяца</div><div class="dyn-kpi-v" id="dynMonth">—</div><div class="dyn-kpi-d" id="dynMonthD"></div></div>
+      </div>
+      <div class="dyn-legend" id="dynLegend"></div>
+      <div class="dyn-chart" id="dynChartBox">
+        <canvas id="homeChart" role="img" aria-label="График поданных деклараций"></canvas>
+        <div class="dyn-tip" id="dynTip" hidden></div>
+      </div>
+      <div id="hmChartEmpty" class="home-skel" hidden>Пока нет данных</div>
+    </section>
+
     <div class="home-cols">
       <section class="home-card">
         <div class="home-card-hdr"><h3>Топ регионов</h3><span class="home-card-note">по действующим декларациям</span></div>
         <div id="hmRegions" class="home-regions"><div class="home-skel">Загрузка…</div></div>
       </section>
       <section class="home-card">
-        <div class="home-card-hdr"><h3>Динамика деклараций</h3><span class="home-card-note">за 12 месяцев</span></div>
-        <canvas id="homeChart" height="180"></canvas>
-        <div id="hmChartEmpty" class="home-skel" style="display:none">Пока нет данных за последний год</div>
+        <div class="home-card-hdr"><h3>Последние добавленные</h3>
+          <button class="btn btn-sm" onclick="showPage('registry')">Весь реестр</button></div>
+        <div id="hmRecent" class="item-list"><div class="home-skel">Загрузка…</div></div>
       </section>
     </div>
-
-    <section class="home-card">
-      <div class="home-card-hdr"><h3>Последние добавленные</h3>
-        <button class="btn btn-sm" onclick="showPage('registry')">Весь реестр</button></div>
-      <div id="hmRecent" class="item-list"><div class="home-skel">Загрузка…</div></div>
-    </section>
   </div>
 
   <!-- COMPANY PAGE -->

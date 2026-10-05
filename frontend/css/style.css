@@ -123,6 +123,43 @@ body.logged-in .site-footer{left:216px}
 .home-region-val{flex:0 0 auto;font-weight:600;font-variant-numeric:tabular-nums}
 @media (max-width: 900px){ .home-cols{grid-template-columns:1fr} .home-hero{height:170px} .home-hero-title{font-size:21px} }
 
+/* Динамика деклараций */
+.dyn-card{margin-bottom:16px}
+.dyn-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.dyn-hdr h3{font-size:15px;font-weight:700}
+.dyn-live{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);margin-top:4px}
+.dyn-dot{width:8px;height:8px;border-radius:50%;background:var(--succ);position:relative;flex:0 0 auto}
+.dyn-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--succ);opacity:0;animation:dynPulse 2s ease-out infinite}
+.dyn-live.stale .dyn-dot{background:#b8c4c2}
+.dyn-live.stale .dyn-dot::after{animation:none}
+@keyframes dynPulse{0%{transform:scale(.5);opacity:.7}100%{transform:scale(1.4);opacity:0}}
+.dyn-seg{display:inline-flex;background:var(--surf2);border-radius:var(--r);padding:3px;gap:2px}
+.dyn-seg button{border:0;background:transparent;font:inherit;font-size:12px;font-weight:600;color:var(--muted);padding:5px 12px;border-radius:6px;cursor:pointer}
+.dyn-seg button:hover{color:var(--text)}
+.dyn-seg button.act{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.dyn-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px}
+.dyn-kpi{background:var(--surf2);border-radius:var(--r);padding:10px 14px;min-width:0}
+.dyn-kpi-l{font-size:12px;color:var(--muted)}
+.dyn-kpi-v{font-size:24px;font-weight:800;letter-spacing:-.4px;font-variant-numeric:tabular-nums;margin:2px 0;transition:color .6s}
+.dyn-kpi-v.bump{color:var(--succ)}
+.dyn-kpi-d{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dyn-kpi-d b{font-weight:700}
+.dyn-kpi-d .up{color:var(--succ)}
+.dyn-kpi-d .down{color:var(--dng)}
+.dyn-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin-bottom:6px;min-height:18px}
+.dyn-legend span{display:inline-flex;align-items:center;gap:6px}
+.dyn-legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+.dyn-legend i.ln{height:0;width:14px;border-top:2px dashed #8a9897;border-radius:0}
+.dyn-chart{position:relative;height:250px;transition:opacity .2s}
+.dyn-chart canvas{width:100%;height:100%;display:block}
+.dyn-chart.loading{opacity:.5}
+.dyn-tip{position:absolute;pointer-events:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px 10px;font-size:12px;min-width:150px;z-index:2}
+.dyn-tip-t{color:var(--muted);margin-bottom:4px}
+.dyn-tip-r{display:flex;align-items:center;gap:8px;line-height:1.7}
+.dyn-tip-r i{display:inline-block;width:12px;height:0;border-top:2px solid;flex:0 0 auto}
+.dyn-tip-r b{margin-left:auto;padding-left:12px;font-variant-numeric:tabular-nums}
+@media (max-width: 700px){ .dyn-kpis{grid-template-columns:1fr 1fr 1fr;gap:8px} .dyn-kpi{padding:8px 10px} .dyn-kpi-v{font-size:19px} .dyn-chart{height:210px} }
+
 /* ── Плашки культур и счётчики фильтров ──────────────────── */
 .crop{display:inline-block;padding:1px 7px;margin-right:6px;border-radius:10px;font-size:11px;font-weight:600;white-space:nowrap;vertical-align:1px}
 .crop-grain{background:var(--warnbg);color:var(--warn)}

@@ -865,10 +865,12 @@ async function loadHome() {
     document.getElementById('hmTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
   } catch (_) {}
 
+  initDynamics();
+  loadDynamics(false);
+
   try {
     const d = await apiFetch('/api/system/home');
     renderHomeRegions(d.topRegions || []);
-    drawHomeChart(d.monthly || []);
   } catch (_) {
     document.getElementById('hmRegions').innerHTML = '<div class="home-skel">Не удалось загрузить</div>';
   }
@@ -940,53 +942,343 @@ function drawHomeHero() {
   ctx.fillStyle = fade; ctx.fillRect(0, 0, w * 0.62, h);
 }
 
-function drawHomeChart(monthly) {
+// ── Динамика деклараций ───────────────────────────────────────────────────
+// Данные — /api/system/dynamics (кэш на минуту). Пока открыта главная и вкладка
+// видна, опрашиваем раз в минуту: живой парсер доливает текущий день каждые
+// 30 минут, и новые декларации появляются на графике без перезагрузки.
+// Цвета производителей/трейдеров прогнаны через валидатор палитры (различимы
+// и при дальтонизме); «прочие» — нейтральный серый.
+const DYN_COLORS = { farmer: '#119068', trader: '#b9730c', other: '#c3cecc', prev: '#8a9897' };
+const DYN_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const DYN_MON_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const DYN_MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+const DYN_MON_DAT = ['январю', 'февралю', 'марту', 'апрелю', 'маю', 'июню', 'июлю', 'августу', 'сентябрю', 'октябрю', 'ноябрю', 'декабрю'];
+const DYN_WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+const Dyn = { data: null, range: 'days', series: [], hover: -1, geo: null, anim: 1, inited: false, lastToday: null, bumpTimer: null };
+
+const dynNum = n => (n || 0).toLocaleString('ru');
+const dynDate = s => new Date(s + 'T00:00:00Z');
+const dynIso = d => d.toISOString().slice(0, 10);
+
+function initDynamics() {
+  if (Dyn.inited) return;
+  Dyn.inited = true;
+  document.querySelectorAll('.dyn-seg button').forEach(b => b.addEventListener('click', () => {
+    Dyn.range = b.dataset.range;
+    document.querySelectorAll('.dyn-seg button').forEach(x => {
+      x.classList.toggle('act', x === b);
+      x.setAttribute('aria-selected', x === b ? 'true' : 'false');
+    });
+    Dyn.hover = -1;
+    hideDynTip();
+    drawDynChart(true);
+  }));
   const cv = document.getElementById('homeChart');
-  const empty = document.getElementById('hmChartEmpty');
-  if (!cv) return;
-  if (!monthly.length) { cv.style.display = 'none'; if (empty) empty.style.display = ''; return; }
-  cv.style.display = ''; if (empty) empty.style.display = 'none';
+  cv.addEventListener('pointermove', onDynHover);
+  cv.addEventListener('pointerleave', () => { Dyn.hover = -1; hideDynTip(); paintDyn(); });
+  let rt;
+  window.addEventListener('resize', () => {
+    clearTimeout(rt);
+    rt = setTimeout(() => { if (State.currentPage === 'home' && Dyn.data) drawDynChart(false); }, 150);
+  });
+  setInterval(() => {
+    if (State.currentPage === 'home' && !document.hidden) loadDynamics(true);
+  }, 60000);
+  setInterval(renderDynUpdated, 20000);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && State.currentPage === 'home') loadDynamics(true);
+  });
+}
 
+async function loadDynamics(silent) {
+  try {
+    const d = await apiFetch('/api/system/dynamics');
+    const prevToday = Dyn.lastToday;
+    Dyn.data = d;
+    renderDynKpis(silent ? prevToday : null);
+    renderDynUpdated();
+    drawDynChart(!silent);
+  } catch (_) {
+    if (!silent) document.getElementById('dynUpdated').textContent = 'не удалось загрузить';
+  }
+}
+
+// 30 дней подряд, включая дни без деклараций (выходные и праздники — нули, не дыры).
+function dynDaySeries() {
+  const d = Dyn.data, byDate = {};
+  (d.days || []).forEach(r => { byDate[r.date] = r; });
+  const end = dynDate(d.today), out = [];
+  for (let i = 29; i >= 0; i--) {
+    const dt = new Date(end.getTime() - i * 86400000), r = byDate[dynIso(dt)] || {};
+    const total = r.total || 0, farmer = r.farmer || 0, trader = r.trader || 0;
+    out.push({
+      total, farmer, trader, other: Math.max(0, total - farmer - trader),
+      wd: dt.getUTCDay(), day: dt.getUTCDate(), mon: dt.getUTCMonth(), isNow: i === 0,
+    });
+  }
+  return out;
+}
+
+// 12 месяцев до текущего + те же месяцы годом раньше для сравнения.
+function dynMonthSeries() {
+  const d = Dyn.data, byYm = {};
+  (d.months || []).forEach(r => { byYm[r.ym] = r.total; });
+  const [y, m] = d.today.split('-').map(Number), out = [];
+  const ym = (yy, mm) => `${yy}-${String(mm + 1).padStart(2, '0')}`;
+  for (let i = 11; i >= 0; i--) {
+    const dt = new Date(Date.UTC(y, m - 1 - i, 1)), yy = dt.getUTCFullYear(), mm = dt.getUTCMonth();
+    out.push({ total: byYm[ym(yy, mm)] || 0, prev: byYm[ym(yy - 1, mm)] || 0, year: yy, mon: mm, isNow: i === 0 });
+  }
+  return out;
+}
+
+function dynDelta(cur, prev, suffix) {
+  if (!prev) return '';
+  const p = Math.round((cur - prev) / prev * 100);
+  if (p === 0) return `на уровне ${suffix.replace(/^к /, '')}`;
+  return `<span class="${p > 0 ? 'up' : 'down'}"><b>${p > 0 ? '▲' : '▼'} ${Math.abs(p)}%</b></span> ${suffix}`;
+}
+
+function renderDynKpis(prevToday) {
+  const d = Dyn.data, days = dynDaySeries();
+  const today = days[days.length - 1], full = days.slice(0, -1);
+  const isWeekend = wd => wd === 0 || wd === 6;
+
+  // «Обычный день» — среднее по таким же дням (будни или выходные) за прошлые 4 недели.
+  const same = full.filter(x => isWeekend(x.wd) === isWeekend(today.wd));
+  const avg = same.length ? Math.round(same.reduce((s, x) => s + x.total, 0) / same.length) : 0;
+  const elToday = document.getElementById('dynToday'), elTodayD = document.getElementById('dynTodayD');
+  elToday.textContent = dynNum(today.total);
+  if (prevToday != null && today.total > prevToday) {
+    // Парсер долил новые декларации, пока страница была открыта — показываем прирост.
+    elTodayD.innerHTML = `<span class="up"><b>+${dynNum(today.total - prevToday)}</b></span> только что`;
+    elToday.classList.add('bump');
+    clearTimeout(Dyn.bumpTimer);
+    Dyn.bumpTimer = setTimeout(() => { elToday.classList.remove('bump'); renderDynKpis(null); }, 20000);
+  } else if (prevToday == null || !elToday.classList.contains('bump')) {
+    elTodayD.textContent = avg ? `обычно ≈ ${dynNum(avg)} в ${isWeekend(today.wd) ? 'выходной' : 'будний день'}` : '';
+  }
+  Dyn.lastToday = today.total;
+
+  // Неделя — по полным дням (без сегодняшнего, он ещё идёт), иначе сравнение
+  // с прошлой неделей всегда выходило бы в минус.
+  const week = full.slice(-7).reduce((s, x) => s + x.total, 0);
+  const prevWeek = full.slice(-14, -7).reduce((s, x) => s + x.total, 0);
+  const elWeek = document.getElementById('dynWeek');
+  elWeek.textContent = dynNum(week);
+  elWeek.title = 'Последние 7 полных дней, без сегодняшнего';
+  document.getElementById('dynWeekD').innerHTML = dynDelta(week, prevWeek, 'к прошлой неделе');
+
+  const months = dynMonthSeries(), cur = months[months.length - 1];
+  document.getElementById('dynMonth').textContent = dynNum(cur.total);
+  document.getElementById('dynMonthD').innerHTML = dynDelta(cur.total, d.lastYearMtd, `к ${DYN_MON_DAT[cur.mon]} ${cur.year - 1}`);
+}
+
+function dynAgo(date) {
+  const min = Math.round((Date.now() - date.getTime()) / 60000);
+  if (min < 1) return 'только что';
+  if (min < 60) return `${min} мин назад`;
+  if (min < 24 * 60) return `${Math.floor(min / 60)} ч назад`;
+  return date.toLocaleDateString('ru');
+}
+
+function renderDynUpdated() {
+  const d = Dyn.data;
+  if (!d) return;
+  const live = document.getElementById('dynLive'), el = document.getElementById('dynUpdated');
+  // updatedAt — CURRENT_TIMESTAMP SQLite, т.е. UTC без пометки зоны.
+  const upd = d.lastUpdated ? new Date(d.lastUpdated.replace(' ', 'T') + 'Z') : null;
+  const stale = !upd || Date.now() - upd.getTime() > 3 * 3600 * 1000;
+  live.classList.toggle('stale', stale);
+  const state = d.parser && d.parser.state === 'running' ? 'Идёт сбор новых деклараций' : 'В реальном времени';
+  el.textContent = `${stale ? 'Нет свежих данных' : state} · обновлено ${upd ? dynAgo(upd) : '—'}`;
+}
+
+function renderDynLegend() {
+  const items = Dyn.range === 'days'
+    ? [['Производители', DYN_COLORS.farmer], ['Трейдеры', DYN_COLORS.trader], ['Прочие', DYN_COLORS.other]]
+    : [['Последние 12 месяцев', DYN_COLORS.farmer], ['Год назад', null]];
+  const el = document.getElementById('dynLegend');
+  el.innerHTML = '';
+  items.forEach(([label, color]) => {
+    const s = document.createElement('span'), i = document.createElement('i');
+    if (color) i.style.background = color; else i.className = 'ln';
+    s.append(i, document.createTextNode(label));
+    el.append(s);
+  });
+}
+
+function drawDynChart(animate) {
+  if (!Dyn.data) return;
+  Dyn.series = Dyn.range === 'days' ? dynDaySeries() : dynMonthSeries();
+  const empty = !Dyn.series.some(x => x.total || x.prev);
+  document.getElementById('dynChartBox').hidden = empty;
+  document.getElementById('hmChartEmpty').hidden = !empty;
+  if (empty) return;
+  renderDynLegend();
+  if (!animate) { Dyn.anim = 1; paintDyn(); return; }
+  const t0 = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now - t0) / 600);
+    Dyn.anim = 1 - Math.pow(1 - t, 3);
+    paintDyn();
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function dynNiceScale(max) {
+  const raw = max / 4, pow = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const step = [1, 2, 2.5, 5, 10].map(k => k * pow).find(s => s >= raw) || raw;
+  return { top: step * 4, step };
+}
+
+function dynRoundTop(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  ctx.beginPath();
+  ctx.moveTo(x, y + h); ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r); ctx.lineTo(x + w, y + h);
+  ctx.closePath(); ctx.fill();
+}
+
+function paintDyn() {
+  const cv = document.getElementById('homeChart'), box = document.getElementById('dynChartBox');
+  if (!cv || !Dyn.series.length) return;
+  const dpr = window.devicePixelRatio || 1, W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  // Канвас в физических пикселях — иначе на ретине и при масштабе 125% график мылится.
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  }
   const ctx = cv.getContext('2d');
-  cv.width = cv.offsetWidth || 500;
-  const w = cv.width, h = cv.height;
-  const padL = 34, padB = 22, padT = 10, padR = 8;
-  ctx.clearRect(0, 0, w, h);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
 
-  const max = Math.max(...monthly.map(m => m.count), 1);
-  const x = i => padL + (w - padL - padR) * (monthly.length === 1 ? 0.5 : i / (monthly.length - 1));
-  const y = v => padT + (h - padT - padB) * (1 - v / max);
+  const S = Dyn.series, isDays = Dyn.range === 'days', n = S.length;
+  const padL = 48, padR = 6, padT = 8, padB = 24;
+  const { top, step } = dynNiceScale(Math.max(1, ...S.map(x => Math.max(x.total, x.prev || 0))));
+  const plotH = H - padT - padB, colW = (W - padL - padR) / n;
+  const y = v => padT + plotH * (1 - v / top);
+  Dyn.geo = { padL, colW, n, W };
 
-  ctx.strokeStyle = 'rgba(0,0,0,0.07)'; ctx.lineWidth = 1;
-  ctx.fillStyle = '#93a3a3'; ctx.font = '10px Segoe UI'; ctx.textAlign = 'right';
-  for (let g = 0; g <= 2; g++) {
-    const v = max * g / 2, yy = Math.round(y(v)) + 0.5;
-    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(w - padR, yy); ctx.stroke();
-    ctx.fillText(Math.round(v).toLocaleString('ru'), padL - 6, yy + 3);
+  ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    const yy = Math.round(y(v)) + 0.5;
+    ctx.strokeStyle = v === 0 ? 'rgba(0,0,0,0.16)' : 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+    ctx.fillStyle = '#8a9897';
+    ctx.fillText(v >= 10000 ? `${(v / 1000).toLocaleString('ru')} тыс` : dynNum(v), padL - 8, yy);
   }
 
-  const area = ctx.createLinearGradient(0, padT, 0, h - padB);
-  area.addColorStop(0, 'rgba(7,92,68,0.22)'); area.addColorStop(1, 'rgba(7,92,68,0)');
-  ctx.beginPath(); ctx.moveTo(x(0), y(monthly[0].count));
-  monthly.forEach((m, i) => ctx.lineTo(x(i), y(m.count)));
-  ctx.lineTo(x(monthly.length - 1), h - padB); ctx.lineTo(x(0), h - padB); ctx.closePath();
-  ctx.fillStyle = area; ctx.fill();
+  if (Dyn.hover >= 0) {
+    ctx.fillStyle = 'rgba(7,92,68,0.06)';
+    ctx.fillRect(padL + Dyn.hover * colW, padT, colW, plotH);
+  }
 
-  ctx.beginPath();
-  monthly.forEach((m, i) => i ? ctx.lineTo(x(i), y(m.count)) : ctx.moveTo(x(i), y(m.count)));
-  ctx.strokeStyle = '#075c44'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
-  monthly.forEach((m, i) => {
-    ctx.beginPath(); ctx.arc(x(i), y(m.count), 2.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#075c44'; ctx.fill();
+  const barW = Math.max(2, Math.min(isDays ? 22 : 40, colW * (isDays ? 0.68 : 0.6)));
+  const a = Dyn.anim;
+  S.forEach((x, i) => {
+    const bx = padL + i * colW + (colW - barW) / 2;
+    // Текущий день/месяц ещё не закончился — рисуем его бледнее.
+    ctx.globalAlpha = x.isNow ? 0.55 : 1;
+    const segs = (isDays
+      ? [[x.farmer, DYN_COLORS.farmer], [x.trader, DYN_COLORS.trader], [x.other, DYN_COLORS.other]]
+      : [[x.total, DYN_COLORS.farmer]]).filter(s => s[0] > 0);
+    let acc = 0;
+    segs.forEach(([v, color], k) => {
+      const y0 = y(acc * a), y1 = y((acc + v) * a);
+      const h = Math.max(0, y0 - y1 - (k > 0 ? 2 : 0)); // 2px зазор между сегментами
+      ctx.fillStyle = color;
+      if (k === segs.length - 1) dynRoundTop(ctx, bx, y1, barW, h, 4);
+      else ctx.fillRect(bx, y1, barW, h);
+      acc += v;
+    });
+    ctx.globalAlpha = 1;
   });
 
-  ctx.fillStyle = '#93a3a3'; ctx.textAlign = 'center';
-  const MONTHS = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  monthly.forEach((m, i) => {
-    if (monthly.length > 6 && i % 2) return;
-    const mm = parseInt((m.ym || '').slice(5, 7), 10);
-    ctx.fillText(MONTHS[mm - 1] || '', x(i), h - 7);
+  // Прошлый год — пунктир с точками (только в помесячном режиме)
+  if (!isDays) {
+    const px = i => padL + i * colW + colW / 2;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.strokeStyle = DYN_COLORS.prev; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.lineJoin = 'round';
+    ctx.beginPath();
+    S.forEach((x, i) => i ? ctx.lineTo(px(i), y(x.prev)) : ctx.moveTo(px(i), y(x.prev)));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    S.forEach((x, i) => {
+      ctx.beginPath(); ctx.arc(px(i), y(x.prev), Dyn.hover === i ? 5 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff'; ctx.fill();
+      ctx.lineWidth = 2; ctx.strokeStyle = DYN_COLORS.prev; ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const every = isDays ? (colW < 16 ? 7 : colW < 34 ? 3 : 1) : (colW < 34 ? 2 : 1);
+  S.forEach((x, i) => {
+    if ((n - 1 - i) % every) return;
+    const label = isDays
+      ? (x.isNow ? 'сегодня' : `${x.day} ${DYN_MON[x.mon]}`)
+      : (x.mon === 0 ? `${DYN_MON[x.mon]} ’${String(x.year).slice(2)}` : DYN_MON[x.mon]);
+    ctx.fillStyle = x.isNow ? '#212829' : '#8a9897';
+    ctx.fillText(label, padL + i * colW + colW / 2, H - 6);
   });
+}
+
+function onDynHover(e) {
+  const g = Dyn.geo;
+  if (!g) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const i = Math.floor((e.clientX - rect.left - g.padL) / g.colW);
+  if (i < 0 || i >= g.n) {
+    if (Dyn.hover !== -1) { Dyn.hover = -1; hideDynTip(); paintDyn(); }
+    return;
+  }
+  if (i !== Dyn.hover) { Dyn.hover = i; paintDyn(); }
+  showDynTip(i, e.clientX - rect.left);
+}
+
+function hideDynTip() { document.getElementById('dynTip').hidden = true; }
+
+function showDynTip(i, px) {
+  const x = Dyn.series[i], tip = document.getElementById('dynTip');
+  const rows = [];
+  let title;
+  if (Dyn.range === 'days') {
+    title = `${DYN_WD[x.wd]}, ${x.day} ${DYN_MON_GEN[x.mon]}${x.isNow ? ' · день ещё идёт' : ''}`;
+    rows.push(['Всего', x.total, null, true], ['Производители', x.farmer, DYN_COLORS.farmer],
+      ['Трейдеры', x.trader, DYN_COLORS.trader], ['Прочие', x.other, DYN_COLORS.other]);
+  } else {
+    title = `${DYN_MON_FULL[x.mon]} ${x.year}${x.isNow ? ` · по ${Number(Dyn.data.today.slice(8))}-е число` : ''}`;
+    rows.push([String(x.year), x.total, DYN_COLORS.farmer, true], [x.isNow ? `${x.year - 1}, весь месяц` : String(x.year - 1), x.prev, DYN_COLORS.prev]);
+    // Текущий месяц ещё не закончился — честное сравнение только с тем же отрезком год назад.
+    if (x.isNow) rows.push([`${x.year - 1}, к этому числу`, Dyn.data.lastYearMtd, null]);
+    if (x.prev && !x.isNow) {
+      const p = Math.round((x.total - x.prev) / x.prev * 100);
+      rows.push(['Изменение', (p > 0 ? '+' : '') + p + '%', null]);
+    }
+  }
+  tip.innerHTML = '';
+  const t = document.createElement('div');
+  t.className = 'dyn-tip-t'; t.textContent = title;
+  tip.append(t);
+  rows.forEach(([label, val, color, strong]) => {
+    const r = document.createElement('div'), key = document.createElement('i'), b = document.createElement('b');
+    r.className = 'dyn-tip-r';
+    if (color) key.style.borderColor = color; else key.style.visibility = 'hidden';
+    b.textContent = typeof val === 'number' ? dynNum(val) : val;
+    if (!strong) b.style.fontWeight = '600';
+    r.append(key, document.createTextNode(label), b);
+    tip.append(r);
+  });
+  tip.hidden = false;
+  const tw = tip.offsetWidth;
+  let left = px + 14;
+  if (left + tw > Dyn.geo.W) left = px - tw - 14;
+  tip.style.left = Math.max(0, left) + 'px';
+  tip.style.top = '8px';
 }
 
 async function loadStats() {

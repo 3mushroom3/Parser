@@ -54,11 +54,9 @@ function computeStats() {
 let homeCache = null; // { data, computedAt }
 
 /**
- * Сводка для раздела «Главная». Оба запроса дешёвые: регионы берутся из уже
- * посчитанного справочника geo_places (declCount там обновляет разметка НП),
- * помесячная динамика — группировка по первым семи символам даты (regDate
- * хранится в ISO, «2025-05-13»). Ответ кешируется на те же 5 минут, что и
- * статистика: страница открывается часто, а числа меняются раз в сутки.
+ * Сводка для раздела «Главная»: топ регионов из уже посчитанного справочника
+ * geo_places (declCount там обновляет разметка НП). Кэш на те же 5 минут, что
+ * у статистики. Динамика деклараций — отдельно, в /dynamics (обновляется чаще).
  */
 router.get('/home', auth, (req, res, next) => {
   try {
@@ -72,18 +70,66 @@ router.get('/home', auth, (req, res, next) => {
       GROUP BY region ORDER BY count DESC LIMIT 6
     `).all();
 
-    const from = new Date();
-    from.setMonth(from.getMonth() - 11);
-    const fromYm = from.toISOString().slice(0, 7) + '-01';
-    const monthly = db.prepare(`
-      SELECT substr(regDate, 1, 7) AS ym, COUNT(*) AS count
-      FROM declarations
-      WHERE status = 'active' AND regDate >= ?
-      GROUP BY ym ORDER BY ym
-    `).all(fromYm);
-
-    const data = { topRegions, monthly };
+    const data = { topRegions };
     homeCache = { data, computedAt: Date.now() };
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * «Динамика деклараций» на главной: поданные декларации по дню регистрации
+ * (за 30 дней, с разбивкой по типу) и по месяцам (24 месяца — текущий год и
+ * прошлый для сравнения). Считаются ВСЕ декларации, а не только действующие:
+ * декларация на зерно живёт около года, и фильтр по статусу превращал всё
+ * старше года в мнимый провал. Живой парсер доливает текущий месяц каждые
+ * 30 минут, фронтенд опрашивает раз в минуту — отсюда кэш на минуту.
+ * Все запросы идут по индексу regDate (помесячный — только по индексу), это
+ * десятки миллисекунд, поэтому без worker-потока.
+ */
+const DYN_CACHE_TTL_MS = 60 * 1000;
+let dynCache = null;
+
+// regDate — дата регистрации в ФСА, т.е. по Москве; «сегодня» считаем так же,
+// иначе с 00:00 до 03:00 МСК сервер в UTC показывал бы вчерашний день.
+const mskDate = (d = new Date()) => new Date(d.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+
+router.get('/dynamics', auth, (req, res, next) => {
+  try {
+    if (dynCache && Date.now() - dynCache.computedAt < DYN_CACHE_TTL_MS) return res.json(dynCache.data);
+
+    const today = mskDate();
+    const [y, m, d] = today.split('-').map(Number);
+    const daysFrom = mskDate(new Date(Date.now() - 29 * 86400 * 1000));
+    const monthsFrom = `${y - 2}-${String(m).padStart(2, '0')}-01`;
+
+    const days = db.prepare(`
+      SELECT regDate AS date, COUNT(*) AS total,
+        SUM(farmerType IN ('farmer', 'farmer_trader')) AS farmer,
+        SUM(farmerType = 'trader') AS trader
+      FROM declarations
+      WHERE regDate >= ? AND regDate <= ?
+      GROUP BY regDate ORDER BY regDate
+    `).all(daysFrom, today);
+
+    const months = db.prepare(`
+      SELECT substr(regDate, 1, 7) AS ym, COUNT(*) AS total
+      FROM declarations
+      WHERE regDate >= ? AND regDate <= ?
+      GROUP BY ym ORDER BY ym
+    `).all(monthsFrom, today);
+
+    // Тот же отрезок месяца год назад — для честного сравнения «с начала месяца».
+    const lastYearMtd = db.prepare(
+      'SELECT COUNT(*) AS n FROM declarations WHERE regDate >= ? AND regDate <= ?'
+    ).get(`${y - 1}-${String(m).padStart(2, '0')}-01`, `${y - 1}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`).n;
+
+    const { lastUpdated } = db.prepare('SELECT MAX(updatedAt) AS lastUpdated FROM declarations').get();
+    const parser = db.prepare('SELECT state, time FROM status WHERE id = 1').get() || null;
+
+    const data = { today, days, months, lastYearMtd, lastUpdated, parser, computedAt: new Date().toISOString() };
+    dynCache = { data, computedAt: Date.now() };
     res.json(data);
   } catch (err) {
     next(err);
