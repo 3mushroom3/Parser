@@ -350,6 +350,10 @@ const notesCols = db.prepare("PRAGMA table_info(notes)").all().map(c => c.name);
 if (!notesCols.includes('stage')) {
   db.exec('ALTER TABLE notes ADD COLUMN stage TEXT');
 }
+// Напоминание по заметке (бот MAX, services/notifyJob.js). Колонки выпали из
+// миграций вместе с Telegram, и на чистой базе создание заметки падало с 500.
+if (!notesCols.includes('notifyTime')) db.exec('ALTER TABLE notes ADD COLUMN notifyTime TEXT');
+if (!notesCols.includes('notifySentDate')) db.exec('ALTER TABLE notes ADD COLUMN notifySentDate TEXT');
 
 // Объём партии в тоннах, числом — для фильтра по диапазону (batchSize остаётся
 // исходной строкой из декларации, batchTons парсится из неё при импорте)
@@ -454,5 +458,69 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_geo_status ON geo_places(status, declCount DESC);
 `);
+
+// Поддержка — переписка внутри обращения. Первое сообщение — само обращение
+// (feedback.description); прочитанное отслеживаем по id последнего увиденного
+// сообщения: adminReadMsgId IS NULL — админ обращение ещё не открывал.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS feedback_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    feedbackId INTEGER NOT NULL,
+    userId INTEGER NOT NULL,
+    fromAdmin INTEGER NOT NULL DEFAULT 0,
+    text TEXT DEFAULT '',
+    imagePath TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (feedbackId) REFERENCES feedback(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_fbmsg_feedback ON feedback_messages(feedbackId, id);
+`);
+{
+  const fbCols = db.prepare('PRAGMA table_info(feedback)').all().map(c => c.name);
+  if (!fbCols.includes('userReadMsgId')) db.exec('ALTER TABLE feedback ADD COLUMN userReadMsgId INTEGER DEFAULT 0');
+  if (!fbCols.includes('adminReadMsgId')) db.exec('ALTER TABLE feedback ADD COLUMN adminReadMsgId INTEGER');
+  if (!fbCols.includes('lastMessageAt')) db.exec('ALTER TABLE feedback ADD COLUMN lastMessageAt DATETIME');
+}
+
+// Заметки и контакты в карточке компании — личные для каждого пользователя.
+// Раньше они писались в общие companies.notes / contacts и были видны (и
+// редактируемы) всем. Старые записи без userId показываются только админу.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS company_user_notes (
+    userId INTEGER NOT NULL,
+    companyKey TEXT NOT NULL,
+    notes TEXT DEFAULT '',
+    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (userId, companyKey)
+  );
+`);
+if (!db.prepare('PRAGMA table_info(contacts)').all().some(c => c.name === 'userId')) {
+  db.exec('ALTER TABLE contacts ADD COLUMN userId INTEGER');
+}
+db.exec('CREATE INDEX IF NOT EXISTS idx_contacts_company_user ON contacts(companyId, userId)');
+
+// Раньше «В заметку» из карточки декларации сохраняло ссылку на pub.fsa.gov.ru —
+// заменяем такие ссылки на карточку декларации внутри сервиса (по fsaId из адреса
+// /rds/declaration/view/<fsaId>). Повторный запуск ничего не находит.
+{
+  const notesWithFsa = db.prepare("SELECT id, links FROM notes WHERE links LIKE '%fsa.gov.ru%'").all();
+  if (notesWithFsa.length) {
+    const byFsaId = db.prepare('SELECT id FROM declarations WHERE fsaId = ? LIMIT 1');
+    const upd = db.prepare('UPDATE notes SET links = ? WHERE id = ?');
+    db.transaction(() => {
+      for (const n of notesWithFsa) {
+        let links = [];
+        try { links = JSON.parse(n.links || '[]'); } catch (_) {}
+        links = links.map(l => {
+          if (!l || !/fsa\.gov\.ru/i.test(l.url || '')) return l;
+          const m = String(l.url).match(/\/view\/(\d+)/);
+          const decl = m ? byFsaId.get(m[1]) : null;
+          return decl ? { kind: 'decl', label: l.label || '', id: decl.id } : { label: l.label || '' };
+        });
+        upd.run(JSON.stringify(links), n.id);
+      }
+    })();
+  }
+}
 
 module.exports = db;

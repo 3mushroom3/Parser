@@ -24,7 +24,11 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
   const key = inn || name;
   db.prepare('INSERT INTO companies (id, viewCount) VALUES (?, 1) ON CONFLICT(id) DO UPDATE SET viewCount = viewCount + 1').run(key);
   const companyInfo = db.prepare('SELECT * FROM companies WHERE id = ?').get(key);
-  const contacts = db.prepare('SELECT * FROM contacts WHERE companyId = ? ORDER BY id DESC').all(key);
+  const isAdmin = req.user.role === 'admin';
+  const contacts = db.prepare(
+    'SELECT * FROM contacts WHERE companyId = ? AND (userId = ? OR (userId IS NULL AND ?)) ORDER BY id DESC'
+  ).all(key, req.user.id, isAdmin ? 1 : 0);
+  const myNotes = db.prepare('SELECT notes FROM company_user_notes WHERE userId = ? AND companyKey = ?').get(req.user.id, key);
 
   const lastDeclDate = records.reduce((max, r) => (r.regDate && r.regDate > max ? r.regDate : max), '');
   const daysSinceLastDecl = lastDeclDate ? Math.floor((Date.now() - new Date(lastDeclDate).getTime()) / 86400000) : null;
@@ -42,7 +46,8 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
     middleName: first.middleName || '',
     applicantName: first.applicantName || '',
     description: companyInfo?.description || '',
-    notes: companyInfo?.notes || '',
+    // Личная заметка пользователя; старая общая — только админу, чтобы не потерялась.
+    notes: myNotes ? myNotes.notes : (isAdmin ? companyInfo?.notes || '' : ''),
     companyRegDate: companyInfo?.regDate || '',
     autoNote: companyInfo?.autoNote || '',
     ebPhone: companyInfo?.phone || '',    // из XLS-импорта
@@ -123,27 +128,26 @@ router.get('/company/report', auth, requireSubscription, dataReadLimiter, (req, 
   });
 });
 
+// notes — личная заметка пользователя о компании; description — общее описание
+// компании, которое видят все, поэтому менять его может только администратор.
 router.put('/company/notes', auth, (req, res) => {
-  const { inn, name, notes, description } = req.body;
+  const { inn, name, notes, description } = req.body || {};
   const key = inn || name;
   if (!key) return res.status(400).json({ error: 'inn or name required' });
 
-  const existing = db.prepare('SELECT id FROM companies WHERE id = ?').get(key);
+  if (notes !== undefined) {
+    db.prepare(`
+      INSERT INTO company_user_notes (userId, companyKey, notes) VALUES (?, ?, ?)
+      ON CONFLICT(userId, companyKey) DO UPDATE SET notes = excluded.notes, updatedAt = CURRENT_TIMESTAMP
+    `).run(req.user.id, key, String(notes).slice(0, 5000));
+  }
 
-  if (existing) {
-    const fields = [];
-    const params = [];
-    if (notes !== undefined) { fields.push('notes = ?'); params.push(notes); }
-    if (description !== undefined) { fields.push('description = ?'); params.push(description); }
-
-    if (fields.length > 0) {
-      params.push(key);
-      db.prepare(`UPDATE companies SET ${fields.join(', ')}, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`).run(...params);
-    }
-  } else {
-    db.prepare('INSERT INTO companies (id, inn, name, notes, description) VALUES (?, ?, ?, ?, ?)').run(
-      key, inn || null, name || null, notes || '', description || ''
-    );
+  if (description !== undefined) {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Описание компании может менять только администратор' });
+    db.prepare(`
+      INSERT INTO companies (id, inn, name, description) VALUES (?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET description = excluded.description, updatedAt = CURRENT_TIMESTAMP
+    `).run(key, inn || null, name || null, String(description).slice(0, 5000));
   }
 
   res.json({ ok: true });
@@ -159,14 +163,16 @@ router.post('/company/contacts', auth, (req, res) => {
     db.prepare('INSERT INTO companies (id, inn, name) VALUES (?, ?, ?)').run(key, inn || null, name || null);
   }
 
-  const info = db.prepare('INSERT INTO contacts (companyId, name, role, phone, comment) VALUES (?, ?, ?, ?, ?)')
-    .run(key, contactName || '', role || '', phone || '', comment || '');
+  const info = db.prepare('INSERT INTO contacts (companyId, userId, name, role, phone, comment) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(key, req.user.id, contactName || '', role || '', phone || '', comment || '');
 
   res.status(201).json({ id: info.lastInsertRowid, companyId: key, name: contactName || '', role: role || '', phone: phone || '', comment: comment || '' });
 });
 
 router.delete('/company/contacts/:id', auth, (req, res) => {
-  const info = db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id);
+  // Только свои контакты (старые общие, без userId, — может удалить админ).
+  const info = db.prepare('DELETE FROM contacts WHERE id = ? AND (userId = ? OR (userId IS NULL AND ?))')
+    .run(req.params.id, req.user.id, req.user.role === 'admin' ? 1 : 0);
   if (info.changes === 0) return res.status(404).json({ error: 'Не найдено' });
   res.json({ ok: true });
 });

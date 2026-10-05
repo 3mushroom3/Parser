@@ -1,3 +1,4 @@
+[hidden]{display:none !important}
 :root {
   --bg      : #f7f9fb;
   --surface : #ffffff;
@@ -53,37 +54,63 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .pw-eye.visible .ic-eye{display:none}
 .pw-eye.visible .ic-eye-off{display:block}
 
+/* ── Логотип (боковое меню и страница входа — один и тот же) ── */
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;min-width:0}
+.brand-mark{flex:0 0 auto;width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(41,182,232,.25))}
+.brand-txt{display:flex;flex-direction:column;line-height:1;min-width:0}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:2.2px;color:#12241f}
+.brand-tag{margin-top:5px;font-size:10.5px;font-weight:700;letter-spacing:2.4px;text-transform:uppercase;white-space:nowrap;
+  background:linear-gradient(90deg,#7fd36a 0%,#2fbf8f 45%,#2aa9e6 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand-dark .brand-name{color:#fff}
+.brand-light .brand-tag{background-image:linear-gradient(90deg,#3e9f3a 0%,#0f8a63 45%,#1677b8 100%)}
+.brand-lg{justify-content:center;gap:14px;margin-bottom:10px}
+.brand-lg .brand-mark{width:56px;height:56px}
+.brand-lg .brand-name{font-size:30px;letter-spacing:3.5px}
+.brand-lg .brand-tag{font-size:13px;letter-spacing:4px;margin-top:7px}
+
 /* ── Боковое меню ────────────────────────────────────────── */
 .app-shell{display:flex}
-.nav-rail{position:fixed;left:0;top:0;bottom:0;width:216px;min-width:216px;z-index:300;background:#021a18;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.nav-rail{position:fixed;left:0;top:0;bottom:0;width:216px;min-width:216px;z-index:300;background:#021a18;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;transition:width .18s ease,min-width .18s ease}
 /* min-width:0 — иначе flex-элемент не сжимается ниже ширины таблицы внутри,
    и на узком экране вся страница уезжает вправо */
-.app-body{flex:1;min-width:0;margin-left:216px;overflow-x:hidden}
-.nav-rail .logo{padding:16px 14px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
-.nav-rail .brand-base{color:#fff}
-.nav-rail .brand-apk{color:rgba(255,255,255,.45)}
+.app-body{flex:1;min-width:0;margin-left:216px;overflow-x:hidden;transition:margin-left .18s ease}
+.nav-rail .brand{padding:16px 14px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.08)}
 .nav-rail .nav{flex-direction:column;gap:2px;margin:0;padding:0 8px}
-.nav-rail .nav-tab{width:100%;justify-content:flex-start;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.75)}
+.nav-rail .nav-tab{width:100%;justify-content:flex-start;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.75);text-align:left}
+.nav-rail .nav-tab .ic{flex:0 0 auto;width:18px;height:18px}
 .nav-rail .nav-tab:hover{background:rgba(255,255,255,.08);color:#fff}
 .nav-rail .nav-tab.active{background:var(--accd);color:#fff;font-weight:600}
-.rail-user{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 14px;border-top:1px solid rgba(255,255,255,.08)}
-.rail-avatar{width:32px;height:32px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--acm),#04211c);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;text-transform:uppercase}
-.rail-user-info{min-width:0}
-.rail-user-name{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rail-user-role{font-size:10px;color:rgba(255,255,255,.4)}
+.nav-l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-beta{font-size:10px;opacity:.6;font-weight:500;margin-left:2px}
+.rail-bottom{margin-top:auto;display:flex;flex-direction:column;gap:2px;padding:10px 8px;border-top:1px solid rgba(255,255,255,.08)}
+.nav-rail .rail-user{gap:10px;padding:7px 10px}
+.rail-avatar{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:linear-gradient(135deg,var(--acm),#04211c);color:#fff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;text-transform:uppercase;border:1px solid rgba(255,255,255,.15)}
+.rail-user-info{display:flex;flex-direction:column;gap:2px}
+.rail-user-name{font-size:12.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rail-user-role{font-size:10.5px;color:rgba(255,255,255,.45);font-weight:400}
+.nav-rail .rail-toggle{color:rgba(255,255,255,.45);font-size:12px}
+.rail-toggle .ic{transition:transform .18s}
 .hdr-title{font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.2px}
-body.logged-in .site-footer{left:216px}
+body.logged-in .site-footer{left:216px;transition:left .18s ease}
+
+/* Свёрнутое меню — только иконки (кнопкой «Свернуть» или автоматически на узком экране) */
+body.rail-collapsed .nav-rail{width:64px;min-width:64px}
+body.rail-collapsed .app-body{margin-left:64px}
+body.rail-collapsed.logged-in .site-footer{left:64px}
+body.rail-collapsed .nav-rail .brand{justify-content:center;padding:16px 0}
+body.rail-collapsed .nav-rail .brand-txt,
+body.rail-collapsed .nav-rail .nav-l{display:none}
+body.rail-collapsed .nav-rail .nav-tab{justify-content:center;padding:10px 0}
+body.rail-collapsed .nav-rail .rail-user{padding:7px 0}
+body.rail-collapsed .rail-toggle .ic{transform:rotate(180deg)}
 @media(max-width:1024px){
-  .nav-rail{width:60px;min-width:60px}
-  .app-body{margin-left:60px}
-  body.logged-in .site-footer{left:60px}
-  .nav-rail .logo{justify-content:center;padding:14px 0}
-  .nav-rail .logo-text-apk{display:none}
-  .nav-rail .nav-tab{font-size:0;justify-content:center;padding:10px 0}
-  .nav-rail .nav-tab span{display:none}
-  .nav-rail .nav-tab .ic{width:18px;height:18px}
-  .rail-user{justify-content:center;padding:12px 0}
-  .rail-user-info{display:none}
+  .nav-rail{width:64px;min-width:64px}
+  .app-body{margin-left:64px}
+  body.logged-in .site-footer{left:64px}
+  .nav-rail .brand{justify-content:center;padding:16px 0}
+  .nav-rail .brand-txt,.nav-rail .nav-l,.nav-rail .rail-toggle{display:none}
+  .nav-rail .nav-tab{justify-content:center;padding:10px 0}
+  .nav-rail .rail-user{padding:7px 0}
 }
 
 /* ── Карточка компании ───────────────────────────────────── */
@@ -122,6 +149,11 @@ body.logged-in .site-footer{left:216px}
 .home-region-bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
 .home-region-val{flex:0 0 auto;font-weight:600;font-variant-numeric:tabular-nums}
 @media (max-width: 900px){ .home-cols{grid-template-columns:1fr} .home-hero{height:170px} .home-hero-title{font-size:21px} }
+
+.home-recent{cursor:pointer;gap:12px}
+.home-recent-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-recent-sub{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.home-recent-time{font-size:12px;color:var(--muted);white-space:nowrap}
 
 /* Динамика деклараций */
 .dyn-card{margin-bottom:16px}
@@ -619,4 +651,164 @@ tbody td.muted{color:var(--muted);font-size:12px}
   .tb .sw input{padding-right:12px}
   .flt-open-btn{order:2;flex:1}
   .fchips-reset{margin-left:0}
+}
+.note-link-int{background:var(--surf2);border-radius:var(--r);padding:2px 4px 2px 2px}
+.note-link-open{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:none;padding:6px 8px;cursor:pointer;text-align:left;font:inherit;font-size:13px;color:var(--text);border-radius:6px}
+.note-link-open:hover{background:var(--acl);color:var(--accent)}
+.note-link-open small{flex:0 0 auto;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+.note-link-open span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+
+/* ── Поиск реестра: три поля вместо общего поиска ─────────── */
+.tb{flex-wrap:wrap}
+.sbar{flex:1 1 560px;min-width:0;display:flex;align-items:stretch;height:42px;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .14s,box-shadow .14s}
+.sbar:focus-within{border-color:var(--acm);box-shadow:0 0 0 3px rgba(11,115,85,.12)}
+.sbar-f{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px;padding:0 12px;border-right:1px solid var(--border);cursor:text}
+.sbar-f-main{flex:1.3 1 0}
+.sbar-f svg{flex:0 0 auto;color:var(--muted)}
+.sbar-f input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:13.5px;color:var(--text);height:100%}
+.sbar-f input::-webkit-search-cancel-button{display:none}
+.sbar-clear{flex:0 0 auto;border:0;background:none;color:var(--muted);cursor:pointer;padding:0 10px;font-size:14px}
+.sbar-clear:hover{color:var(--dng)}
+.sbar-go{flex:0 0 auto;height:auto;border-radius:0;padding:0 20px;font-size:13.5px;font-weight:600}
+.flt-open-btn{background:var(--surface)}
+.flt-open-btn.on{background:var(--acl);color:var(--accent);border-color:var(--acm)}
+.watch-btn{gap:6px;color:var(--accent);border-color:var(--acm)}
+.watch-btn:hover{background:var(--acl)}
+.watch-sum{display:flex;flex-wrap:wrap;gap:6px}
+.watch-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surf2);border-radius:var(--r);font-size:12.5px;flex-wrap:wrap}
+.watch-item-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.watch-item-s{color:var(--muted);margin-top:3px}
+.watch-item-a{display:flex;gap:6px;flex:none}
+.watch-st{font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--succbg);color:var(--succ)}
+.watch-item.paused .watch-st{background:#eceff0;color:var(--muted)}
+.fdr-radius{align-items:center;margin-top:8px}
+@media (max-width: 760px){
+  .sbar{flex-wrap:wrap;height:auto;flex-basis:100%}
+  .sbar-f{flex:1 1 100%;height:42px;border-right:0;border-bottom:1px solid var(--border)}
+  .sbar-clear{height:42px}
+  .sbar-go{flex:1;height:42px}
+}
+
+/* Подсказки по наведению: data-tip="текст" на любом элементе */
+[data-tip]{position:relative}
+[data-tip]:hover::after,[data-tip]:focus-visible::after{content:attr(data-tip);position:absolute;z-index:50;right:0;bottom:calc(100% + 8px);width:max-content;max-width:240px;padding:7px 10px;border-radius:8px;background:#12241f;color:#fff;font-size:12px;font-weight:400;line-height:1.4;text-align:left;white-space:normal;box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none}
+.fchips-row [data-tip]:hover::after{right:auto;left:0;bottom:auto;top:calc(100% + 8px)}
+.masked{-webkit-text-security:disc}
+
+/* ── Поддержка: список обращений + переписка ─────────────── */
+.fb-new{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:16px}
+.fb-new textarea{min-height:80px;resize:vertical}
+.fb-drop{border:2px dashed var(--border);border-radius:var(--r);padding:14px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer}
+.fb-drop.over{border-color:var(--accent);background:var(--acl)}
+.fb-preview{max-width:200px;max-height:140px;border-radius:var(--r);border:1px solid var(--border);display:block;margin-bottom:6px}
+.chat{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - var(--hdr-h) - var(--ftr-h) - 120px);min-height:420px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.chat[hidden]{display:none}
+.chat-list{overflow-y:auto;border-right:1px solid var(--border);display:flex;flex-direction:column}
+.chat-item{display:flex;flex-direction:column;gap:4px;text-align:left;border:0;border-bottom:1px solid var(--border);background:none;padding:12px 14px;cursor:pointer;font:inherit;color:var(--text)}
+.chat-item:hover{background:var(--surf2)}
+.chat-item.on{background:var(--acl)}
+.chat-item-top{display:flex;align-items:center;gap:8px}
+.chat-item-t{flex:1;min-width:0;font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item.unread .chat-item-t{font-weight:800}
+.chat-item-p{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-item-m{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);flex-wrap:wrap}
+.chat-badge,.nav-badge{min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#e5484d;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto}
+.nav-badge{margin-left:auto}
+.nav-badge[hidden]{display:none}
+body.rail-collapsed .nav-rail .nav-badge{position:absolute;top:4px;right:10px;min-width:8px;width:8px;height:8px;padding:0;font-size:0}
+.nav-rail .nav-tab{position:relative}
+.fb-st{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;background:#eceff0;color:var(--muted)}
+.fb-st-new{background:#e8f0fe;color:#1a56c4}
+.fb-st-in_progress{background:var(--warnbg);color:var(--warn)}
+.fb-st-resolved{background:var(--succbg);color:var(--succ)}
+.chat-pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+.chat-empty{margin:auto;color:var(--muted);font-size:13px;padding:24px;text-align:center}
+.chat-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.chat-head[hidden],.chat-msgs[hidden],.chat-input[hidden]{display:none}
+.chat-title{font-weight:700;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-sub{font-size:12px;color:var(--muted)}
+.chat-status{width:auto;font-size:12px;height:32px}
+.chat-back{display:none}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+.msg{max-width:min(75%,560px);padding:9px 12px;border-radius:14px;font-size:13.5px;line-height:1.45;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.msg-them{align-self:flex-start;background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg-me{align-self:flex-end;background:var(--acl);border-bottom-right-radius:4px}
+.msg-who{font-size:11px;font-weight:700;color:var(--accent);margin-bottom:2px}
+.msg-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.msg-img{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-top:6px}
+.msg-time{font-size:10.5px;color:var(--muted);margin-top:4px;text-align:right}
+.chat-input{border-top:1px solid var(--border);padding:10px 12px;background:var(--surface)}
+.chat-row{display:flex;align-items:flex-end;gap:8px}
+.chat-row textarea{flex:1;min-width:0;resize:none;border:1px solid var(--border);border-radius:10px;padding:9px 12px;font:inherit;font-size:13.5px;max-height:140px;outline:none}
+.chat-row textarea:focus{border-color:var(--acm)}
+.chat-clip{border:0;background:none;color:var(--muted);cursor:pointer;padding:8px;border-radius:8px}
+.chat-clip:hover{background:var(--surf2);color:var(--accent)}
+.chat-send{height:40px;border-radius:10px}
+.chat-attach{position:relative;display:inline-block;margin-bottom:8px}
+.chat-attach[hidden]{display:none}
+.chat-attach img{max-height:80px;border-radius:8px;border:1px solid var(--border);display:block}
+.chat-attach button{position:absolute;top:-8px;right:-8px;width:22px;height:22px;border-radius:50%;border:0;background:#12241f;color:#fff;cursor:pointer;font-size:11px}
+@media (max-width: 760px){
+  .chat{grid-template-columns:1fr;height:calc(100vh - var(--hdr-h) - var(--ftr-h) - 100px)}
+  .chat .chat-pane{display:none}
+  .chat.chat-open .chat-list{display:none}
+  .chat.chat-open .chat-pane{display:flex}
+  .chat-back{display:inline-flex}
+  .msg{max-width:88%}
+}
+td [data-tip]:hover::after,td [data-tip]:focus-visible::after{bottom:auto;top:50%;right:calc(100% + 8px);transform:translateY(-50%)}
+
+/* ── Телефоны: меню за кнопкой ☰, шапка в одну строку ────── */
+.hdr-burger,.rail-backdrop{display:none}
+@media (max-width: 640px){
+  :root{--hdr-h: 56px}
+  .hdr{flex-wrap:nowrap;padding:0 10px;gap:6px}
+  .hdr-title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hdr-r{order:0;width:auto;margin-left:auto;flex-shrink:0}
+  .hdr-r .btn-l{display:none}
+  .hdr-burger{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;margin-left:-4px;border:0;border-radius:8px;background:none;color:var(--text);cursor:pointer;flex:0 0 auto}
+  .hdr-burger:active{background:var(--surf2)}
+
+  .app-body,body.rail-collapsed .app-body{margin-left:0}
+  body.logged-in .site-footer,body.rail-collapsed.logged-in .site-footer{left:0}
+  .nav-rail,body.rail-collapsed .nav-rail{width:270px;min-width:270px;transform:translateX(-100%);transition:transform .2s ease;box-shadow:none}
+  body.nav-open .nav-rail{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.3)}
+  body.nav-open .rail-backdrop{display:block;position:fixed;inset:0;z-index:299;background:rgba(2,26,24,.45)}
+  /* в выезжающем меню — полные подписи, как на компьютере */
+  .nav-rail .brand,body.rail-collapsed .nav-rail .brand{justify-content:flex-start;padding:16px 14px}
+  .nav-rail .brand-txt,.nav-rail .nav-l,body.rail-collapsed .nav-rail .brand-txt,body.rail-collapsed .nav-rail .nav-l{display:flex}
+  .nav-rail .nav-l{display:inline}
+  .nav-rail .rail-user-info,body.rail-collapsed .nav-rail .rail-user-info{display:flex}
+  .nav-rail .nav-tab,body.rail-collapsed .nav-rail .nav-tab{justify-content:flex-start;padding:11px 12px;font-size:14px}
+  .nav-rail .rail-user,body.rail-collapsed .nav-rail .rail-user{padding:8px 10px}
+  .nav-rail .rail-toggle{display:none}
+  body.rail-collapsed .nav-rail .nav-badge{position:static;width:auto;height:18px;min-width:18px;padding:0 5px;font-size:11px}
+
+  .home-hero{height:150px}
+  .home-hero-body{padding:16px}
+  .home-hero-title{font-size:19px}
+  .home-hero-sub{font-size:12.5px}
+  .dyn-hdr{flex-direction:column;align-items:stretch}
+  .dyn-seg{align-self:flex-start}
+  .dyn-kpi-d{white-space:normal}
+  .panel-page{padding:12px}
+  .panel-hdr{flex-wrap:wrap;gap:8px}
+  .panel-hdr h2{font-size:17px}
+  .comp-hdr{flex-wrap:wrap}
+  .comp-metrics{gap:8px}
+  #compModalFoot .btn-sm,#detFoot .btn-sm{flex:1 1 auto}
+  .watch-item-a{width:100%}
+  .watch-item-a .btn{flex:1}
+  .chat{border-radius:10px}
+  .fdr > *{width:100vw}
+  .body.fdr-open .fdr{width:100vw}
+}
+@media (max-width: 640px){
+  /* В реестре на телефоне главное — таблица: сводка есть на «Главной» */
+  #pg-registry .stats,#pg-registry #recentStrip,#pg-registry .pstrip{display:none !important}
+  .sbar-go{justify-content:center}
+}
+@media (max-width: 1100px) and (min-width: 641px){
+  .stats{flex-wrap:wrap}
+  .sc{min-width:calc(50% - 6px)}
 }

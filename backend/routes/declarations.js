@@ -44,30 +44,7 @@ function computeAllProducers(dataQuery, params, orderParams) {
     });
   });
 }
-
-// Культуры для фильтра «Продукция»: подстроки в lower(productName). Корни
-// подобраны так, чтобы не цеплять чужие слова: «рожь», а не «рож» (урожай),
-// «нут» только отдельным словом (внутренний, минут).
-const CROP_PATTERNS = {
-  wheat: ['%пшениц%'],
-  barley: ['%ячмен%'],
-  corn: ['%кукуруз%'],
-  sunflower: ['%подсолнеч%'],
-  rapeseed: ['%рапс%'],
-  soy: ['%соя%', '%сои %', '%соев%'],
-  peas: ['%горох%'],
-  rye: ['%рожь%', '%ржи %', '%ржан%'],
-  oats: ['%овес%', '%овёс%', '%овса%'],
-  flax: ['%льн%', '%лён%', '%лен %', '%лен-%'],
-  buckwheat: ['%гречих%'],
-  millet: ['%просо%', '%проса%'],
-  sorghum: ['%сорго%'],
-  triticale: ['%тритикале%'],
-  chickpea: ['нут%', '% нут%'],
-  lentil: ['%чечевиц%'],
-  rice: ['рис%', '% рис%'],
-  mustard: ['%горчиц%'],
-};
+const { CROP_PATTERNS } = require('../services/cropPatterns');
 
 function listParam(v) {
   if (!v) return [];
@@ -79,7 +56,7 @@ function listParam(v) {
 function placeKeysInRadius(latQ, lonQ, radiusQ) {
   const lat = Number(latQ), lon = Number(lonQ), r = Number(radiusQ);
   if (!latQ || !lonQ || !radiusQ || !Number.isFinite(lat) || !Number.isFinite(lon) || !(r > 0)) return null;
-  const km = Math.min(r, 1000);
+  const km = Math.min(r, 3000); // дальше 3000 км — уже практически вся страна
   const dLat = km / 111;
   const dLon = km / (111 * Math.max(Math.cos(lat * Math.PI / 180), 0.05));
   const rows = db.prepare('SELECT key, lat, lon FROM geo_places WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?')
@@ -412,6 +389,7 @@ router.get('/recent', auth, requireSubscription, dataReadLimiter, (req, res) => 
   // иначе бэкафилл открытых данных выглядел бы как «партия N дней назад».
   const rows = db.prepare(`
     SELECT d.id, d.productName, d.batchSize, d.regDate, d.fetchedAt,
+           d.shortName, d.applicantName, d.inn, d.farmerType,
            g.region AS region, g.district AS district, g.label AS place,
            g.lat AS lat, g.lon AS lon
     FROM declarations d

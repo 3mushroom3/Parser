@@ -5,11 +5,13 @@
  * регистрация интеграции в маркетплейсе amoCRM, это делает пользователь).
  *
  * filterJson — тот же формат, что фильтры /api/declarations/producers
- * (product, address, farmerType, batchMin/Max, manufacturer) — клиент
+ * (product, address, farmerType, batchMin/Max, manufacturer, regions,
+ * district, place, crops) — клиент
  * настраивает «свой» срез реестра, и только подходящие новые декларации
  * улетают ему как лиды.
  */
 const axios = require('axios');
+const { CROP_PATTERNS } = require('./cropPatterns');
 const db = require('./db');
 const logger = require('./logger');
 
@@ -26,15 +28,32 @@ function buildQuery(filterJson, sinceIso) {
   if (f.product) { where += ' AND lower_u(d.productName) LIKE ?'; params.push(`%${String(f.product).toLowerCase()}%`); }
   if (f.address) { where += ' AND lower_u(d.address) LIKE ?'; params.push(`%${String(f.address).toLowerCase()}%`); }
   if (f.manufacturer) {
-    where += ' AND (lower_u(d.shortName) LIKE ? OR lower_u(d.applicantName) LIKE ? OR lower_u(d.lastName) LIKE ?)';
+    where += ' AND (lower_u(d.shortName) LIKE ? OR lower_u(d.applicantName) LIKE ? OR lower_u(d.lastName) LIKE ? OR d.inn LIKE ?)';
     const m = `%${String(f.manufacturer).toLowerCase()}%`;
-    params.push(m, m, m);
+    params.push(m, m, m, `%${f.manufacturer}%`);
   }
   if (f.farmerType === 'farmer') where += " AND d.farmerType IN ('farmer','farmer_trader')";
   else if (f.farmerType === 'trader') where += " AND d.farmerType IN ('trader','trader_farmer')";
   else if (f.farmerType) { where += ' AND d.farmerType = ?'; params.push(f.farmerType); }
   if (f.batchMin) { where += ' AND d.batchTons >= ?'; params.push(Number(f.batchMin)); }
   if (f.batchMax) { where += ' AND d.batchTons <= ?'; params.push(Number(f.batchMax)); }
+
+  // Те же условия, что у фильтров реестра: подписка «на текущий фильтр»
+  // раньше молча теряла регион и культуры и присылала совсем другое.
+  const regions = Array.isArray(f.regions) ? f.regions.filter(Boolean) : [];
+  if (regions.length) {
+    where += ' AND d.placeKey IN (SELECT key FROM geo_places WHERE region IN (SELECT value FROM json_each(?))';
+    params.push(JSON.stringify(regions));
+    if (f.district) { where += ' AND district = ?'; params.push(String(f.district)); }
+    where += ')';
+  }
+  if (f.place) { where += ' AND d.placeKey = ?'; params.push(String(f.place)); }
+  const crops = (Array.isArray(f.crops) ? f.crops : []).filter(c => CROP_PATTERNS[c]);
+  if (crops.length) {
+    const likes = crops.flatMap(c => CROP_PATTERNS[c]);
+    where += ' AND (' + likes.map(() => 'lower_u(d.productName) LIKE ?').join(' OR ') + ')';
+    params.push(...likes);
+  }
 
   return { where, params };
 }
@@ -74,7 +93,7 @@ async function pushToBitrix24(integration, leads) {
         TITLE: leadTitle(lead),
         NAME: lead.shortName || lead.applicantName || lead.lastName || '',
         SOURCE_ID: 'WEB',
-        SOURCE_DESCRIPTION: 'KOVELIA — реестр АПК',
+        SOURCE_DESCRIPTION: 'KOVELIA — Агро реестр',
         COMMENTS: leadComment(lead),
         PHONE: lead.phone ? [{ VALUE: lead.phone, VALUE_TYPE: 'WORK' }] : undefined,
       },

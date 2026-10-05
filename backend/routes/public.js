@@ -36,9 +36,9 @@ const PAGE_SHELL = (title, description, body) => `<!DOCTYPE html>
 </style>
 </head>
 <body>
-  <div class="brand">KOVELIA <span>реестр АПК</span></div>
+  <div class="brand">KOVELIA <span>Агро реестр</span></div>
   ${body}
-  <footer>© 2026 KOVELIA · реестр АПК · Агрегатор открытых данных pub.fsa.gov.ru, не аффилирован с Росаккредитацией</footer>
+  <footer>© 2026 KOVELIA · Агро реестр · Агрегатор открытых данных pub.fsa.gov.ru, не аффилирован с Росаккредитацией</footer>
 </body>
 </html>`;
 

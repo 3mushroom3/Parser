@@ -35,6 +35,14 @@ function checkRateLimit(ip) {
   loginAttempts.set(ip, entry);
   return entry.count > 10; // block after 10 attempts per 15 min
 }
+// Вход: блокируем по числу НЕУДАЧНЫХ попыток, успешный вход счётчик сбрасывает —
+// иначе пользователь, перезаходивший несколько раз за день, упирался в лимит.
+function loginBlocked(ip) {
+  const e = loginAttempts.get('login:' + ip);
+  return !!e && Date.now() <= e.resetAt && e.count >= 10;
+}
+function loginFailed(ip) { checkRateLimit('login:' + ip); }
+function loginSucceeded(ip) { loginAttempts.delete('login:' + ip); }
 // Clean up old entries every hour
 setInterval(() => {
   const now = Date.now();
@@ -56,8 +64,8 @@ function authMiddleware(req, res, next) {
 
 router.post('/login', (req, res) => {
   const ip = req.ip || req.connection.remoteAddress;
-  if (checkRateLimit(ip)) {
-    return res.status(429).json({ error: 'Слишком много попыток. Подождите 15 минут.' });
+  if (loginBlocked(ip)) {
+    return res.status(429).json({ error: 'Слишком много неудачных попыток входа. Подождите 15 минут.' });
   }
 
   const { username, password } = req.body || {};
@@ -77,8 +85,10 @@ router.post('/login', (req, res) => {
   const valid = bcrypt.compareSync(password, hash);
 
   if (!user || !valid) {
+    loginFailed(ip);
     return res.status(401).json({ error: 'Неверный логин или пароль' });
   }
+  loginSucceeded(ip);
 
   // Аккаунты без email (старые, до этой фичи) проверку пропускают — им
   // подтверждать нечего. Новые аккаунты обязаны сначала подтвердить почту.

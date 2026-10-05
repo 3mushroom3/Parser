@@ -98,7 +98,7 @@ function switchAuthTab(tab) {
   document.getElementById('loginForm').style.display        = tab === 'login'    ? '' : 'none';
   document.getElementById('registerForm').style.display     = tab === 'register' ? '' : 'none';
   document.getElementById('confirmEmailForm').style.display = tab === 'confirm'  ? '' : 'none';
-  document.getElementById('authTosNote').style.display      = tab === 'confirm'  ? 'none' : '';
+  document.getElementById('authTosNote').style.display      = tab === 'register' ? '' : 'none';
   document.getElementById('tabLogin').classList.toggle('active', tab === 'login');
   document.getElementById('tabRegister').classList.toggle('active', tab === 'register' || tab === 'confirm');
   document.getElementById('loginError').style.display    = 'none';
@@ -131,9 +131,15 @@ async function handleLogin(e) {
   btn.textContent = 'Вход…';
 
   try {
+    // Без таймаута при подвисшем сервере кнопка просто висела на «Вход…».
     const data = await apiFetch('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ username, password })
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(20000),
+    }).catch(err => {
+      if (err.name === 'TimeoutError') throw new Error('Сервер долго не отвечает. Попробуйте ещё раз через минуту.');
+      if (err instanceof TypeError) throw new Error('Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.');
+      throw err;
     });
     State.token = data.token;
     State.user  = data.user;
@@ -258,6 +264,8 @@ function checkAuth() {
 // ── Navigation ────────────────────────────────────────────────────────────
 function showPage(name) {
   State.currentPage = name;
+  document.body.classList.remove('nav-open');
+  window.scrollTo(0, 0);
   document.getElementById('pg-home').className          = 'panel-page' + (name === 'home'      ? ' active' : '');
   document.getElementById('pg-company').className       = 'panel-page' + (name === 'company'   ? ' active' : '');
   document.getElementById('pg-registry').style.display  = name === 'registry'  ? '' : 'none';
@@ -367,7 +375,7 @@ const ROLE_LABEL = { farmer: 'Производители', trader: 'Трейде
 const STATUS_LABEL = { active: 'Действующие', archive: 'Архивные' };
 
 const F = {
-  regions: [], district: '', place: null, radius: '', center: null,
+  regions: [], district: '', place: null, radius: '', radiusFrom: '', center: null,
   crops: [], harvest: '', volume: '', role: '', status: '',
 };
 const _dd = {};
@@ -403,8 +411,8 @@ async function filterOptions(params) {
 
 // Центр радиуса: своё местоположение либо выбранный НП (если он геокодирован)
 function radiusCenter() {
-  if (!(Number(F.radius) > 0)) return null;
-  if (F.center) return F.center;
+  if (!F.radiusFrom || !(Number(F.radius) > 0)) return null;
+  if (F.radiusFrom === 'me') return F.center;
   if (F.place && F.place.lat != null) return { lat: F.place.lat, lon: F.place.lon };
   return null;
 }
@@ -421,7 +429,6 @@ function getFilters() {
   const f = {
     page: State.curPage,
     size: document.getElementById('pgSize').value || 20,
-    search: document.getElementById('globalQ').value || '',
     manufacturer: document.getElementById('csManuf').value || '',
     address: document.getElementById('csAddress').value || '',
     product: document.getElementById('csProduct').value || '',
@@ -463,9 +470,18 @@ function clearColSearch() {
   applyFilters();
 }
 
+const searchTerms = () => ['csManuf', 'csAddress', 'csProduct'].map(id => (document.getElementById(id).value || '').trim());
+
+// Поиск срабатывает по «Найти»/Enter и сам — через паузу после ввода.
+function onSearchInput() {
+  renderFilterState();
+  clearTimeout(_applyFiltersDebounceTimer);
+  _applyFiltersDebounceTimer = setTimeout(applyFilters, 700);
+}
+
 function resetFilters() {
-  Object.assign(F, { regions: [], district: '', place: null, radius: '', center: null, crops: [], harvest: '', volume: '', role: '', status: '' });
-  ['globalQ','flBatchMin','flBatchMax','fRadius','csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
+  Object.assign(F, { regions: [], district: '', place: null, radius: '', radiusFrom: '', center: null, crops: [], harvest: '', volume: '', role: '', status: '' });
+  ['flBatchMin','flBatchMax','fRadius','csManuf','csAddress','csProduct'].forEach(id => document.getElementById(id).value = '');
   applyFilters();
 }
 
@@ -630,11 +646,19 @@ function initFilters() {
   bindSeg('segVolume', 'volume');
   bindSeg('rgRole', 'role');
   bindSeg('segStatus', 'status');
+  document.getElementById('segRadiusFrom').addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (b) setRadiusFrom(b.dataset.v);
+  });
+  document.getElementById('segRadiusKm').addEventListener('click', e => {
+    const b = e.target.closest('button[data-v]');
+    if (b) setRadiusKm(b.dataset.v);
+  });
 
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.code === 'KeyK' && State.currentPage === 'registry') {
       e.preventDefault();
-      document.getElementById('globalQ').focus();
+      document.getElementById('csManuf').focus();
     } else if (e.key === 'Escape' && document.querySelector('#pg-registry .body.fdr-open')) {
       const anyOpen = Object.values(_dd).some(d => d.el.classList.contains('open'));
       if (anyOpen) Object.values(_dd).forEach(d => d.close());
@@ -655,24 +679,41 @@ function setVolume(v) {
 function onVolumeRange() { applyFiltersDebounced(); }
 
 function onRadiusInput() {
-  F.radius = document.getElementById('fRadius').value;
+  const v = document.getElementById('fRadius').value;
+  F.radius = v && Number(v) > 3000 ? '3000' : v;
   renderFilterState();
   applyFiltersDebounced();
 }
 
-function useMyLocation() {
-  if (F.center) { F.center = null; applyFilters(); return; }
-  if (!navigator.geolocation) return showAlert('Браузер не умеет определять местоположение', 'err');
-  const btn = document.getElementById('fPinBtn');
-  btn.classList.add('busy');
+// Откуда считать радиус: '' — не искать по радиусу, 'place' — от выбранного
+// населённого пункта, 'me' — от местоположения пользователя (геолокация браузера).
+function setRadiusFrom(v) {
+  F.radiusFrom = v;
+  if (v && !(Number(F.radius) > 0)) { F.radius = '50'; document.getElementById('fRadius').value = '50'; }
+  if (v === 'me' && !F.center) return locateMe();
+  applyFilters();
+}
+
+function setRadiusKm(km) {
+  F.radius = km;
+  document.getElementById('fRadius').value = km;
+  applyFilters();
+}
+
+function locateMe() {
+  if (!navigator.geolocation) {
+    F.radiusFrom = '';
+    renderFilterState();
+    return showAlert('Браузер не умеет определять местоположение', 'err');
+  }
+  renderFilterState();
   navigator.geolocation.getCurrentPosition(pos => {
-    btn.classList.remove('busy');
     F.center = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-    if (!(Number(F.radius) > 0)) { F.radius = '50'; document.getElementById('fRadius').value = '50'; }
     applyFilters();
   }, () => {
-    btn.classList.remove('busy');
-    showAlert('Не удалось определить местоположение — разрешите доступ к геопозиции в браузере', 'err');
+    F.radiusFrom = '';
+    renderFilterState();
+    showAlert('Не удалось определить местоположение — разрешите доступ к геопозиции в настройках браузера', 'err');
   }, { timeout: 10000, maximumAge: 600000 });
 }
 
@@ -685,7 +726,7 @@ function activeFilterChips() {
     if (F.district) chips.push([F.district + ' р-н', () => { F.district = ''; F.place = null; }]);
     if (F.place) chips.push([F.place.label, () => { F.place = null; }]);
   } else {
-    chips.push([`${F.radius} км от ${F.center ? 'меня' : F.place.label}`, () => { F.radius = ''; F.center = null; document.getElementById('fRadius').value = ''; }]);
+    chips.push([`${F.radius} км от ${F.radiusFrom === 'me' ? 'вас' : F.place.label}`, () => { F.radiusFrom = ''; }]);
   }
   F.crops.forEach(c => chips.push([CROP_LABEL[c], () => { F.crops = F.crops.filter(x => x !== c); }]));
   if (F.harvest) chips.push(['Урожай ' + F.harvest, () => { F.harvest = ''; }]);
@@ -707,6 +748,13 @@ function removeFilterChip(i) {
   if (fn) { fn(); applyFilters(); }
 }
 
+// Подсказка у звёздочки должна соответствовать новому состоянию.
+function syncStarTip(btn, on) {
+  if (!btn || !btn.classList.contains('star-btn')) return;
+  btn.dataset.tip = on ? 'В избранном. Нажмите, чтобы убрать' : 'В избранное — компания будет под рукой в разделе «Избранное»';
+  btn.setAttribute('aria-label', on ? 'Убрать из избранного' : 'Добавить в избранное');
+}
+
 function renderFilterState() {
   Object.values(_dd).forEach(d => d.render());
   const setSeg = (id, v) => document.querySelectorAll(`#${id} button[data-v]`)
@@ -718,13 +766,19 @@ function renderFilterState() {
   document.getElementById('segVolumeOwn').classList.toggle('on', F.volume === 'custom');
   document.getElementById('fVolRange').hidden = F.volume !== 'custom';
 
+  setSeg('segRadiusFrom', F.radiusFrom);
+  setSeg('segRadiusKm', F.radius);
+  document.getElementById('fRadiusBox').hidden = !F.radiusFrom;
   const hint = document.getElementById('fRadiusHint');
-  document.getElementById('fPinBtn').classList.toggle('on', !!F.center);
-  if (F.center) hint.textContent = 'От вашего местоположения';
-  else if (!(Number(F.radius) > 0)) hint.textContent = '';
-  else if (!F.place) hint.textContent = 'Выберите населённый пункт или нажмите на метку — от вашего местоположения';
-  else if (F.place.lat == null) hint.textContent = 'У этого пункта пока нет координат — радиус не применяется';
-  else hint.textContent = 'От: ' + F.place.label;
+  const km = Number(F.radius) > 0 ? `${Number(F.radius).toLocaleString('ru')} км` : '';
+  if (!F.radiusFrom) hint.textContent = 'Например, все хозяйства в 100 км от элеватора — выберите «От пункта» или «От меня».';
+  else if (!km) hint.textContent = 'Укажите радиус в километрах.';
+  else if (F.radiusFrom === 'me') hint.textContent = F.center
+    ? `Ищем в ${km} от вашего текущего местоположения (по данным браузера). Регион при этом не ограничивает поиск.`
+    : 'Определяем ваше местоположение — разрешите доступ в браузере…';
+  else if (!F.place) hint.textContent = 'Выберите выше регион и населённый пункт — радиус посчитаем от него.';
+  else if (F.place.lat == null) hint.textContent = `У пункта «${F.place.label}» пока нет координат — выберите соседний.`;
+  else hint.textContent = `Ищем в ${km} от: ${F.place.label}. Регион при этом не ограничивает поиск.`;
 
   const chips = activeFilterChips();
   _chipActions = chips.map(c => c[1]);
@@ -732,6 +786,67 @@ function renderFilterState() {
     `<span class="fchip">${escHtml(label)}<button onclick="removeFilterChip(${i})" title="Убрать">×</button></span>`).join('');
   document.getElementById('fltCount').textContent = chips.length ? ` (${chips.length})` : '';
   document.getElementById('fltResetAll').hidden = !chips.length;
+  // Ряд под поиском показываем, только когда есть что показать: условия
+  // фильтров или текст поиска (тогда и «Следить за новыми» имеет смысл).
+  const hasSearch = searchTerms().some(Boolean);
+  document.getElementById('fchipsRow').hidden = !chips.length && !hasSearch;
+  document.getElementById('sbarClear').hidden = !hasSearch;
+}
+
+// ── «Следить за новыми» (сохранённый поиск с уведомлениями в MAX) ──
+function currentWatchFilter() {
+  const [manufacturer, address, product] = searchTerms();
+  const vol = volumeRange();
+  return {
+    manufacturer, address, product,
+    farmerType: ['farmer', 'trader'].includes(F.role) ? F.role : '',
+    regions: radiusCenter() ? [] : F.regions,
+    district: radiusCenter() ? '' : F.district,
+    place: radiusCenter() || !F.place ? '' : F.place.key,
+    placeLabel: radiusCenter() || !F.place ? '' : F.place.label,
+    crops: F.crops,
+    batchMin: vol.min, batchMax: vol.max,
+  };
+}
+
+async function openWatchModal() {
+  const f = currentWatchFilter();
+  const parts = savedSearchParts(f);
+  document.getElementById('watchSummary').innerHTML = parts.length
+    ? parts.map(p => `<span class="fchip">${escHtml(p)}</span>`).join('')
+    : '<span style="color:var(--muted)">Без условий — все новые декларации</span>';
+  const skipped = [];
+  if (radiusCenter()) skipped.push('радиус от точки');
+  if (F.harvest) skipped.push('год урожая');
+  if (F.status) skipped.push('статус компании');
+  if (F.role === 'processor') skipped.push('роль «переработчики»');
+  if (skipped.length) {
+    document.getElementById('watchSummary').insertAdjacentHTML('beforeend',
+      `<div style="font-size:12px;color:var(--muted);margin-top:6px;width:100%">Не учитываются при слежении: ${escHtml(skipped.join(', '))}</div>`);
+  }
+  document.getElementById('watchName').value = parts.slice(0, 2).join(', ').slice(0, 100);
+  const note = document.getElementById('watchMaxNote');
+  note.hidden = true;
+  openModal('watchModal');
+  try {
+    const me = await apiFetch('/api/auth/me');
+    if (!me.maxLinked) {
+      note.innerHTML = 'Мессенджер MAX ещё не привязан — уведомления начнут приходить после привязки в <a href="#" onclick="closeModal(\'watchModal\');showPage(\'profile\');return false">Профиле</a>.';
+      note.hidden = false;
+    }
+  } catch (_) {}
+}
+
+async function saveWatch() {
+  const btn = document.getElementById('watchSaveBtn');
+  const name = document.getElementById('watchName').value.trim() || 'Реестр';
+  btn.disabled = true;
+  try {
+    await apiFetch('/api/saved-searches', { method: 'POST', body: JSON.stringify({ name, filter: currentWatchFilter() }) });
+    closeModal('watchModal');
+    showAlert('Готово — пришлём сообщение в MAX, когда появятся новые декларации');
+  } catch (e) { showAlert(e.message, 'err'); }
+  finally { btn.disabled = false; }
 }
 
 function showSkeleton() {
@@ -762,7 +877,7 @@ function renderTable(data) {
   document.getElementById('pgOf').textContent  = pages || 1;
   document.getElementById('emptyState').style.display = total === 0 ? 'block' : 'none';
 
-  const q = (document.getElementById('globalQ').value || '').trim();
+  const q = '';
   const _csManuf = (document.getElementById('csManuf').value || '').trim();
   const _csAddr  = (document.getElementById('csAddress').value || '').trim();
   const _csProd  = (document.getElementById('csProduct').value || '').trim();
@@ -815,11 +930,10 @@ function renderTable(data) {
         <td title="${(p.address||'').replace(/"/g,'&quot;')}" style="font-size:12px;color:var(--muted)">${hl(p.address||'—', _csAddr)}</td>
         <td style="font-size:12px" title="${firstProduct}">${cropChip(firstProduct)}${hl(firstProduct, _csProd)}${p.decls.length>1?' <span style="color:var(--muted)">+ещё '+(p.decls.length-1)+'</span>':''}</td>
         <td class="actions" style="text-align:center;display:flex;align-items:center;justify-content:center;gap:3px">
-          <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="${isFav?'Убрать из избранного':'Добавить в избранное'}">★</button>
-          <button class="btn btn-sm" style="padding:2px 5px;font-size:12px" onclick="event.stopPropagation();addToFolder('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" title="В папку">📁</button>
+          <button class="star-btn ${isFav?'on':''}" onclick="event.stopPropagation();toggleFavorite('${safeInn}','${(p.name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',this)" aria-label="${isFav?'Убрать из избранного':'Добавить в избранное'}" data-tip="${isFav?'В избранном. Нажмите, чтобы убрать':'В избранное — компания будет под рукой в разделе «Избранное»'}">★</button>
           ${p.decls.length === 1
-            ? `<button class="btn btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();openDetail('${p.decls[0].id}')">↗</button>`
-            : `<span style="background:var(--acl);color:var(--accent);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600">${p.decls.length}</span>`}
+            ? `<button class="btn btn-sm" style="padding:2px 7px;font-size:11px" onclick="event.stopPropagation();openDetail('${p.decls[0].id}')" data-tip="Открыть декларацию">↗</button>`
+            : `<span style="background:var(--acl);color:var(--accent);padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600" data-tip="Деклараций у компании — нажмите на строку, чтобы раскрыть">${p.decls.length}</span>`}
         </td>
       </tr>${subRows}`;
   }).join('');
@@ -878,16 +992,25 @@ async function loadHome() {
   try {
     const recent = await apiFetch('/api/declarations/recent?limit=6');
     const list = document.getElementById('hmRecent');
-    const items = recent.items || recent || [];
-    list.innerHTML = items.length ? items.map(r => `
-      <div class="item" onclick="openCompany('${(r.inn || '').replace(/'/g, "\\'")}','${(r.shortName || '').replace(/'/g, "\\'").replace(/"/g, '&quot;')}')" style="cursor:pointer">
+    const items = recent.items || [];
+    list.innerHTML = items.length ? items.map(r => {
+      const place = [r.district, r.place].filter(Boolean).join(', ') || r.region || '';
+      const sub = [r.productName, r.batchSize, place].filter(Boolean).join(' · ');
+      const open = r.inn
+        ? `openCompany('${escHtml(r.inn)}','${escHtml((r.shortName || '').replace(/'/g, "\\'"))}')`
+        : `openDetail('${escHtml(r.id)}')`;
+      return `
+      <div class="item home-recent" onclick="${open}">
         <div style="flex:1;min-width:0">
-          <div style="font-weight:500">${escHtml(fmtCompany(r.shortName || r.applicantName || '—'))}</div>
-          <div style="font-size:11px;color:var(--muted)">${escHtml((r.address || '').slice(0, 60))}</div>
+          <div class="home-recent-name">${escHtml(fmtCompany(r.shortName || r.applicantName || 'Без названия'))}</div>
+          <div class="home-recent-sub">${escHtml(sub)}</div>
         </div>
-        <div style="font-size:12px;color:var(--muted);white-space:nowrap">${escHtml(r.regDate || '')}</div>
-      </div>`).join('') : '<div class="home-skel">Пока пусто</div>';
-  } catch (_) {}
+        <div class="home-recent-time">${timeAgo(r.fetchedAt)}</div>
+      </div>`;
+    }).join('') : '<div class="home-skel">Пока пусто</div>';
+  } catch (e) {
+    document.getElementById('hmRecent').innerHTML = `<div class="home-skel">${e.message === 'SUBSCRIPTION_REQUIRED' ? 'Доступно с подпиской' : 'Не удалось загрузить'}</div>`;
+  }
 }
 
 function renderHomeRegions(rows) {
@@ -1133,6 +1256,25 @@ function dynNiceScale(max) {
   return { top: step * 4, step };
 }
 
+function dynMonotonePath(ctx, p) {
+  const n = p.length;
+  if (n < 2) return;
+  const d = [], m = [];
+  for (let i = 0; i < n - 1; i++) d.push((p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]));
+  m[0] = d[0]; m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; }
+    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
+    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+  }
+  ctx.moveTo(p[0][0], p[0][1]);
+  for (let i = 0; i < n - 1; i++) {
+    const h = (p[i + 1][0] - p[i][0]) / 3;
+    ctx.bezierCurveTo(p[i][0] + h, p[i][1] + m[i] * h, p[i + 1][0] - h, p[i + 1][1] - m[i + 1] * h, p[i + 1][0], p[i + 1][1]);
+  }
+}
+
 function dynRoundTop(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h);
   ctx.beginPath();
@@ -1202,16 +1344,22 @@ function paintDyn() {
     const px = i => padL + i * colW + colW / 2;
     ctx.save();
     ctx.globalAlpha = a;
-    ctx.strokeStyle = DYN_COLORS.prev; ctx.lineWidth = 2; ctx.setLineDash([5, 4]); ctx.lineJoin = 'round';
+    // Плавная монотонная кривая (Фриче — Карлсон): не «выстреливает» выше
+    // соседних точек, как Безье, и не ломается на каждом месяце, как ломаная.
+    // Кружки на каждой точке рвали ритм пунктира — точку показываем только
+    // под курсором.
+    const pts = S.map((x, i) => [px(i), y(x.prev)]);
+    ctx.strokeStyle = DYN_COLORS.prev; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.lineCap = 'round';
     ctx.beginPath();
-    S.forEach((x, i) => i ? ctx.lineTo(px(i), y(x.prev)) : ctx.moveTo(px(i), y(x.prev)));
+    dynMonotonePath(ctx, pts);
     ctx.stroke();
     ctx.setLineDash([]);
-    S.forEach((x, i) => {
-      ctx.beginPath(); ctx.arc(px(i), y(x.prev), Dyn.hover === i ? 5 : 4, 0, Math.PI * 2);
+    if (Dyn.hover >= 0) {
+      const [hx, hy] = pts[Dyn.hover];
+      ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2);
       ctx.fillStyle = '#fff'; ctx.fill();
       ctx.lineWidth = 2; ctx.strokeStyle = DYN_COLORS.prev; ctx.stroke();
-    });
+    }
     ctx.restore();
   }
 
@@ -1677,7 +1825,7 @@ async function toggleFavorite(inn, name, btn) {
       await apiFetch('/api/business/favorites', { method: 'POST', body: JSON.stringify({ inn, name }) });
     }
     await loadFavsCache();
-    if (btn) btn.classList.toggle('on', !was);
+    if (btn) { btn.classList.toggle('on', !was); syncStarTip(btn, !was); }
     showAlert(was ? 'Убрано из избранного' : 'Добавлено в избранное', 'ok');
     updateCompFavBtn(inn, name);
   } catch(e) { showAlert('Ошибка: ' + e.message, 'err'); }
@@ -2064,7 +2212,9 @@ async function openCompany(inn, name) {
   document.getElementById('compModalBody').innerHTML = `
     <div id="compDescArea" style="margin-bottom:14px">
       ${autoNoteHtml}
-      <div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:${p.description?'var(--text)':'var(--muted)'}" onclick="editCompDesc()" title="Нажмите для редактирования">${p.description ? safeDesc : '+ Добавить описание компании...'}</div>
+      ${State.user?.role === 'admin'
+        ? `<div id="compDescShow" style="cursor:pointer;padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px;color:${p.description?'var(--text)':'var(--muted)'}" onclick="editCompDesc()" title="Описание видят все пользователи. Нажмите, чтобы изменить">${p.description ? safeDesc : '+ Добавить описание компании (видно всем пользователям)'}</div>`
+        : (p.description ? `<div id="compDescShow" style="padding:8px 12px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border);font-size:13px">${safeDesc}</div>` : '')}
       <div id="compDescEdit" style="display:none">
         <input id="compDescInput" type="text" class="fi" placeholder="Краткое описание компании..." value="${safeDesc}">
         <div style="display:flex;gap:6px;margin-top:6px">
@@ -2098,7 +2248,7 @@ async function openCompany(inn, name) {
       <div id="cropTabContent"></div>
     </div>
     <div class="dsec" style="margin-top:16px">
-      <h4>Контакты</h4>
+      <h4>Мои контакты <span style="font-weight:400;font-size:11px;color:var(--muted)">— видны только вам</span></h4>
       <div id="compContactsList"></div>
       <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         <input id="ccName" class="fi" style="flex:1;min-width:110px" placeholder="Имя">
@@ -2109,9 +2259,9 @@ async function openCompany(inn, name) {
       </div>
     </div>
     <div class="dsec" style="margin-top:16px">
-      <h4>Заметки</h4>
-      <textarea id="compNotes" class="fi" style="width:100%;min-height:70px;resize:vertical" placeholder="Заметки о компании...">${(p.notes||'').replace(/</g,'&lt;')}</textarea>
-      <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить заметку</button>
+      <h4>Мои заметки о компании <span style="font-weight:400;font-size:11px;color:var(--muted)">— видны только вам</span></h4>
+      <textarea id="compNotes" class="fi" style="width:100%;min-height:70px;resize:vertical" placeholder="Договорённости, цены, с кем говорили…">${(p.notes||'').replace(/</g,'&lt;')}</textarea>
+      <button class="btn btn-sm" style="margin-top:6px" onclick="saveCompanyNotes('${safeInn}','${safeName}')">💾 Сохранить</button>
     </div>`;
 
   renderCompMetrics(p);
@@ -2134,7 +2284,7 @@ async function openCompany(inn, name) {
         <button class="btn btn-sm" id="compFavBtn" onclick="toggleFavorite('${safeInn}','${safeName}',null);updateCompFavBtn('${safeInn}','${safeName}')">${isFav?'★ В избранном':'☆ В избранное'}</button>
         ${p.inn ? `<button class="btn btn-sm" onclick="openDueDiligenceReport('${safeInn}')">📄 Отчёт о контрагенте</button>` : ''}
         <button class="btn btn-sm" onclick="addToFolder('${safeInn}','${safeName}')">📁 В папку</button>
-        <button class="btn btn-sm" onclick="openAddToNoteModal('${compLabel}${compInnHint.replace(/'/g,"\\'")}','')">📝 В заметку</button>
+        <button class="btn btn-sm" onclick="openAddToNoteModal({kind:'company',inn:'${safeInn}',label:'${compLabel}'})">📝 В заметку</button>
         <button class="btn btn-p btn-sm" onclick="backFromCompany()">← К списку</button>
       </div>
     </div>`;
@@ -2172,7 +2322,7 @@ async function openDueDiligenceReport(inn) {
       @media print{.btn{display:none}}
     </style></head><body>
     <h1>Отчёт о контрагенте: ${escHtml(fmtCompany(data.name))}</h1>
-    <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · KOVELIA · реестр АПК</div>
+    <div class="sub">Сформировано ${new Date(data.generatedAt).toLocaleString('ru-RU')} · KOVELIA · Агро реестр</div>
     <div class="row"><b>ИНН</b><span>${escHtml(data.inn)}</span></div>
     ${data.ogrn ? `<div class="row"><b>ОГРН</b><span>${escHtml(data.ogrn)}</span></div>` : ''}
     <div class="row"><b>Статус в ЕГРЮЛ</b><span>${escHtml(data.egrulStatusLabel)}</span></div>
@@ -2209,8 +2359,13 @@ async function saveCompanyDesc(inn, name) {
   const desc = document.getElementById('compDescInput').value.trim();
   try {
     await apiFetch('/api/business/company/notes', { method: 'PUT', body: JSON.stringify({ inn, name, description: desc }) });
-    backFromCompany();
-    showAlert('Сохранено');
+    // Остаёмся в карточке: раньше здесь был backFromCompany(), и сохранение
+    // описания выкидывало пользователя обратно к списку.
+    const show = document.getElementById('compDescShow');
+    show.textContent = desc || '+ Добавить описание компании (видно всем пользователям)';
+    show.style.color = desc ? 'var(--text)' : 'var(--muted)';
+    cancelCompDesc();
+    showAlert('Описание сохранено');
   } catch(e) { showAlert(e.message, 'err'); }
 }
 
@@ -2605,8 +2760,9 @@ async function openDetail(id, fromCompany = false) {
       </div>`;
 
     const isFav = isFavorite(r.inn, r.shortName);
-    const declLabel = (r.declNumber || r.id).replace(/'/g,"\\'");
-    const declUrl = (r.fsaUrl || '').replace(/'/g,"\\'");
+    // Подпись для заметки — «Компания · продукция», понятнее номера декларации.
+    const declLabel = [fmtCompany(r.shortName || r.applicantName || ''), (r.productName || '').slice(0, 40)]
+      .filter(Boolean).join(' · ').replace(/\\/g, '').replace(/'/g, "\\'").replace(/"/g, '&quot;') || r.id;
     const isAdmin = State.user?.role === 'admin';
     const hasDeclNav = State.navDeclIds.length > 1;
     // Навигация вынесена отдельной строкой над кнопками — иначе при нескольких
@@ -2623,7 +2779,7 @@ async function openDetail(id, fromCompany = false) {
           ${isAdmin ? `<button class="btn btn-sm" onclick="closeModal('detModal');openAdd('${r.id}',State.detailRecord)">✎ Редактировать</button>` : ''}
           <button class="btn btn-sm ${isFav?'':'btn-p'}" id="detFavBtn" onclick="toggleFavCurrentDetail()">${isFav?'★ В избранном':'☆ В избранное'}</button>
           <button class="btn btn-sm" onclick="addDeclToFolder('${r.id}','${(r.declNumber||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">📁 В папку</button>
-          <button class="btn btn-sm" onclick="openAddToNoteModal('${declLabel}','${declUrl}')">📝 В заметку</button>
+          <button class="btn btn-sm" onclick="openAddToNoteModal({kind:'decl',id:'${r.id}',label:'${declLabel}'})">📝 В заметку</button>
           <button class="btn btn-p btn-sm" onclick="closeModal('detModal')">Закрыть</button>
         </div>
       </div>`;
@@ -2662,7 +2818,8 @@ let _fbImageBlob = null;
 let _fbListenersBound = false;
 
 function openFeedbackForm() {
-  document.getElementById('feedbackForm').style.display = 'block';
+  const form = document.getElementById('feedbackForm');
+  form.hidden = false;
   document.getElementById('fbTitle').value = '';
   document.getElementById('fbDescription').value = '';
   clearFeedbackImage();
@@ -2674,21 +2831,20 @@ function bindFeedbackPasteListener() {
   if (_fbListenersBound) return;
   _fbListenersBound = true;
   const zone = document.getElementById('fbDropZone');
-  zone.addEventListener('paste', (e) => {
+  const takeImage = (e, setter) => {
     const items = e.clipboardData?.items || [];
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        onFeedbackFileSelected(item.getAsFile());
-        e.preventDefault();
-        break;
-      }
+      if (item.type.startsWith('image/')) { setter(item.getAsFile()); e.preventDefault(); return; }
     }
-  });
-  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.style.borderColor = 'var(--accent)'; });
-  zone.addEventListener('dragleave', () => { zone.style.borderColor = 'var(--border)'; });
+  };
+  // Скриншот можно вставить в любое поле формы, а не только в рамку
+  document.getElementById('feedbackForm').addEventListener('paste', e => takeImage(e, onFeedbackFileSelected));
+  document.getElementById('chatForm').addEventListener('paste', e => takeImage(e, onChatFile));
+  zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('over'));
   zone.addEventListener('drop', (e) => {
     e.preventDefault();
-    zone.style.borderColor = 'var(--border)';
+    zone.classList.remove('over');
     const file = e.dataTransfer?.files?.[0];
     if (file && file.type.startsWith('image/')) onFeedbackFileSelected(file);
   });
@@ -2700,15 +2856,27 @@ function onFeedbackFileSelected(file) {
   const reader = new FileReader();
   reader.onload = () => {
     document.getElementById('fbPreview').src = reader.result;
-    document.getElementById('fbPreviewWrap').style.display = 'block';
+    document.getElementById('fbPreviewWrap').hidden = false;
   };
   reader.readAsDataURL(file);
 }
 
 function clearFeedbackImage() {
   _fbImageBlob = null;
-  document.getElementById('fbPreviewWrap').style.display = 'none';
+  document.getElementById('fbPreviewWrap').hidden = true;
   document.getElementById('fbFileInput').value = '';
+}
+
+// multipart-запрос с токеном (apiFetch шлёт JSON)
+async function postForm(url, fd) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: State.token ? { 'Authorization': `Bearer ${State.token}` } : {},
+    body: fd,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Ошибка отправки');
+  return data;
 }
 
 async function submitFeedback() {
@@ -2721,59 +2889,215 @@ async function submitFeedback() {
   if (_fbImageBlob) fd.append('image', _fbImageBlob, _fbImageBlob.name || 'screenshot.png');
 
   try {
-    const res = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: State.token ? { 'Authorization': `Bearer ${State.token}` } : {},
-      body: fd,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Ошибка отправки');
-    }
-    document.getElementById('feedbackForm').style.display = 'none';
-    showAlert('Отправлено, спасибо!');
-    loadFeedback();
+    const item = await postForm('/api/feedback', fd);
+    document.getElementById('feedbackForm').hidden = true;
+    showAlert('Обращение отправлено — ответ придёт сюда, в переписку');
+    await loadFeedback();
+    openChat(item.id);
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
-const FB_STATUS_LABEL = { new: '🆕 Новое', in_progress: '🔧 В работе', resolved: '✅ Решено' };
+const FB_STATUS_LABEL = { new: 'Новое', in_progress: 'В работе', resolved: 'Решено' };
+let _fbItems = [];
+let _chatPollTimer = null;
+let _chatImage = null;
 
 async function loadFeedback() {
   const isAdmin = State.user?.role === 'admin';
+  bindFeedbackPasteListener();
+  bindChatInput();
   try {
-    const items = await apiFetch(isAdmin ? '/api/feedback' : '/api/feedback/mine');
-    const listEl = document.getElementById('feedbackList');
-    document.getElementById('feedbackEmpty').style.display = items.length ? 'none' : 'block';
-    listEl.innerHTML = items.map(it => `
-      <div class="item-card" style="align-items:flex-start;flex-wrap:wrap">
-        ${it.imagePath ? `<a href="${it.imagePath}" target="_blank"><img src="${it.imagePath}" style="width:64px;height:64px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border)"></a>` : '<span style="font-size:24px">🐞</span>'}
-        <div class="item-card-info" style="min-width:200px">
-          <div class="item-card-name">${escHtml(it.title)}</div>
-          ${it.description ? `<div class="item-card-sub" style="white-space:pre-wrap">${escHtml(it.description)}</div>` : ''}
-          <div class="item-card-sub">${isAdmin ? escHtml(it.username || '') + ' · ' : ''}${new Date(it.createdAt).toLocaleString('ru-RU')}</div>
-        </div>
-        ${isAdmin ? `
-          <select class="fi" style="width:auto;font-size:12px" onchange="updateFeedbackStatus(${it.id}, this.value)">
-            ${Object.entries(FB_STATUS_LABEL).map(([v, l]) => `<option value="${v}" ${it.status === v ? 'selected' : ''}>${l}</option>`).join('')}
-          </select>
-          <button class="btn btn-dng btn-sm" onclick="deleteFeedback(${it.id})">✕</button>
-        ` : `<span class="ft" style="background:#F1F1F3;color:var(--text)">${FB_STATUS_LABEL[it.status] || it.status}</span>`}
-      </div>`).join('');
+    _fbItems = await apiFetch(isAdmin ? '/api/feedback' : '/api/feedback/mine');
+    document.getElementById('feedbackEmpty').style.display = _fbItems.length ? 'none' : 'block';
+    document.getElementById('chatWrap').hidden = !_fbItems.length;
+    renderFeedbackList();
+    if (State.chatId && _fbItems.some(f => f.id === State.chatId)) openChat(State.chatId, true);
+    else if (_fbItems.length && window.innerWidth > 760) openChat(_fbItems[0].id);
+    refreshSupportBadge();
   } catch (e) { showAlert(e.message, 'err'); }
+}
+
+function renderFeedbackList() {
+  const isAdmin = State.user?.role === 'admin';
+  document.getElementById('feedbackList').innerHTML = _fbItems.map(it => {
+    const preview = it.lastText != null && it.lastText !== ''
+      ? (it.lastFromAdmin ? (isAdmin ? 'Вы: ' : 'Поддержка: ') : (isAdmin ? '' : 'Вы: ')) + it.lastText
+      : (it.description || '');
+    const when = it.lastMessageAt || it.createdAt;
+    return `
+      <button class="chat-item${it.id === State.chatId ? ' on' : ''}${it.unread ? ' unread' : ''}" onclick="openChat(${it.id})">
+        <span class="chat-item-top">
+          <span class="chat-item-t">${escHtml(it.title)}</span>
+          ${it.unread ? `<span class="chat-badge">${it.unread}</span>` : ''}
+        </span>
+        <span class="chat-item-p">${escHtml(preview.slice(0, 90))}</span>
+        <span class="chat-item-m">
+          <span class="fb-st fb-st-${it.status}">${FB_STATUS_LABEL[it.status] || it.status}</span>
+          ${isAdmin ? `<span>${escHtml(it.username || '')}</span>` : ''}
+          <span>${fmtChatTime(when)}</span>
+        </span>
+      </button>`;
+  }).join('');
+}
+
+// createdAt из SQLite — UTC без пометки зоны
+function chatDate(s) { return new Date(String(s).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(s) ? '' : 'Z')); }
+function fmtChatTime(s) {
+  if (!s) return '';
+  const d = chatDate(s), now = new Date();
+  return d.toDateString() === now.toDateString()
+    ? d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+async function openChat(id, silent) {
+  State.chatId = id;
+  const item = _fbItems.find(f => f.id === id);
+  if (!item) return;
+  document.getElementById('chatWrap').classList.add('chat-open');
+  ['chatHead', 'chatMsgs', 'chatForm'].forEach(x => { document.getElementById(x).hidden = false; });
+  document.getElementById('chatEmpty').hidden = true;
+  document.getElementById('chatTitle').textContent = item.title;
+  const isAdmin = State.user?.role === 'admin';
+  document.getElementById('chatSub').textContent = (isAdmin ? (item.username || '') + ' · ' : '') + 'обращение от ' + fmtChatTime(item.createdAt);
+  document.getElementById('chatStatus').value = item.status;
+  document.querySelectorAll('#chatHead .admin-only').forEach(el => { el.style.display = isAdmin ? '' : 'none'; });
+  renderFeedbackList();
+  await loadChatMessages(!silent);
+  clearInterval(_chatPollTimer);
+  // Пока переписка открыта — подтягиваем ответы раз в 10 секунд
+  _chatPollTimer = setInterval(() => {
+    if (State.currentPage === 'feedback' && !document.hidden && State.chatId) loadChatMessages(false);
+    else if (State.currentPage !== 'feedback') clearInterval(_chatPollTimer);
+  }, 10000);
+}
+
+function closeChat() {
+  document.getElementById('chatWrap').classList.remove('chat-open');
+}
+
+let _chatLastId = -1;
+async function loadChatMessages(scroll) {
+  const id = State.chatId;
+  try {
+    const { ticket, messages } = await apiFetch(`/api/feedback/${id}/messages`);
+    if (id !== State.chatId) return;
+    const lastId = messages.length ? messages[messages.length - 1].id : 0;
+    const isAdmin = State.user?.role === 'admin';
+    const mine = m => isAdmin ? !!m.fromAdmin : !m.fromAdmin;
+    // Первое «сообщение» — само обращение
+    const first = { id: 0, fromAdmin: 0, text: ticket.description || '', imagePath: ticket.imagePath, createdAt: ticket.createdAt };
+    const all = [first, ...messages].filter(m => m.text || m.imagePath);
+    const box = document.getElementById('chatMsgs');
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+    if (lastId !== _chatLastId || scroll) {
+      box.innerHTML = all.map(m => `
+        <div class="msg ${mine(m) ? 'msg-me' : 'msg-them'}">
+          <div class="msg-who">${m.fromAdmin ? 'Поддержка KOVELIA' : (isAdmin ? escHtml(ticket.username || 'Пользователь') : 'Вы')}</div>
+          ${m.text ? `<div class="msg-text">${escHtml(m.text)}</div>` : ''}
+          ${m.imagePath ? `<a href="${escHtml(m.imagePath)}" target="_blank" rel="noopener"><img class="msg-img" src="${escHtml(m.imagePath)}" alt="Скриншот"></a>` : ''}
+          <div class="msg-time">${fmtChatTime(m.createdAt)}</div>
+        </div>`).join('') || '<div class="chat-empty">Сообщений пока нет</div>';
+      if (scroll || atBottom) box.scrollTop = box.scrollHeight;
+      _chatLastId = lastId;
+    }
+    // Открыли — значит прочитали: обновляем счётчик в списке и в меню
+    const item = _fbItems.find(f => f.id === id);
+    if (item && item.unread) { item.unread = 0; renderFeedbackList(); }
+    if (item && item.status !== ticket.status) { item.status = ticket.status; renderFeedbackList(); }
+    refreshSupportBadge();
+  } catch (e) { if (scroll) showAlert(e.message, 'err'); }
+}
+
+let _chatInputBound = false;
+function bindChatInput() {
+  if (_chatInputBound) return;
+  _chatInputBound = true;
+  const ta = document.getElementById('chatText');
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChatMessage(); }
+  });
+  ta.addEventListener('input', () => {
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+  });
+}
+
+function onChatFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  _chatImage = file;
+  const reader = new FileReader();
+  reader.onload = () => {
+    document.getElementById('chatAttachImg').src = reader.result;
+    document.getElementById('chatAttach').hidden = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearChatImage() {
+  _chatImage = null;
+  document.getElementById('chatAttach').hidden = true;
+  document.getElementById('chatFile').value = '';
+}
+
+async function sendChatMessage() {
+  const ta = document.getElementById('chatText'), btn = document.getElementById('chatSendBtn');
+  const text = ta.value.trim();
+  if (!text && !_chatImage) return;
+  const fd = new FormData();
+  fd.append('text', text);
+  if (_chatImage) fd.append('image', _chatImage, _chatImage.name || 'screenshot.png');
+  btn.disabled = true;
+  try {
+    const { status } = await postForm(`/api/feedback/${State.chatId}/messages`, fd);
+    ta.value = '';
+    ta.style.height = 'auto';
+    clearChatImage();
+    const item = _fbItems.find(f => f.id === State.chatId);
+    if (item) {
+      item.status = status;
+      item.lastText = text;
+      item.lastFromAdmin = State.user?.role === 'admin' ? 1 : 0;
+      item.lastMessageAt = new Date().toISOString();
+      _fbItems.sort((a, b) => (a === item ? -1 : b === item ? 1 : 0));
+      document.getElementById('chatStatus').value = status;
+    }
+    renderFeedbackList();
+    await loadChatMessages(true);
+  } catch (e) { showAlert(e.message, 'err'); }
+  finally { btn.disabled = false; ta.focus(); }
 }
 
 async function updateFeedbackStatus(id, status) {
   try {
     await apiFetch('/api/feedback/' + id, { method: 'PATCH', body: JSON.stringify({ status }) });
+    const item = _fbItems.find(f => f.id === id);
+    if (item) { item.status = status; renderFeedbackList(); }
   } catch (e) { showAlert(e.message, 'err'); }
 }
 
 async function deleteFeedback(id) {
-  if (!confirm('Удалить обращение?')) return;
+  if (!confirm('Удалить обращение вместе с перепиской?')) return;
   try {
     await apiFetch('/api/feedback/' + id, { method: 'DELETE' });
+    State.chatId = null;
+    ['chatHead', 'chatMsgs', 'chatForm'].forEach(x => { document.getElementById(x).hidden = true; });
+    document.getElementById('chatEmpty').hidden = false;
     loadFeedback();
   } catch (e) { showAlert(e.message, 'err'); }
+}
+
+// Значок непрочитанных у «Поддержки» в меню — опрашиваем раз в минуту
+async function refreshSupportBadge() {
+  try {
+    const { unread } = await apiFetch('/api/feedback/unread');
+    const tab = document.querySelector('.nav-tab[data-page="feedback"]');
+    if (!tab) return;
+    let b = tab.querySelector('.nav-badge');
+    if (!b) { b = document.createElement('span'); b.className = 'nav-badge'; tab.appendChild(b); }
+    b.textContent = unread > 9 ? '9+' : unread;
+    b.hidden = !unread;
+  } catch (_) {}
 }
 
 async function loadProfile() {
@@ -2783,6 +3107,7 @@ async function loadProfile() {
       apiFetch('/api/payment/subscription').catch(() => ({ active: false })),
     ]);
     document.getElementById('profUsername').textContent = me.username || '—';
+    document.getElementById('pwFormUser').value = me.email || me.username || '';
     document.getElementById('profRole').textContent = me.role === 'admin' ? 'Администратор' : 'Пользователь';
     document.getElementById('profCreatedAt').textContent = me.created_at
       ? new Date(me.created_at).toLocaleDateString('ru-RU') : '—';
@@ -2845,27 +3170,38 @@ async function loadSavedSearches() {
   try {
     const rows = await apiFetch('/api/saved-searches');
     listEl.innerHTML = rows.length ? rows.map(r => `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:var(--surf2);border-radius:var(--r);font-size:12.5px">
-        <div>
-          <b>${escHtml(r.name || 'Без названия')}</b><br>
-          <span style="color:var(--muted)">${escHtml(savedSearchSummary(r.filterJson))}</span>
+      <div class="watch-item${r.active ? '' : ' paused'}">
+        <div style="min-width:0;flex:1">
+          <div class="watch-item-t"><b>${escHtml(r.name || 'Без названия')}</b>
+            <span class="watch-st">${r.active ? 'Уведомления включены' : 'На паузе'}</span></div>
+          <div class="watch-item-s">${escHtml(savedSearchSummary(r.filterJson))}</div>
         </div>
-        <div style="display:flex;gap:4px;flex:none">
-          <button class="btn btn-sm" onclick="toggleSavedSearch(${r.id},${r.active ? 0 : 1})">${r.active ? '⏸' : '▶'}</button>
-          <button class="btn btn-sm btn-dng" onclick="deleteSavedSearch(${r.id})">🗑</button>
+        <div class="watch-item-a">
+          <button class="btn btn-sm" onclick="toggleSavedSearch(${r.id},${r.active ? 0 : 1})">${r.active ? 'Приостановить' : 'Включить'}</button>
+          <button class="btn btn-sm btn-dng" onclick="deleteSavedSearch(${r.id})">Удалить</button>
         </div>
-      </div>`).join('') : '<div style="color:var(--muted);font-size:12.5px">Подписок пока нет — настройте фильтр в реестре и нажмите «🔔 Подписаться».</div>';
+      </div>`).join('') : '<div style="color:var(--muted);font-size:12.5px">Пока ни за чем не следите. В «Реестре» задайте поиск или фильтры и нажмите «Следить за новыми».</div>';
   } catch (_) {}
 }
 
-function savedSearchSummary(f) {
+function savedSearchParts(f) {
   const parts = [];
+  if (f.manufacturer) parts.push(`компания: ${f.manufacturer}`);
+  (f.regions || []).forEach(r => parts.push(regionLabel(r)));
+  if (f.district) parts.push(f.district + ' р-н');
+  if (f.placeLabel) parts.push(f.placeLabel);
+  (f.crops || []).forEach(c => parts.push(CROP_LABEL[c] || c));
   if (f.product) parts.push(`продукция: ${f.product}`);
   if (f.address) parts.push(`адрес: ${f.address}`);
   if (f.farmerType) parts.push(f.farmerType === 'farmer' ? 'производители' : 'трейдеры');
   if (f.batchMin) parts.push(`от ${f.batchMin} т`);
   if (f.batchMax) parts.push(`до ${f.batchMax} т`);
-  return parts.length ? parts.join(', ') : 'без фильтра — все декларации';
+  return parts;
+}
+
+function savedSearchSummary(f) {
+  const parts = savedSearchParts(f);
+  return parts.length ? parts.join(', ') : 'без условий — все новые декларации';
 }
 
 async function toggleSavedSearch(id, active) {
@@ -2879,18 +3215,6 @@ async function deleteSavedSearch(id) {
   catch (e) { showAlert(e.message, 'err'); }
 }
 
-async function subscribeCurrentFilter() {
-  const filters = getFilters();
-  // Подписка понимает только часть условий — роль «переработчики» в ней не поддерживается
-  const farmerType = ['farmer', 'trader'].includes(filters.farmerType) ? filters.farmerType : '';
-  const filter = { product: '', address: filters.address, farmerType, batchMin: filters.batchMin, batchMax: filters.batchMax };
-  const name = prompt('Название подписки (для себя)', filters.address || filters.farmerType || 'Реестр');
-  if (name === null) return;
-  try {
-    await apiFetch('/api/saved-searches', { method: 'POST', body: JSON.stringify({ name, filter }) });
-    showAlert('Подписка сохранена — уведомления придут в MAX (привяжите его в Профиле, если ещё не сделали)');
-  } catch (e) { showAlert(e.message, 'err'); }
-}
 
 // Результат пишем прямо под формой: всплывашка в углу экрана исчезала через
 // 3,5 с и выглядела одинаково для ошибки и успеха — её просто не замечали.
@@ -3577,14 +3901,55 @@ function initApp() {
   if (nameEl && State.user) {
     nameEl.textContent = State.user.username || '';
     const roleEl = document.getElementById('railRole');
-    if (roleEl) roleEl.textContent = State.user.role === 'admin' ? 'Администратор' : 'Пользователь';
+    if (roleEl) roleEl.textContent = (State.user.role === 'admin' ? 'Администратор' : 'Пользователь') + ' · профиль';
     const avaEl = document.getElementById('railAvatar');
     if (avaEl) avaEl.textContent = (State.user.username || '?').slice(0, 1);
   }
   pollStatus();
+  refreshSupportBadge();
+  if (!State.supportBadgeTimer) {
+    State.supportBadgeTimer = setInterval(() => { if (State.token && !document.hidden) refreshSupportBadge(); }, 60000);
+  }
+}
+
+// Телефон: меню выезжает поверх страницы по кнопке ☰ в шапке.
+function toggleMobileNav(force) {
+  const on = typeof force === 'boolean' ? force : !document.body.classList.contains('nav-open');
+  document.body.classList.toggle('nav-open', on);
+}
+
+// Свёрнутое боковое меню (только иконки) — запоминаем выбор пользователя.
+function toggleRail(force) {
+  const on = typeof force === 'boolean' ? force : !document.body.classList.contains('rail-collapsed');
+  document.body.classList.toggle('rail-collapsed', on);
+  const btn = document.querySelector('.rail-toggle');
+  if (btn) {
+    btn.title = on ? 'Развернуть меню' : 'Свернуть меню';
+    btn.querySelector('.nav-l').textContent = on ? 'Развернуть' : 'Свернуть';
+  }
+  try { localStorage.setItem('rail_collapsed', on ? '1' : ''); } catch (_) {}
+  if (State.mapInstance) setTimeout(() => State.mapInstance.resize(), 200);
+}
+
+// Браузер принимал поля поиска и фильтров за форму входа и предлагал
+// сохранённые пароли и почту. Всем полям вне форм входа/регистрации/смены
+// пароля явно запрещаем автозаполнение — включая те, что рисуются позже.
+const AUTH_FORMS = '#loginForm, #registerForm, #confirmEmailForm, #pwForm';
+function hardenAutofill(root) {
+  (root.querySelectorAll ? root.querySelectorAll('input, textarea') : []).forEach(el => {
+    if (el.closest(AUTH_FORMS) || el.type === 'file' || el.type === 'checkbox' || el.type === 'radio') return;
+    if (el.getAttribute('autocomplete') !== 'off') el.setAttribute('autocomplete', 'off');
+    el.setAttribute('data-lpignore', 'true');
+    el.setAttribute('data-1p-ignore', '');
+  });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  hardenAutofill(document);
+  new MutationObserver(muts => muts.forEach(m => m.addedNodes.forEach(n => {
+    if (n.nodeType === 1) hardenAutofill(n.matches && n.matches('input, textarea') ? n.parentNode : n);
+  }))).observe(document.body, { childList: true, subtree: true });
+  try { if (localStorage.getItem('rail_collapsed')) toggleRail(true); } catch (_) {}
   ['csManuf','csAddress','csProduct'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
   document.querySelectorAll('.date-mask').forEach(attachDateMask);
   checkAuth();
@@ -3594,13 +3959,14 @@ document.addEventListener('DOMContentLoaded', () => {
 let _atnLink = null;
 let _atnAllNotes = [];
 
-async function openAddToNoteModal(label, url) {
-  _atnLink = { label, url };
-  document.getElementById('atnLabel').textContent = label;
-  const urlEl = document.getElementById('atnUrl');
-  urlEl.textContent = url || '';
-  urlEl.style.display = url ? '' : 'none';
-  document.getElementById('atnNewTitle').value = label;
+// link — { kind: 'company', inn, label } или { kind: 'decl', id, label }:
+// в заметку попадает ссылка на карточку внутри сервиса, а не на сайт ФСА.
+async function openAddToNoteModal(link) {
+  _atnLink = link;
+  document.getElementById('atnLabel').textContent = (link.kind === 'company' ? 'Компания: ' : 'Декларация: ') + link.label;
+  // Заголовок не подставляем: номер декларации или «ООО … (ИНН …)» в названии
+  // заметки читались как мусор. Пусто — возьмём название компании при создании.
+  document.getElementById('atnNewTitle').value = '';
   document.getElementById('atnSearch').value = '';
 
   try { _atnAllNotes = await apiFetch('/api/notes'); } catch(_) { _atnAllNotes = []; }
@@ -3641,8 +4007,7 @@ async function atnPickNote(noteId) {
 }
 
 async function atnCreateAndAdd() {
-  const title = document.getElementById('atnNewTitle').value.trim();
-  if (!title) { document.getElementById('atnNewTitle').focus(); return; }
+  const title = document.getElementById('atnNewTitle').value.trim() || (_atnLink && _atnLink.label) || 'Заметка';
   try {
     await apiFetch('/api/notes', { method: 'POST', body: JSON.stringify({
       title, content: '', links: _atnLink ? [_atnLink] : []
@@ -4156,9 +4521,9 @@ function renderNotes() {
   }
   if (empty) empty.style.display = 'none';
   grid.innerHTML = _notes.map(n => {
-    const linksHtml = n.links.length
-      ? `<span class="note-chip">🔗 ${n.links.length} ссыл.</span>`
-      : '';
+    const internal = n.links.filter(l => l.kind === 'company' || l.kind === 'decl');
+    const linksHtml = internal.slice(0, 2).map(l => `<span class="note-chip" title="${escHtml(l.label)}">${l.kind === 'company' ? '🏢' : '📄'} ${escHtml((l.label || '').slice(0, 28))}</span>`).join('')
+      + (n.links.length > Math.min(2, internal.length) ? `<span class="note-chip">+${n.links.length - Math.min(2, internal.length)}</span>` : '');
     const stage = NOTE_STAGES[n.stage];
     const stageHtml = stage
       ? `<span class="note-chip" style="background:${stage.color}1a;color:${stage.color}">${stage.label}</span>`
@@ -4278,7 +4643,7 @@ function openNoteModal(noteId) {
 
   const linksContainer = document.getElementById('noteLinks');
   linksContainer.innerHTML = '';
-  (note ? note.links : []).forEach(l => addNoteLinkRow(l.label || '', l.url || ''));
+  (note ? note.links : []).forEach(l => addNoteLinkRow(l));
 
   openModal('noteModal');
 }
@@ -4294,18 +4659,43 @@ function isoToLocalInputValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function addNoteLink(label, url) {
-  addNoteLinkRow(label || '', url || '');
+function addNoteLink() {
+  addNoteLinkRow({ label: '', url: '' });
 }
 
-function addNoteLinkRow(label, url) {
+// Связанная компания/декларация открывается внутри сервиса.
+function openNoteLink(link) {
+  closeModal('noteModal');
+  if (link.kind === 'company') openCompany(link.inn || '', link.label || '');
+  else if (link.kind === 'decl') openDetail(link.id);
+}
+
+// Внутренние ссылки (компания/декларация) — нередактируемая плашка, по клику
+// открывается карточка в сервисе; внешние — два поля, как раньше.
+function addNoteLinkRow(link) {
   const container = document.getElementById('noteLinks');
   const row = document.createElement('div');
   row.className = 'note-link-row';
-  row.innerHTML = `
-    <input type="text" class="fi note-link-label" placeholder="Название" value="${escHtml(label)}" style="width:35%">
-    <input type="url" class="fi note-link-url" placeholder="https://..." value="${escHtml(url)}" style="flex:1">
-    <button type="button" class="note-rm" onclick="this.closest('.note-link-row').remove()">✕</button>`;
+  if (link.kind === 'company' || link.kind === 'decl') {
+    row.dataset.link = JSON.stringify(link);
+    row.classList.add('note-link-int');
+    const kindLabel = link.kind === 'company' ? 'Компания' : 'Декларация';
+    row.innerHTML = `
+      <button type="button" class="note-link-open" title="Открыть карточку">
+        <small>${kindLabel}</small><span></span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M7 17L17 7M9 7h8v8"/></svg>
+      </button>
+      <button type="button" class="note-rm" title="Убрать из заметки">✕</button>`;
+    row.querySelector('.note-link-open span').textContent = link.label || (link.kind === 'company' ? link.inn : link.id);
+    row.querySelector('.note-link-open').onclick = () => openNoteLink(link);
+  } else {
+    row.innerHTML = `
+      <input type="text" class="fi note-link-label" placeholder="Название" style="width:35%" autocomplete="off">
+      <input type="url" class="fi note-link-url" placeholder="https://..." style="flex:1" autocomplete="off">
+      <button type="button" class="note-rm" title="Убрать">✕</button>`;
+    row.querySelector('.note-link-label').value = link.label || '';
+    row.querySelector('.note-link-url').value = link.url || '';
+  }
+  row.querySelector('.note-rm').onclick = () => row.remove();
   container.appendChild(row);
 }
 
@@ -4325,6 +4715,7 @@ async function saveNote() {
   const linkRows = document.querySelectorAll('#noteLinks .note-link-row');
   const links = [];
   linkRows.forEach(row => {
+    if (row.dataset.link) { links.push(JSON.parse(row.dataset.link)); return; }
     const url = row.querySelector('.note-link-url').value.trim();
     const label = row.querySelector('.note-link-label').value.trim();
     if (url) links.push({ label: label || url, url });

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" type="image/png" href="/img/kovelia-mark.png">
-  <title>KOVELIA — реестр АПК</title>
+  <title>KOVELIA — Агро реестр</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="/css/style.css">
 </head>
@@ -13,10 +13,11 @@
 <!-- LOGIN PAGE -->
 <div id="pg-login" class="login-page" style="display:none">
   <div class="login-card">
-    <div class="login-logo">
-      <img src="/img/kovelia-logo.png" alt="KOVELIA — Data / Intelligence / Platforms" class="login-logo-img">
+    <div class="brand brand-light brand-lg">
+      <img class="brand-mark" src="/img/kovelia-mark.png" alt="" width="56" height="56">
+      <span class="brand-txt"><span class="brand-name">KOVELIA</span><span class="brand-tag">Агро реестр</span></span>
     </div>
-    <p class="login-subtitle">Реестр сельхозпроизводителей России</p>
+    <p class="login-subtitle">Реестр производителей и трейдеров зерна по всей России</p>
 
     <div class="auth-tabs">
       <button class="auth-tab active" id="tabLogin" onclick="switchAuthTab('login')">Вход</button>
@@ -26,8 +27,8 @@
     <form id="loginForm" onsubmit="handleLogin(event)">
       <div class="fg" style="grid-template-columns:1fr">
         <div class="frow">
-          <label>Логин</label>
-          <input type="text" id="loginUser" required placeholder="Введите логин" autocomplete="username">
+          <label>Email или логин</label>
+          <input type="text" id="loginUser" required placeholder="you@example.com" autocomplete="username">
         </div>
         <div class="frow">
           <label>Пароль</label>
@@ -79,7 +80,7 @@
       <p id="confirmEmailError" class="auth-error" style="display:none"></p>
     </form>
 
-    <div id="authTosNote" style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
+    <div id="authTosNote" style="display:none;text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
       Регистрируясь, вы соглашаетесь с <a href="#" onclick="openTos();return false" style="color:var(--accent)">пользовательским соглашением</a>
     </div>
   </div>
@@ -89,40 +90,46 @@
 <div id="app" style="display:none">
 <div class="app-shell">
   <aside class="nav-rail">
-    <a class="logo" href="#" onclick="showPage('registry');return false">
-      <div class="logo-ic logo-apk"><img src="/img/kovelia-mark.png" alt="KOVELIA" width="28" height="28"></div>
-      <div class="logo-text-apk"><span class="brand-base">KOVELIA</span><span class="brand-apk">реестр АПК</span></div>
+    <a class="brand brand-dark" href="#" onclick="showPage('home');return false" title="KOVELIA — Агро реестр">
+      <img class="brand-mark" src="/img/kovelia-mark.png" alt="" width="34" height="34">
+      <span class="brand-txt"><span class="brand-name">KOVELIA</span><span class="brand-tag">Агро реестр</span></span>
     </a>
     <nav class="nav">
-      <button class="nav-tab" data-page="home" onclick="showPage('home')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg>Главная</button>
-      <button class="nav-tab" data-page="registry" onclick="showPage('registry')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>Реестр</button>
-      <button class="nav-tab" data-page="map" onclick="showPage('map')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>Карта <span style="font-size:10px;opacity:.7">(Бета)</span></button>
-      <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z"/></svg> Избранные</button>
-      <button class="nav-tab" data-page="folders" onclick="showPage('folders')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg> Папки</button>
-      <button class="nav-tab" data-page="notes" onclick="showPage('notes')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5h6.5L18 7v13a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-16a.5.5 0 01.5-.5z"/><path d="M14 3.5V7h4"/><path d="M9 12h6M9 15.5h6"/></svg> Заметки</button>
-      <button class="nav-tab" data-page="mydb" onclick="showPage('mydb')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6a1 1 0 011 1V6H8V4.5a1 1 0 011-1z"/><path d="M8.5 11h7M8.5 15h7"/></svg> Мои базы</button>
-      <button class="nav-tab" data-page="profile" onclick="showPage('profile')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c1.2-3.6 4-5.4 7-5.4s5.8 1.8 7 5.4"/></svg> Профиль</button>
-      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a7.5 7.5 0 01-7.9 7.49 8.4 8.4 0 01-3.4-.79L4 19l1.2-4.14A7.5 7.5 0 1121 11.5z"/></svg> Поддержка</button>
-      <button class="nav-tab" data-page="crm" id="crmTab" onclick="showPage('crm')" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H4a1 1 0 01-1-1V8a1 1 0 011-1h5m6 0h5a1 1 0 011 1v8a1 1 0 01-1 1h-5M9 7V5a3 3 0 016 0v2M9 12h6"/></svg> CRM</button>
-      <button class="nav-tab" data-page="admin" id="adminTab" onclick="showPage('admin')" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/></svg> Админ</button>
+      <button class="nav-tab" data-page="home" onclick="showPage('home')" title="Главная"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span class="nav-l">Главная</span></button>
+      <button class="nav-tab" data-page="registry" onclick="showPage('registry')" title="Реестр"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg><span class="nav-l">Реестр</span></button>
+      <button class="nav-tab" data-page="map" onclick="showPage('map')" title="Карта (бета)"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg><span class="nav-l">Карта <small class="nav-beta">бета</small></span></button>
+      <button class="nav-tab" data-page="favorites" onclick="showPage('favorites')" title="Избранное"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.8.8-4.2 4.1 1 5.8L12 16.9 6.8 19l1-5.8L3.6 9.1l5.8-.8L12 3z"/></svg><span class="nav-l">Избранное</span></button>
+      <button class="nav-tab" data-page="folders" onclick="showPage('folders')" title="Папки"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg><span class="nav-l">Папки</span></button>
+      <button class="nav-tab" data-page="notes" onclick="showPage('notes')" title="Заметки"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3.5h6.5L18 7v13a.5.5 0 01-.5.5h-9a.5.5 0 01-.5-.5v-16a.5.5 0 01.5-.5z"/><path d="M14 3.5V7h4"/><path d="M9 12h6M9 15.5h6"/></svg><span class="nav-l">Заметки</span></button>
+      <button class="nav-tab" data-page="mydb" onclick="showPage('mydb')" title="Мои базы"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 3.5h6a1 1 0 011 1V6H8V4.5a1 1 0 011-1z"/><path d="M8.5 11h7M8.5 15h7"/></svg><span class="nav-l">Мои базы</span></button>
+      <button class="nav-tab" data-page="crm" onclick="showPage('crm')" title="CRM" id="crmTab" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17H4a1 1 0 01-1-1V8a1 1 0 011-1h5m6 0h5a1 1 0 011 1v8a1 1 0 01-1 1h-5M9 7V5a3 3 0 016 0v2M9 12h6"/></svg><span class="nav-l">CRM</span></button>
+      <button class="nav-tab" data-page="admin" onclick="showPage('admin')" title="Админ" id="adminTab" style="display:none"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z"/></svg><span class="nav-l">Админ</span></button>
     </nav>
-    <div class="rail-user">
-      <div class="rail-avatar" id="railAvatar">—</div>
-      <div class="rail-user-info">
-        <div class="rail-user-name" id="railUser">—</div>
-        <div class="rail-user-role" id="railRole"></div>
-      </div>
+    <div class="rail-bottom">
+      <button class="nav-tab" data-page="feedback" onclick="showPage('feedback')" title="Поддержка"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a7.5 7.5 0 01-7.9 7.49 8.4 8.4 0 01-3.4-.79L4 19l1.2-4.14A7.5 7.5 0 1121 11.5z"/></svg><span class="nav-l">Поддержка</span></button>
+      <button class="nav-tab rail-user" data-page="profile" onclick="showPage('profile')" title="Профиль">
+        <span class="rail-avatar" id="railAvatar">—</span>
+        <span class="rail-user-info nav-l">
+          <span class="rail-user-name" id="railUser">—</span>
+          <span class="rail-user-role" id="railRole"></span>
+        </span>
+      </button>
+      <button class="nav-tab rail-toggle" onclick="toggleRail()" title="Свернуть меню" aria-label="Свернуть меню">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span class="nav-l">Свернуть</span>
+      </button>
     </div>
   </aside>
+  <div class="rail-backdrop" onclick="toggleMobileNav(false)"></div>
   <div class="app-body">
   <!-- HEADER -->
   <div class="hdr">
+    <button class="hdr-burger" onclick="toggleMobileNav()" aria-label="Открыть меню"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="22" height="22"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     <div class="hdr-title" id="pageTitle">Реестр</div>
     <div class="hdr-r">
       <span id="hdrStatus" class="admin-only" style="font-size:12px;color:var(--muted)"></span>
       <span id="subBadge" class="sub-badge" onclick="openSubscription()" style="display:none"></span>
-      <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5.5 9a7 7 0 0112-3.5L20 8"/><path d="M18.5 15a7 7 0 01-12 3.5L4 16"/></svg> Обновить</button>
-      <button class="btn btn-p btn-sm admin-only" onclick="openAdd()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg> Добавить</button>
+      <button class="btn btn-warn btn-sm admin-only" onclick="triggerParse()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v5h5"/><path d="M20 20v-5h-5"/><path d="M5.5 9a7 7 0 0112-3.5L20 8"/><path d="M18.5 15a7 7 0 01-12 3.5L4 16"/></svg><span class="btn-l"> Обновить</span></button>
+      <button class="btn btn-p btn-sm admin-only" onclick="openAdd()"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="btn-l"> Добавить</span></button>
       <button class="btn btn-sm admin-only" onclick="openSettings()" title="Настройки"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 13a7.9 7.9 0 000-2l2-1.5-2-3.5-2.4 1a8 8 0 00-1.7-1L15 3h-4l-.3 2.5a8 8 0 00-1.7 1l-2.4-1-2 3.5L6.6 11a7.9 7.9 0 000 2l-2 1.5 2 3.5 2.4-1a8 8 0 001.7 1L11 21h4l.3-2.5a8 8 0 001.7-1l2.4 1 2-3.5-2-1.5z"/></svg></button>
       <button class="btn btn-sm" onclick="handleLogout()" title="Выйти"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button>
     </div>
@@ -133,7 +140,7 @@
     <div class="home-hero">
       <canvas id="homeHeroCanvas"></canvas>
       <div class="home-hero-body">
-        <div class="home-hero-brand">KOVELIA Agro</div>
+        <div class="home-hero-brand">KOVELIA · Агро реестр</div>
         <h1 class="home-hero-title">Данные. Аналитика. Возможности.</h1>
         <p class="home-hero-sub">Реестр деклараций соответствия на зерно: производители,
           трейдеры, объёмы и контакты — по всей России.</p>
@@ -271,33 +278,42 @@
           <span>Записей: <b id="sideTotalRec">—</b> · Обновлено: <span id="sideLastUpd">—</span></span>
         </div>
 
-        <!-- Toolbar -->
-        <div class="tb">
-          <div class="sw">
-            <svg class="sw-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-            <input type="text" id="globalQ" placeholder="Поиск по компании, ИНН, адресу, продукции..." oninput="applyFiltersDebounced()">
-            <kbd class="sw-kbd">Ctrl + K</kbd>
+        <!-- Поиск по полям + фильтры. Отдельная <form> с autocomplete="off": иначе
+             браузер принимает поля за форму входа и предлагает сохранённые пароли. -->
+        <form class="tb" id="regSearchForm" autocomplete="off" role="search" onsubmit="event.preventDefault();applyFilters()">
+          <div class="sbar">
+            <label class="sbar-f sbar-f-main">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+              <input type="search" id="csManuf" name="q-company" placeholder="Компания или ИНН" autocomplete="off" data-lpignore="true" data-1p-ignore oninput="onSearchInput()">
+            </label>
+            <label class="sbar-f">
+              <input type="search" id="csAddress" name="q-address" placeholder="Адрес, район, город" autocomplete="off" data-lpignore="true" data-1p-ignore oninput="onSearchInput()">
+            </label>
+            <label class="sbar-f">
+              <input type="search" id="csProduct" name="q-product" placeholder="Продукция" autocomplete="off" data-lpignore="true" data-1p-ignore oninput="onSearchInput()">
+            </label>
+            <button type="button" class="sbar-clear" id="sbarClear" onclick="clearColSearch()" title="Очистить поиск" hidden>✕</button>
+            <button type="submit" class="btn btn-p sbar-go">Найти</button>
           </div>
-          <button class="btn btn-p flt-open-btn" id="fltOpenBtn" onclick="toggleFilters()">
+          <button type="button" class="btn flt-open-btn" id="fltOpenBtn" onclick="toggleFilters()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5L3 5z"/></svg>
             Фильтры<span id="fltCount"></span>
           </button>
-          <select class="btn" id="pgSize" onchange="applyFilters()">
+          <select class="btn" id="pgSize" onchange="applyFilters()" title="Компаний на странице">
             <option value="20">20 / стр.</option>
             <option value="50">50 / стр.</option>
             <option value="100">100 / стр.</option>
           </select>
-        </div>
+        </form>
 
         <!-- Активные фильтры -->
-        <div class="fchips-row">
+        <div class="fchips-row" id="fchipsRow" hidden>
           <div class="fchips" id="fltChips"></div>
-          <button class="btn fchip-add" onclick="openFilters()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 5v14M5 12h14"/></svg>
-            Добавить фильтр
-          </button>
-          <button class="btn btn-sm" onclick="subscribeCurrentFilter()" title="Уведомление в MAX о новых декларациях по этому фильтру">🔔 Подписаться</button>
           <a class="fchips-reset" id="fltResetAll" onclick="resetFilters()">Сбросить всё</a>
+          <button class="btn btn-sm watch-btn" onclick="openWatchModal()" data-tip="Пришлём сообщение в MAX, когда в реестре появятся новые декларации под эти условия">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+            Следить за новыми
+          </button>
         </div>
 
         <!-- Table -->
@@ -317,16 +333,7 @@
                   <th>Продукция</th>
                   <th style="text-align:center">Записей</th>
                 </tr>
-                <tr class="col-search">
-                  <td style="text-align:center"><button class="cs-clear" onclick="clearColSearch()" title="Очистить фильтры колонок">✕</button></td>
-                  <td><input class="cs-inp" placeholder="Компания…" id="csManuf" autocomplete="off" oninput="applyFiltersDebounced()"></td>
-                  <td><input class="cs-inp" placeholder="Адрес…" id="csAddress" autocomplete="off" oninput="applyFiltersDebounced()"></td>
-                  <td><input class="cs-inp" placeholder="Продукция…" id="csProduct" autocomplete="off" oninput="applyFiltersDebounced()"></td>
-                  <td></td>
-                </tr>
-                <tr style="display:none">
-                  <td><input id="csDate"><input id="csApplicant"><input id="csGroup"></td>
-                </tr>
+
               </thead>
               <tbody id="tblBody"></tbody>
             </table>
@@ -356,12 +363,24 @@
             <div class="dd" id="ddDistrict"></div>
             <div class="fdr-l">Населённый пункт</div>
             <div class="dd" id="ddPlace"></div>
-            <div class="fdr-l">Радиус от точки</div>
-            <div class="fdr-radius">
-              <div class="fdr-num"><input type="number" min="0" max="1000" id="fRadius" placeholder="—" oninput="onRadiusInput()"><span>км</span></div>
-              <button class="fdr-pin" id="fPinBtn" onclick="useMyLocation()" title="От моего местоположения">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0112 2.5a7 7 0 017 7C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
-              </button>
+            <div class="fdr-l">Искать в радиусе</div>
+            <div class="seg seg-3" id="segRadiusFrom">
+              <button type="button" data-v="">Не искать</button>
+              <button type="button" data-v="place">От пункта</button>
+              <button type="button" data-v="me">От меня</button>
+            </div>
+            <div id="fRadiusBox" hidden>
+              <div class="seg" id="segRadiusKm" style="margin-top:8px">
+                <button type="button" data-v="25">25 км</button>
+                <button type="button" data-v="50">50</button>
+                <button type="button" data-v="100">100</button>
+                <button type="button" data-v="300">300</button>
+                <button type="button" data-v="1000">1000</button>
+              </div>
+              <div class="fdr-radius">
+                <span class="fdr-l" style="margin:0">Свой радиус</span>
+                <div class="fdr-num"><input type="number" min="1" max="3000" step="5" id="fRadius" placeholder="—" autocomplete="off" oninput="onRadiusInput()"><span>км</span></div>
+              </div>
             </div>
             <div class="fdr-hint" id="fRadiusHint"></div>
           </section>
@@ -530,32 +549,63 @@
     </div>
   </div>
 
-  <!-- FEEDBACK PAGE -->
+  <!-- FEEDBACK PAGE: обращения + переписка с поддержкой -->
   <div class="panel-page" id="pg-feedback">
     <div class="panel-hdr">
       <h2>💬 Поддержка</h2>
-      <button class="btn btn-p btn-sm" onclick="openFeedbackForm()">+ Написать в поддержку</button>
+      <button class="btn btn-p btn-sm" onclick="openFeedbackForm()">+ Новое обращение</button>
     </div>
 
-    <div id="feedbackForm" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:16px;margin-bottom:18px">
-      <input id="fbTitle" class="fi" style="width:100%;margin-bottom:8px" placeholder="Коротко: что случилось?">
-      <textarea id="fbDescription" class="fi" style="width:100%;min-height:80px;resize:vertical;margin-bottom:8px" placeholder="Подробности (необязательно)"></textarea>
-      <div id="fbDropZone" tabindex="0" style="border:2px dashed var(--border);border-radius:var(--r);padding:14px;text-align:center;font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:8px" onclick="document.getElementById('fbFileInput').click()">
+    <form id="feedbackForm" class="fb-new" autocomplete="off" onsubmit="event.preventDefault();submitFeedback()" hidden>
+      <input id="fbTitle" class="fi" placeholder="Коротко: что случилось?" maxlength="200">
+      <textarea id="fbDescription" class="fi" placeholder="Подробности: что делали, что ожидали увидеть"></textarea>
+      <div id="fbDropZone" class="fb-drop" tabindex="0" onclick="document.getElementById('fbFileInput').click()">
         📋 Вставьте скриншот (Ctrl+V) или нажмите, чтобы выбрать файл
-        <input type="file" id="fbFileInput" accept="image/*" style="display:none" onchange="onFeedbackFileSelected(this.files[0])">
+        <input type="file" id="fbFileInput" accept="image/*" hidden onchange="onFeedbackFileSelected(this.files[0])">
       </div>
-      <div id="fbPreviewWrap" style="display:none;margin-bottom:8px">
-        <img id="fbPreview" style="max-width:200px;max-height:140px;border-radius:var(--r);border:1px solid var(--border)">
-        <button class="btn btn-sm" onclick="clearFeedbackImage()">✕ Убрать изображение</button>
+      <div id="fbPreviewWrap" hidden>
+        <img id="fbPreview" class="fb-preview" alt="">
+        <button type="button" class="btn btn-sm" onclick="clearFeedbackImage()">✕ Убрать изображение</button>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-p btn-sm" onclick="submitFeedback()">Отправить</button>
-        <button class="btn btn-sm" onclick="document.getElementById('feedbackForm').style.display='none'">Отмена</button>
+        <button type="submit" class="btn btn-p btn-sm">Отправить</button>
+        <button type="button" class="btn btn-sm" onclick="document.getElementById('feedbackForm').hidden = true">Отмена</button>
       </div>
-    </div>
+    </form>
 
-    <div id="feedbackEmpty" class="empty" style="display:none"><div class="ico">💬</div><p>Обращений пока нет.</p></div>
-    <div class="item-list" id="feedbackList"></div>
+    <div id="feedbackEmpty" class="empty" style="display:none"><div class="ico">💬</div><p>Обращений пока нет.<br>Напишите нам — ответим здесь же, в переписке.</p></div>
+
+    <div class="chat" id="chatWrap">
+      <aside class="chat-list" id="feedbackList"></aside>
+      <section class="chat-pane" id="chatPane">
+        <div class="chat-empty" id="chatEmpty">Выберите обращение слева, чтобы открыть переписку</div>
+        <div class="chat-head" id="chatHead" hidden>
+          <button class="btn btn-sm chat-back" onclick="closeChat()" aria-label="К списку обращений">←</button>
+          <div style="min-width:0;flex:1">
+            <div class="chat-title" id="chatTitle"></div>
+            <div class="chat-sub" id="chatSub"></div>
+          </div>
+          <select class="fi admin-only chat-status" id="chatStatus" onchange="updateFeedbackStatus(State.chatId, this.value)">
+            <option value="new">Новое</option>
+            <option value="in_progress">В работе</option>
+            <option value="resolved">Решено</option>
+          </select>
+          <button class="btn btn-sm btn-dng admin-only" onclick="deleteFeedback(State.chatId)" title="Удалить обращение">🗑</button>
+        </div>
+        <div class="chat-msgs" id="chatMsgs" hidden></div>
+        <form class="chat-input" id="chatForm" autocomplete="off" onsubmit="event.preventDefault();sendChatMessage()" hidden>
+          <div class="chat-attach" id="chatAttach" hidden><img id="chatAttachImg" alt=""><button type="button" onclick="clearChatImage()" title="Убрать">✕</button></div>
+          <div class="chat-row">
+            <button type="button" class="chat-clip" onclick="document.getElementById('chatFile').click()" title="Прикрепить скриншот" aria-label="Прикрепить скриншот">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M21 12.5l-8.5 8.5a5 5 0 01-7-7L14 5.5a3.3 3.3 0 014.7 4.7L10.2 18.7a1.7 1.7 0 01-2.4-2.4L15.5 8.6"/></svg>
+            </button>
+            <input type="file" id="chatFile" accept="image/*" hidden onchange="onChatFile(this.files[0])">
+            <textarea id="chatText" rows="1" placeholder="Сообщение…" title="Enter — отправить, Shift+Enter — новая строка"></textarea>
+            <button type="submit" class="btn btn-p chat-send" id="chatSendBtn">Отправить</button>
+          </div>
+        </form>
+      </section>
+    </div>
   </div>
 
   <!-- CRM PAGE -->
@@ -636,6 +686,8 @@
           <div class="profile-card-icon" style="background:var(--succbg)">🔑</div>
           <h3>Смена пароля</h3>
         </div>
+        <form id="pwForm" autocomplete="on" onsubmit="event.preventDefault();changePassword()">
+        <input type="text" id="pwFormUser" autocomplete="username" hidden>
         <div class="fg" style="grid-template-columns:1fr">
           <div class="frow">
             <label>Текущий пароль</label>
@@ -647,12 +699,12 @@
           </div>
           <div class="frow">
             <label>Подтверждение</label>
-            <input type="password" id="profNewPass2" class="fi" placeholder="Повторите новый пароль" autocomplete="new-password"
-              onkeydown="if(event.key==='Enter')changePassword()">
+            <input type="password" id="profNewPass2" class="fi" placeholder="Повторите новый пароль" autocomplete="new-password">
           </div>
         </div>
         <div id="profPassMsg" class="form-msg" hidden></div>
-        <button class="btn btn-p" style="margin-top:12px" id="profPassBtn" onclick="changePassword()">Сменить пароль</button>
+        <button type="submit" class="btn btn-p" style="margin-top:12px" id="profPassBtn">Сменить пароль</button>
+        </form>
       </div>
 
       <!-- Account info card -->
@@ -764,7 +816,7 @@
       <h3 style="font-size:14px;font-weight:700;margin-bottom:8px">🔑 FSA токен (ручная установка)</h3>
       <p style="font-size:12px;color:var(--muted);margin-bottom:8px">Если парсер перестал работать из-за ошибки авторизации — вставьте JWT-токен вручную. Получить: открыть pub.fsa.gov.ru в браузере → F12 → Application → Local Storage → найти <code>accessToken</code>.</p>
       <div style="display:flex;gap:6px">
-        <input id="fsaTokenInput" type="password" class="fi" style="flex:1;font-size:12px;font-family:monospace" placeholder="eyJ...">
+        <input id="fsaTokenInput" type="text" autocomplete="off" spellcheck="false" class="fi masked" style="flex:1;font-size:12px;font-family:monospace" placeholder="eyJ...">
         <button class="btn btn-sm btn-p" onclick="setFsaToken()">Установить</button>
         <button class="btn btn-sm btn-warn" onclick="clearFsaToken()">Сбросить</button>
       </div>
@@ -826,7 +878,7 @@
 
 <!-- FOOTER -->
 <footer class="site-footer">
-  <span>© <span id="ftrYear"></span> KOVELIA · реестр АПК</span>
+  <span>© <span id="ftrYear"></span> KOVELIA · Агро реестр</span>
   <span class="ftr-sep">·</span>
   <span>Агрегатор открытых данных pub.fsa.gov.ru, не аффилирован с Росаккредитацией</span>
   <span class="ftr-sep">·</span>
@@ -930,7 +982,7 @@
   <div class="mh"><h3>📄 Пользовательское соглашение</h3><button class="mcl" onclick="closeModal('tosModal')">✕</button></div>
   <div class="mb" style="max-height:60vh;overflow-y:auto;font-size:13px;line-height:1.7;color:var(--text)">
     <p style="margin-bottom:12px"><b>1. Общие положения</b></p>
-    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «KOVELIA — реестр сельхозпроизводителей АПК» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
+    <p style="margin-bottom:12px">Настоящее соглашение регулирует условия использования информационно-аналитического сервиса «KOVELIA — Агро реестр» (далее — Сервис). Используя Сервис, вы принимаете условия настоящего соглашения в полном объёме.</p>
     <p style="margin-bottom:12px"><b>2. Источник данных</b></p>
     <p style="margin-bottom:12px">Все сведения о декларациях соответствия, представленные в Сервисе, получены исключительно из открытого государственного реестра Федеральной службы по аккредитации (Росаккредитация) — официального портала <b>pub.fsa.gov.ru</b>, функционирующего в соответствии с Федеральным законом № 412-ФЗ «Об аккредитации в национальной системе аккредитации».</p>
     <p style="margin-bottom:12px">Указанные данные являются <b>общедоступными</b> и размещены государственным органом в открытом доступе для неограниченного круга лиц. Сервис не является официальным ресурсом Росаккредитации и не аффилирован с ним. Сервис выполняет функцию агрегатора и инструмента удобного поиска по открытым данным.</p>
@@ -1018,7 +1070,6 @@
       <h3>📝 В заметку</h3>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">
         <span id="atnLabel" style="font-weight:600"></span>
-        <span id="atnUrl" style="margin-left:4px;word-break:break-all;display:none"></span>
       </div>
     </div>
     <button class="mcl" onclick="closeModal('addToNoteModal')">✕</button>
@@ -1031,7 +1082,7 @@
     <div id="atnEmpty" style="display:none;color:var(--muted);font-size:13px;text-align:center;padding:20px 0">Заметок нет — создайте новую ниже</div>
   </div>
   <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:8px">
-    <input id="atnNewTitle" class="fi" style="flex:1" placeholder="Создать новую заметку...">
+    <input id="atnNewTitle" class="fi" style="flex:1" placeholder="Новая заметка: название (необязательно)" autocomplete="off">
     <button class="btn btn-p btn-sm" onclick="atnCreateAndAdd()">Создать</button>
   </div>
 </div>
@@ -1074,7 +1125,7 @@
         <textarea id="noteContent" class="fi" style="min-height:100px;resize:vertical" placeholder="Описание, наблюдения, контакты..."></textarea>
       </div>
       <div class="frow">
-        <label>Ссылки</label>
+        <label>Связанные компании и ссылки</label>
         <div id="noteLinks" style="display:flex;flex-direction:column;gap:6px"></div>
         <button type="button" class="btn btn-sm" style="margin-top:6px;width:fit-content" onclick="addNoteLink()">+ Добавить ссылку</button>
       </div>
@@ -1085,6 +1136,27 @@
     <button class="btn btn-sm" id="noteDeleteBtn" style="color:var(--dng);border-color:#F09595;display:none" onclick="deleteNote()">Удалить</button>
     <button class="btn btn-p" onclick="saveNote()">Сохранить</button>
   </div>
+</div>
+</div>
+
+
+<!-- WATCH (SAVED SEARCH) MODAL -->
+<div class="ov" id="watchModal" style="display:none">
+<div class="modal" style="max-width:460px">
+  <div class="mh"><h3>🔔 Следить за новыми декларациями</h3><button class="mcl" onclick="closeModal('watchModal')">✕</button></div>
+  <form class="mb" id="watchForm" autocomplete="off" onsubmit="event.preventDefault();saveWatch()">
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Когда в реестре появятся новые декларации под эти условия, мы пришлём сообщение в мессенджер MAX. Управлять слежением можно в «Профиле».</p>
+    <div class="watch-sum" id="watchSummary"></div>
+    <div class="frow" style="margin-top:12px">
+      <label>Название (для себя)</label>
+      <input type="text" id="watchName" class="fi" maxlength="100" autocomplete="off" placeholder="Например: пшеница, Ростовская обл.">
+    </div>
+    <div id="watchMaxNote" class="form-msg err" hidden></div>
+    <div class="mf" style="padding:16px 0 0;border:0">
+      <button type="button" class="btn" onclick="closeModal('watchModal')">Отмена</button>
+      <button type="submit" class="btn btn-p" id="watchSaveBtn">Следить</button>
+    </div>
+  </form>
 </div>
 </div>
 

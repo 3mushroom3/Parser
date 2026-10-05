@@ -88,7 +88,12 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(morgan('short', { stream: { write: message => logger.info(message.trim()) } }));
+// Сервер стоит за nginx на том же хосте: без этого req.ip у всех запросов —
+// 127.0.0.1, и лимит попыток входа срабатывал на весь сайт сразу (после 10
+// входов любых пользователей за 15 минут блокировался вход всем).
+app.set('trust proxy', 'loopback');
+
+app.use(morgan('short',{ stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
@@ -244,6 +249,13 @@ if (process.env.NODE_ENV !== 'test') {
       logger.warn(`⚠️  Создан аккаунт admin. Пароль (показывается только один раз): ${tempPassword}`);
       logger.warn('⚠️  Запишите его и смените через /профиль при первом входе!');
       logger.warn('========================================================================');
+    }
+
+    // Локальная проверка интерфейса: без парсера, доливки открытых данных,
+    // геокодера и т.п. — они ходят во внешние API и тратят суточные лимиты DaData.
+    if (process.env.DISABLE_JOBS === 'true') {
+      logger.warn('DISABLE_JOBS=true — фоновые задания не запускаются');
+      return;
     }
 
     // Start cron
