@@ -812,3 +812,24 @@ td [data-tip]:hover::after,td [data-tip]:focus-visible::after{bottom:auto;top:50
   .stats{flex-wrap:wrap}
   .sc{min-width:calc(50% - 6px)}
 }
+
+/* ── Объёмы по декларациям ───────────────────────────────── */
+.vol-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.vol-filters label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.vol-filters label span{font-size:11.5px;color:var(--muted);font-weight:600}
+.vol-filters select{height:36px;font-size:13px}
+.vol-filters select:disabled{opacity:.55}
+.vol-legend{gap:6px}
+.vol-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:3px 10px;font:inherit;font-size:12px;color:var(--text);cursor:pointer}
+.vol-chip i{width:12px;height:3px;border-radius:2px}
+.vol-chip.off{opacity:.45;text-decoration:line-through}
+.vol-chip:hover{border-color:var(--acm)}
+.vol-note{font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+.vol-card .dyn-chart{height:280px}
+.dyn-tip-r small{margin-left:4px;font-size:11px}
+@media (max-width: 640px){
+  .vol-filters{grid-template-columns:1fr 1fr}
+  .vol-filters label:first-child{grid-column:1/-1}
+  .vol-card .dyn-chart{height:230px}
+  .vol-card .dyn-kpis{grid-template-columns:1fr}
+}

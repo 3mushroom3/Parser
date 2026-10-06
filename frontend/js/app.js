@@ -979,8 +979,8 @@ async function loadHome() {
     document.getElementById('hmTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
   } catch (_) {}
 
-  initDynamics();
-  loadDynamics(false);
+  initVolumes();
+  loadVolumes(false);
 
   try {
     const d = await apiFetch('/api/system/home');
@@ -1065,214 +1065,362 @@ function drawHomeHero() {
   ctx.fillStyle = fade; ctx.fillRect(0, 0, w * 0.62, h);
 }
 
-// ── Динамика деклараций ───────────────────────────────────────────────────
-// Данные — /api/system/dynamics (кэш на минуту). Пока открыта главная и вкладка
-// видна, опрашиваем раз в минуту: живой парсер доливает текущий день каждые
-// 30 минут, и новые декларации появляются на графике без перезагрузки.
-// Цвета производителей/трейдеров прогнаны через валидатор палитры (различимы
-// и при дальтонизме); «прочие» — нейтральный серый.
-const DYN_COLORS = { farmer: '#119068', trader: '#b9730c', other: '#c3cecc', prev: '#8a9897' };
-const DYN_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-const DYN_MON_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
-const DYN_MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
-const DYN_MON_DAT = ['январю', 'февралю', 'марту', 'апрелю', 'маю', 'июню', 'июлю', 'августу', 'сентябрю', 'октябрю', 'ноябрю', 'декабрю'];
-const DYN_WD = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-const Dyn = { data: null, range: 'days', series: [], hover: -1, geo: null, anim: 1, inited: false, lastToday: null, bumpTimer: null };
+// ── Объёмы по декларациям (главная) ─────────────────────────────────────────
+// Тонны по месяцу регистрации декларации, с фильтром по региону, району и
+// культуре. Данные — /api/system/volumes (сводка пересобирается раз в час,
+// рамочные декларации «до 500 000 т» в тонны не входят — см. volumeStatsWorker).
+// Цвета лет — первые слоты проверенной категориальной палитры, фиксированно
+// за годом (год не меняет цвет при фильтрах); текущий год — толще и с точками.
+const VOL_YEAR_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#4a3aa7', '#008300', '#e34948'];
+const VOL_FIRST_YEAR = 2021;
+const volYearColor = y => VOL_YEAR_COLORS[((y - VOL_FIRST_YEAR) % VOL_YEAR_COLORS.length + VOL_YEAR_COLORS.length) % VOL_YEAR_COLORS.length];
+const VOL_MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const VOL_MON_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+const VOL_MON_PREP = ['январе', 'феврале', 'марте', 'апреле', 'мае', 'июне', 'июле', 'августе', 'сентябре', 'октябре', 'ноябре', 'декабре'];
+const Vol = { data: null, view: 'years', hidden: new Set(), hover: -1, geo: null, anim: 1, inited: false, seq: 0 };
 
-const dynNum = n => (n || 0).toLocaleString('ru');
-const dynDate = s => new Date(s + 'T00:00:00Z');
-const dynIso = d => d.toISOString().slice(0, 10);
+function fmtTons(v, short) {
+  v = Number(v) || 0;
+  const n = (x, d) => x.toLocaleString('ru', { maximumFractionDigits: d });
+  if (v >= 1e6) return n(v / 1e6, v >= 1e7 ? 0 : 1) + (short ? ' млн' : ' млн т');
+  if (v >= 1e3) return n(v / 1e3, v >= 1e4 ? 0 : 1) + (short ? ' тыс' : ' тыс т');
+  return n(v, 0) + (short ? '' : ' т');
+}
 
-function initDynamics() {
-  if (Dyn.inited) return;
-  Dyn.inited = true;
-  document.querySelectorAll('.dyn-seg button').forEach(b => b.addEventListener('click', () => {
-    Dyn.range = b.dataset.range;
-    document.querySelectorAll('.dyn-seg button').forEach(x => {
+function initVolumes() {
+  if (Vol.inited) return;
+  Vol.inited = true;
+  document.querySelectorAll('.vol-card .dyn-seg button').forEach(b => b.addEventListener('click', () => {
+    Vol.view = b.dataset.view;
+    document.querySelectorAll('.vol-card .dyn-seg button').forEach(x => {
       x.classList.toggle('act', x === b);
       x.setAttribute('aria-selected', x === b ? 'true' : 'false');
     });
-    Dyn.hover = -1;
-    hideDynTip();
-    drawDynChart(true);
+    Vol.hover = -1; hideVolTip();
+    drawVolChart(true);
   }));
-  const cv = document.getElementById('homeChart');
-  cv.addEventListener('pointermove', onDynHover);
-  cv.addEventListener('pointerleave', () => { Dyn.hover = -1; hideDynTip(); paintDyn(); });
+  document.getElementById('volRegion').addEventListener('change', () => {
+    document.getElementById('volDistrict').value = '';
+    loadVolumes(false);
+  });
+  document.getElementById('volDistrict').addEventListener('change', () => loadVolumes(false));
+  document.getElementById('volCrop').addEventListener('change', () => loadVolumes(false));
+  const cv = document.getElementById('volChart');
+  cv.addEventListener('pointermove', onVolHover);
+  cv.addEventListener('pointerleave', () => { Vol.hover = -1; hideVolTip(); paintVol(); });
   let rt;
   window.addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = setTimeout(() => { if (State.currentPage === 'home' && Dyn.data) drawDynChart(false); }, 150);
+    rt = setTimeout(() => { if (State.currentPage === 'home' && Vol.data) drawVolChart(false); }, 150);
   });
-  setInterval(() => {
-    if (State.currentPage === 'home' && !document.hidden) loadDynamics(true);
-  }, 60000);
-  setInterval(renderDynUpdated, 20000);
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && State.currentPage === 'home') loadDynamics(true);
-  });
+  // Сводка обновляется раз в час — подтягиваем, пока открыта главная
+  setInterval(() => { if (State.currentPage === 'home' && !document.hidden) loadVolumes(true); }, 5 * 60000);
+  setInterval(renderVolUpdated, 30000);
 }
 
-async function loadDynamics(silent) {
+async function loadVolumes(silent) {
+  const seq = ++Vol.seq;
+  const region = document.getElementById('volRegion').value;
+  const district = document.getElementById('volDistrict').value;
+  const crop = document.getElementById('volCrop').value;
+  const box = document.getElementById('volChartBox');
+  if (!silent) box.classList.add('loading');
   try {
-    const d = await apiFetch('/api/system/dynamics');
-    const prevToday = Dyn.lastToday;
-    Dyn.data = d;
-    renderDynKpis(silent ? prevToday : null);
-    renderDynUpdated();
-    drawDynChart(!silent);
+    const d = await apiFetch('/api/system/volumes' + buildQS({ region, district, crop }));
+    if (seq !== Vol.seq) return;
+    Vol.data = d;
+    fillVolSelects(d, region, district, crop);
+    renderVolKpis();
+    renderVolUpdated();
+    renderVolNote();
+    drawVolChart(!silent);
   } catch (_) {
-    if (!silent) document.getElementById('dynUpdated').textContent = 'не удалось загрузить';
-  }
+    if (!silent) document.getElementById('volUpdated').textContent = 'не удалось загрузить';
+  } finally { box.classList.remove('loading'); }
 }
 
-// 30 дней подряд, включая дни без деклараций (выходные и праздники — нули, не дыры).
-function dynDaySeries() {
-  const d = Dyn.data, byDate = {};
-  (d.days || []).forEach(r => { byDate[r.date] = r; });
-  const end = dynDate(d.today), out = [];
-  for (let i = 29; i >= 0; i--) {
-    const dt = new Date(end.getTime() - i * 86400000), r = byDate[dynIso(dt)] || {};
-    const total = r.total || 0, farmer = r.farmer || 0, trader = r.trader || 0;
-    out.push({
-      total, farmer, trader, other: Math.max(0, total - farmer - trader),
-      wd: dt.getUTCDay(), day: dt.getUTCDate(), mon: dt.getUTCMonth(), isNow: i === 0,
-    });
-  }
-  return out;
+function fillVolSelects(d, region, district, crop) {
+  const fill = (id, first, items, label, value) => {
+    const el = document.getElementById(id);
+    el.innerHTML = '';
+    el.append(new Option(first, ''));
+    items.forEach(it => el.append(new Option(label(it.v), it.v)));
+    if (value && !items.some(it => it.v === value)) el.append(new Option(label(value), value));
+    el.value = value || '';
+  };
+  fill('volRegion', 'Вся Россия', d.regions, regionLabel, region);
+  fill('volDistrict', 'Все районы', d.districts, v => v + ' р-н', district);
+  document.getElementById('volDistrict').disabled = !region;
+  fill('volCrop', 'Все культуры', d.crops, v => v === 'other' ? 'Прочее' : (CROP_LABEL[v] || v), crop);
 }
 
-// 12 месяцев до текущего + те же месяцы годом раньше для сравнения.
-function dynMonthSeries() {
-  const d = Dyn.data, byYm = {};
-  (d.months || []).forEach(r => { byYm[r.ym] = r.total; });
-  const [y, m] = d.today.split('-').map(Number), out = [];
-  const ym = (yy, mm) => `${yy}-${String(mm + 1).padStart(2, '0')}`;
-  for (let i = 11; i >= 0; i--) {
-    const dt = new Date(Date.UTC(y, m - 1 - i, 1)), yy = dt.getUTCFullYear(), mm = dt.getUTCMonth();
-    out.push({ total: byYm[ym(yy, mm)] || 0, prev: byYm[ym(yy - 1, mm)] || 0, year: yy, mon: mm, isNow: i === 0 });
+// { 2024: [12 значений], ... } — тонны по месяцам каждого года
+function volByYear() {
+  const d = Vol.data, out = {};
+  const [cy, cm] = d.today.split('-').map(Number);
+  for (let y = VOL_FIRST_YEAR; y <= cy; y++) out[y] = Array.from({ length: 12 }, (_, m) => (y === cy && m + 1 > cm ? null : 0));
+  const n = {};
+  for (const r of d.months) {
+    const y = +r.ym.slice(0, 4), m = +r.ym.slice(5, 7) - 1;
+    if (!out[y] || out[y][m] === null) continue;
+    out[y][m] = r.tons || 0;
+    (n[y] = n[y] || [])[m] = r.n || 0;
   }
-  return out;
+  return { tons: out, n, cy, cm };
 }
 
-function dynDelta(cur, prev, suffix) {
-  if (!prev) return '';
+function volDelta(cur, prev, suffix) {
+  if (!prev) return suffix ? `<span>${suffix}</span>` : '';
   const p = Math.round((cur - prev) / prev * 100);
   if (p === 0) return `на уровне ${suffix.replace(/^к /, '')}`;
   return `<span class="${p > 0 ? 'up' : 'down'}"><b>${p > 0 ? '▲' : '▼'} ${Math.abs(p)}%</b></span> ${suffix}`;
 }
 
-function renderDynKpis(prevToday) {
-  const d = Dyn.data, days = dynDaySeries();
-  const today = days[days.length - 1], full = days.slice(0, -1);
-  const isWeekend = wd => wd === 0 || wd === 6;
-
-  // «Обычный день» — среднее по таким же дням (будни или выходные) за прошлые 4 недели.
-  const same = full.filter(x => isWeekend(x.wd) === isWeekend(today.wd));
-  const avg = same.length ? Math.round(same.reduce((s, x) => s + x.total, 0) / same.length) : 0;
-  const elToday = document.getElementById('dynToday'), elTodayD = document.getElementById('dynTodayD');
-  elToday.textContent = dynNum(today.total);
-  if (prevToday != null && today.total > prevToday) {
-    // Парсер долил новые декларации, пока страница была открыта — показываем прирост.
-    elTodayD.innerHTML = `<span class="up"><b>+${dynNum(today.total - prevToday)}</b></span> только что`;
-    elToday.classList.add('bump');
-    clearTimeout(Dyn.bumpTimer);
-    Dyn.bumpTimer = setTimeout(() => { elToday.classList.remove('bump'); renderDynKpis(null); }, 20000);
-  } else if (prevToday == null || !elToday.classList.contains('bump')) {
-    elTodayD.textContent = avg ? `обычно ≈ ${dynNum(avg)} в ${isWeekend(today.wd) ? 'выходной' : 'будний день'}` : '';
-  }
-  Dyn.lastToday = today.total;
-
-  // Неделя — по полным дням (без сегодняшнего, он ещё идёт), иначе сравнение
-  // с прошлой неделей всегда выходило бы в минус.
-  const week = full.slice(-7).reduce((s, x) => s + x.total, 0);
-  const prevWeek = full.slice(-14, -7).reduce((s, x) => s + x.total, 0);
-  const elWeek = document.getElementById('dynWeek');
-  elWeek.textContent = dynNum(week);
-  elWeek.title = 'Последние 7 полных дней, без сегодняшнего';
-  document.getElementById('dynWeekD').innerHTML = dynDelta(week, prevWeek, 'к прошлой неделе');
-
-  const months = dynMonthSeries(), cur = months[months.length - 1];
-  document.getElementById('dynMonth').textContent = dynNum(cur.total);
-  document.getElementById('dynMonthD').innerHTML = dynDelta(cur.total, d.lastYearMtd, `к ${DYN_MON_DAT[cur.mon]} ${cur.year - 1}`);
+function renderVolKpis() {
+  const { tons, cy, cm } = volByYear();
+  const cur = tons[cy] || [], prev = tons[cy - 1] || [], prev2 = tons[cy - 2] || [];
+  const sum = (arr, from, to) => arr.slice(from, to).reduce((s, v) => s + (v || 0), 0);
+  // Этот месяц ещё идёт — сравниваем не процентом, а просто показываем прошлый год
+  document.getElementById('volK1l').textContent = `${VOL_MON_FULL[cm - 1][0].toUpperCase() + VOL_MON_FULL[cm - 1].slice(1)} ${cy}`;
+  document.getElementById('volK1').textContent = fmtTons(cur[cm - 1]);
+  document.getElementById('volK1d').textContent = `месяц идёт · в ${VOL_MON_PREP[cm - 1]} ${cy - 1}: ${fmtTons(prev[cm - 1])}`;
+  // С начала года — по полным месяцам, иначе текущий неполный месяц тянет в минус
+  const full = cm - 1;
+  document.getElementById('volK2l').textContent = full ? `Январь–${VOL_MON_FULL[full - 1]} ${cy}` : `С начала ${cy}`;
+  document.getElementById('volK2').textContent = fmtTons(full ? sum(cur, 0, full) : cur[0]);
+  document.getElementById('volK2d').innerHTML = full ? volDelta(sum(cur, 0, full), sum(prev, 0, full), `к тем же месяцам ${cy - 1}`) : '';
+  document.getElementById('volK3l').textContent = `${cy - 1} год целиком`;
+  document.getElementById('volK3').textContent = fmtTons(sum(prev, 0, 12));
+  document.getElementById('volK3d').innerHTML = volDelta(sum(prev, 0, 12), sum(prev2, 0, 12), `к ${cy - 2} году`);
 }
 
-function dynAgo(date) {
-  const min = Math.round((Date.now() - date.getTime()) / 60000);
-  if (min < 1) return 'только что';
-  if (min < 60) return `${min} мин назад`;
-  if (min < 24 * 60) return `${Math.floor(min / 60)} ч назад`;
-  return date.toLocaleDateString('ru');
-}
-
-function renderDynUpdated() {
-  const d = Dyn.data;
+function renderVolUpdated() {
+  const d = Vol.data;
   if (!d) return;
-  const live = document.getElementById('dynLive'), el = document.getElementById('dynUpdated');
-  // updatedAt — CURRENT_TIMESTAMP SQLite, т.е. UTC без пометки зоны.
-  const upd = d.lastUpdated ? new Date(d.lastUpdated.replace(' ', 'T') + 'Z') : null;
-  const stale = !upd || Date.now() - upd.getTime() > 3 * 3600 * 1000;
-  live.classList.toggle('stale', stale);
-  const state = d.parser && d.parser.state === 'running' ? 'Идёт сбор новых деклараций' : 'В реальном времени';
-  el.textContent = `${stale ? 'Нет свежих данных' : state} · обновлено ${upd ? dynAgo(upd) : '—'}`;
+  const el = document.getElementById('volUpdated'), live = document.getElementById('volLive');
+  const upd = d.builtAt ? new Date(d.builtAt) : null;
+  live.classList.toggle('stale', !upd || Date.now() - upd.getTime() > 3 * 3600 * 1000);
+  el.textContent = upd ? `Пересчитывается каждый час · обновлено ${dynAgo(upd)}` : 'Сводка собирается — обновите страницу через минуту';
 }
 
-function renderDynLegend() {
-  const items = Dyn.range === 'days'
-    ? [['Производители', DYN_COLORS.farmer], ['Трейдеры', DYN_COLORS.trader], ['Прочие', DYN_COLORS.other]]
-    : [['Последние 12 месяцев', DYN_COLORS.farmer], ['Год назад', null]];
-  const el = document.getElementById('dynLegend');
+function renderVolNote() {
+  const d = Vol.data;
+  const big = d.months.reduce((s, r) => s + (r.big || 0), 0);
+  document.getElementById('volNote').textContent = 'Объём — заявленный в декларациях размер партии, по месяцу регистрации декларации.'
+    + (big ? ` Не учтены ${big.toLocaleString('ru')} ${plural(big, 'рамочная декларация', 'рамочные декларации', 'рамочных деклараций')} свыше ${fmtTons(d.maxBatchTons || 100000)} — это лимиты трейдеров, а не партии.` : '');
+}
+
+function volSeries() {
+  const { tons, n, cy, cm } = volByYear();
+  if (Vol.view === 'years') {
+    const years = Object.keys(tons).map(Number).filter(y => tons[y].some(v => v));
+    return { kind: 'years', years, tons, n, cy, cm, len: 12 };
+  }
+  // Вся история — столбики по месяцам подряд, от первого месяца с данными
+  const bars = [];
+  Object.keys(tons).map(Number).sort().forEach(y => tons[y].forEach((v, m) => {
+    if (v === null) return;
+    bars.push({ y, m, v, n: (n[y] || [])[m] || 0, isNow: y === cy && m + 1 === cm });
+  }));
+  const first = bars.findIndex(b => b.v > 0);
+  return { kind: 'history', bars: first > 0 ? bars.slice(first) : bars, cy, cm, len: Math.max(1, bars.length - Math.max(first, 0)) };
+}
+
+function renderVolLegend(S) {
+  const el = document.getElementById('volLegend');
   el.innerHTML = '';
-  items.forEach(([label, color]) => {
-    const s = document.createElement('span'), i = document.createElement('i');
-    if (color) i.style.background = color; else i.className = 'ln';
-    s.append(i, document.createTextNode(label));
-    el.append(s);
+  if (S.kind !== 'years') {
+    el.innerHTML = '<span><i style="background:#9aa9a7"></i>Цвет столбика — год (как на «Сравнении лет»)</span>';
+    return;
+  }
+  S.years.forEach(y => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'vol-chip' + (Vol.hidden.has(y) ? ' off' : '');
+    b.title = Vol.hidden.has(y) ? 'Показать год' : 'Скрыть год';
+    b.innerHTML = `<i style="background:${volYearColor(y)}"></i>${y}${y === S.cy ? ' · идёт' : ''}`;
+    b.onclick = () => {
+      if (Vol.hidden.has(y)) Vol.hidden.delete(y); else Vol.hidden.add(y);
+      drawVolChart(false);
+    };
+    el.append(b);
   });
 }
 
-function drawDynChart(animate) {
-  if (!Dyn.data) return;
-  Dyn.series = Dyn.range === 'days' ? dynDaySeries() : dynMonthSeries();
-  const empty = !Dyn.series.some(x => x.total || x.prev);
-  document.getElementById('dynChartBox').hidden = empty;
-  document.getElementById('hmChartEmpty').hidden = !empty;
+function drawVolChart(animate) {
+  if (!Vol.data) return;
+  const S = volSeries();
+  const empty = S.kind === 'years' ? !S.years.length : !S.bars.some(b => b.v);
+  document.getElementById('volChartBox').hidden = empty;
+  document.getElementById('volEmpty').hidden = !empty;
+  renderVolLegend(S);
+  Vol.series = S;
   if (empty) return;
-  renderDynLegend();
-  if (!animate) { Dyn.anim = 1; paintDyn(); return; }
+  if (!animate) { Vol.anim = 1; paintVol(); return; }
   const t0 = performance.now();
   const step = now => {
     const t = Math.min(1, (now - t0) / 600);
-    Dyn.anim = 1 - Math.pow(1 - t, 3);
-    paintDyn();
+    Vol.anim = 1 - Math.pow(1 - t, 3);
+    paintVol();
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
 }
 
+function paintVol() {
+  const S = Vol.series, cv = document.getElementById('volChart'), box = document.getElementById('volChartBox');
+  if (!S || !cv) return;
+  const dpr = window.devicePixelRatio || 1, W = box.clientWidth, H = box.clientHeight;
+  if (!W || !H) return;
+  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr); }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+
+  const padL = 56, padR = S.kind === 'years' ? 44 : 8, padT = 10, padB = 24;
+  const visYears = S.kind === 'years' ? S.years.filter(y => !Vol.hidden.has(y)) : [];
+  const vals = S.kind === 'years' ? visYears.flatMap(y => S.tons[y].filter(v => v != null)) : S.bars.map(b => b.v);
+  const { top, step } = dynNiceScale(Math.max(1, ...vals));
+  const plotH = H - padT - padB, colW = (W - padL - padR) / S.len;
+  const y = v => padT + plotH * (1 - v / top);
+  Vol.geo = { padL, colW, len: S.len, W };
+
+  ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let v = 0; v <= top + 1e-9; v += step) {
+    const yy = Math.round(y(v)) + 0.5;
+    ctx.strokeStyle = v === 0 ? 'rgba(0,0,0,0.16)' : 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+    ctx.fillStyle = '#8a9897';
+    ctx.fillText(v ? fmtTons(v, true) : '0', padL - 8, yy);
+  }
+  if (Vol.hover >= 0) {
+    ctx.fillStyle = 'rgba(7,92,68,0.06)';
+    ctx.fillRect(padL + Vol.hover * colW, padT, colW, plotH);
+  }
+  const a = Vol.anim;
+  const cx = i => padL + i * colW + colW / 2;
+
+  if (S.kind === 'years') {
+    // Прямые отрезки между месяцами — без сглаживания: сглаженная кривая
+    // «выгибалась» между точками и выглядела криво.
+    const order = visYears.slice().sort((p, q) => (p === S.cy) - (q === S.cy)); // текущий год сверху
+    const labels = [];
+    order.forEach(yr => {
+      // Текущий месяц ещё идёт — на линию не выводим, иначе в начале месяца
+      // она всегда «ныряет» к нулю (значение есть в подсказке и сводке выше).
+      const pts = S.tons[yr].map((v, i) => (v == null || (yr === S.cy && i === S.cm - 1) ? null : [cx(i), y(v * a)])).filter(Boolean);
+      if (!pts.length) return;
+      const now = yr === S.cy;
+      ctx.strokeStyle = volYearColor(yr); ctx.lineWidth = now ? 3 : 2; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.globalAlpha = now ? 1 : 0.85;
+      ctx.beginPath();
+      pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      if (now) pts.forEach(([px, py]) => {
+        ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = volYearColor(yr); ctx.stroke();
+      });
+      if (Vol.hover >= 0 && S.tons[yr][Vol.hover] != null) {
+        ctx.beginPath(); ctx.arc(cx(Vol.hover), y(S.tons[yr][Vol.hover] * a), 5, 0, Math.PI * 2);
+        ctx.fillStyle = volYearColor(yr); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke();
+      }
+      const last = pts[pts.length - 1];
+      labels.push({ yr, x: last[0], y: last[1] });
+    });
+    // Подписи лет у конца линий (раздвигаем, чтобы не налезали)
+    labels.sort((p, q) => p.y - q.y);
+    for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 13) labels[i].y = labels[i - 1].y + 13;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = '600 11px "Segoe UI", system-ui, sans-serif';
+    labels.forEach(l => {
+      ctx.fillStyle = volYearColor(l.yr);
+      ctx.fillRect(l.x + 6, l.y - 1, 6, 2);
+      ctx.fillStyle = '#3d4b49';
+      ctx.fillText(String(l.yr), l.x + 14, l.y);
+    });
+    ctx.font = '11px "Segoe UI", system-ui, sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    for (let i = 0; i < 12; i++) {
+      if (colW < 30 && i % 2) continue;
+      ctx.fillStyle = i === S.cm - 1 ? '#212829' : '#8a9897';
+      ctx.fillText(VOL_MON[i], cx(i), H - 6);
+    }
+  } else {
+    const barW = Math.max(1.5, Math.min(18, colW * 0.72));
+    S.bars.forEach((b, i) => {
+      if (!b.v) return;
+      ctx.globalAlpha = b.isNow ? 0.5 : 1;
+      ctx.fillStyle = volYearColor(b.y);
+      dynRoundTop(ctx, cx(i) - barW / 2, y(b.v * a), barW, Math.max(0, y(0) - y(b.v * a)), Math.min(3, barW / 2));
+      ctx.globalAlpha = 1;
+    });
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#8a9897';
+    S.bars.forEach((b, i) => {
+      if (b.m !== 0) return;
+      ctx.fillStyle = '#5f6e6c';
+      ctx.fillText(String(b.y), cx(i), H - 6);
+      ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+      ctx.beginPath(); ctx.moveTo(Math.round(padL + i * colW) + 0.5, padT); ctx.lineTo(Math.round(padL + i * colW) + 0.5, H - padB); ctx.stroke();
+    });
+  }
+}
+
+function onVolHover(e) {
+  const g = Vol.geo;
+  if (!g) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const i = Math.floor((e.clientX - rect.left - g.padL) / g.colW);
+  if (i < 0 || i >= g.len) { if (Vol.hover !== -1) { Vol.hover = -1; hideVolTip(); paintVol(); } return; }
+  if (i !== Vol.hover) { Vol.hover = i; paintVol(); }
+  showVolTip(i, e.clientX - rect.left);
+}
+
+function hideVolTip() { document.getElementById('volTip').hidden = true; }
+
+function showVolTip(i, px) {
+  const S = Vol.series, tip = document.getElementById('volTip');
+  const rows = [];
+  let title;
+  if (S.kind === 'years') {
+    title = VOL_MON_FULL[i][0].toUpperCase() + VOL_MON_FULL[i].slice(1);
+    S.years.filter(y => !Vol.hidden.has(y)).sort((a, b) => b - a).forEach(y => {
+      const v = S.tons[y][i];
+      if (v == null) return;
+      const n = (S.n[y] || [])[i] || 0;
+      rows.push([`${y}${y === S.cy && i === S.cm - 1 ? ' (идёт)' : ''}`, fmtTons(v), volYearColor(y), n]);
+    });
+  } else {
+    const b = S.bars[i];
+    title = `${VOL_MON_FULL[b.m]} ${b.y}${b.isNow ? ' · месяц идёт' : ''}`;
+    rows.push(['Объём', fmtTons(b.v), volYearColor(b.y), b.n]);
+  }
+  tip.innerHTML = '';
+  const t = document.createElement('div'); t.className = 'dyn-tip-t'; t.textContent = title; tip.append(t);
+  rows.forEach(([label, val, color, n]) => {
+    const r = document.createElement('div'), key = document.createElement('i'), b = document.createElement('b');
+    r.className = 'dyn-tip-r';
+    key.style.borderColor = color;
+    b.textContent = val;
+    const small = document.createElement('small');
+    small.textContent = n ? ` · ${n.toLocaleString('ru')} декл.` : '';
+    small.style.color = 'var(--muted)';
+    r.append(key, document.createTextNode(label), small, b);
+    tip.append(r);
+  });
+  tip.hidden = false;
+  const tw = tip.offsetWidth;
+  let left = px + 14;
+  if (left + tw > Vol.geo.W) left = px - tw - 14;
+  tip.style.left = Math.max(0, left) + 'px';
+  tip.style.top = '8px';
+}
+
+// Общие помощники графиков: «красивая» шкала, скругление верха столбика, «N мин назад»
 function dynNiceScale(max) {
   const raw = max / 4, pow = Math.pow(10, Math.floor(Math.log10(raw || 1)));
   const step = [1, 2, 2.5, 5, 10].map(k => k * pow).find(s => s >= raw) || raw;
   return { top: step * 4, step };
-}
-
-function dynMonotonePath(ctx, p) {
-  const n = p.length;
-  if (n < 2) return;
-  const d = [], m = [];
-  for (let i = 0; i < n - 1; i++) d.push((p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]));
-  m[0] = d[0]; m[n - 1] = d[n - 2];
-  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
-  for (let i = 0; i < n - 1; i++) {
-    if (d[i] === 0) { m[i] = m[i + 1] = 0; continue; }
-    const a = m[i] / d[i], b = m[i + 1] / d[i], s = a * a + b * b;
-    if (s > 9) { const t = 3 / Math.sqrt(s); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
-  }
-  ctx.moveTo(p[0][0], p[0][1]);
-  for (let i = 0; i < n - 1; i++) {
-    const h = (p[i + 1][0] - p[i][0]) / 3;
-    ctx.bezierCurveTo(p[i][0] + h, p[i][1] + m[i] * h, p[i + 1][0] - h, p[i + 1][1] - m[i + 1] * h, p[i + 1][0], p[i + 1][1]);
-  }
 }
 
 function dynRoundTop(ctx, x, y, w, h, r) {
@@ -1283,150 +1431,12 @@ function dynRoundTop(ctx, x, y, w, h, r) {
   ctx.closePath(); ctx.fill();
 }
 
-function paintDyn() {
-  const cv = document.getElementById('homeChart'), box = document.getElementById('dynChartBox');
-  if (!cv || !Dyn.series.length) return;
-  const dpr = window.devicePixelRatio || 1, W = box.clientWidth, H = box.clientHeight;
-  if (!W || !H) return;
-  // Канвас в физических пикселях — иначе на ретине и при масштабе 125% график мылится.
-  if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
-    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-  }
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, W, H);
-
-  const S = Dyn.series, isDays = Dyn.range === 'days', n = S.length;
-  const padL = 48, padR = 6, padT = 8, padB = 24;
-  const { top, step } = dynNiceScale(Math.max(1, ...S.map(x => Math.max(x.total, x.prev || 0))));
-  const plotH = H - padT - padB, colW = (W - padL - padR) / n;
-  const y = v => padT + plotH * (1 - v / top);
-  Dyn.geo = { padL, colW, n, W };
-
-  ctx.font = '11px "Segoe UI", system-ui, sans-serif';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-  for (let v = 0; v <= top + 1e-9; v += step) {
-    const yy = Math.round(y(v)) + 0.5;
-    ctx.strokeStyle = v === 0 ? 'rgba(0,0,0,0.16)' : 'rgba(0,0,0,0.06)'; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
-    ctx.fillStyle = '#8a9897';
-    ctx.fillText(v >= 10000 ? `${(v / 1000).toLocaleString('ru')} тыс` : dynNum(v), padL - 8, yy);
-  }
-
-  if (Dyn.hover >= 0) {
-    ctx.fillStyle = 'rgba(7,92,68,0.06)';
-    ctx.fillRect(padL + Dyn.hover * colW, padT, colW, plotH);
-  }
-
-  const barW = Math.max(2, Math.min(isDays ? 22 : 40, colW * (isDays ? 0.68 : 0.6)));
-  const a = Dyn.anim;
-  S.forEach((x, i) => {
-    const bx = padL + i * colW + (colW - barW) / 2;
-    // Текущий день/месяц ещё не закончился — рисуем его бледнее.
-    ctx.globalAlpha = x.isNow ? 0.55 : 1;
-    const segs = (isDays
-      ? [[x.farmer, DYN_COLORS.farmer], [x.trader, DYN_COLORS.trader], [x.other, DYN_COLORS.other]]
-      : [[x.total, DYN_COLORS.farmer]]).filter(s => s[0] > 0);
-    let acc = 0;
-    segs.forEach(([v, color], k) => {
-      const y0 = y(acc * a), y1 = y((acc + v) * a);
-      const h = Math.max(0, y0 - y1 - (k > 0 ? 2 : 0)); // 2px зазор между сегментами
-      ctx.fillStyle = color;
-      if (k === segs.length - 1) dynRoundTop(ctx, bx, y1, barW, h, 4);
-      else ctx.fillRect(bx, y1, barW, h);
-      acc += v;
-    });
-    ctx.globalAlpha = 1;
-  });
-
-  // Прошлый год — пунктир с точками (только в помесячном режиме)
-  if (!isDays) {
-    const px = i => padL + i * colW + colW / 2;
-    ctx.save();
-    ctx.globalAlpha = a;
-    // Плавная монотонная кривая (Фриче — Карлсон): не «выстреливает» выше
-    // соседних точек, как Безье, и не ломается на каждом месяце, как ломаная.
-    // Кружки на каждой точке рвали ритм пунктира — точку показываем только
-    // под курсором.
-    const pts = S.map((x, i) => [px(i), y(x.prev)]);
-    ctx.strokeStyle = DYN_COLORS.prev; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.lineCap = 'round';
-    ctx.beginPath();
-    dynMonotonePath(ctx, pts);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    if (Dyn.hover >= 0) {
-      const [hx, hy] = pts[Dyn.hover];
-      ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff'; ctx.fill();
-      ctx.lineWidth = 2; ctx.strokeStyle = DYN_COLORS.prev; ctx.stroke();
-    }
-    ctx.restore();
-  }
-
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  const every = isDays ? (colW < 16 ? 7 : colW < 34 ? 3 : 1) : (colW < 34 ? 2 : 1);
-  S.forEach((x, i) => {
-    if ((n - 1 - i) % every) return;
-    const label = isDays
-      ? (x.isNow ? 'сегодня' : `${x.day} ${DYN_MON[x.mon]}`)
-      : (x.mon === 0 ? `${DYN_MON[x.mon]} ’${String(x.year).slice(2)}` : DYN_MON[x.mon]);
-    ctx.fillStyle = x.isNow ? '#212829' : '#8a9897';
-    ctx.fillText(label, padL + i * colW + colW / 2, H - 6);
-  });
-}
-
-function onDynHover(e) {
-  const g = Dyn.geo;
-  if (!g) return;
-  const rect = e.currentTarget.getBoundingClientRect();
-  const i = Math.floor((e.clientX - rect.left - g.padL) / g.colW);
-  if (i < 0 || i >= g.n) {
-    if (Dyn.hover !== -1) { Dyn.hover = -1; hideDynTip(); paintDyn(); }
-    return;
-  }
-  if (i !== Dyn.hover) { Dyn.hover = i; paintDyn(); }
-  showDynTip(i, e.clientX - rect.left);
-}
-
-function hideDynTip() { document.getElementById('dynTip').hidden = true; }
-
-function showDynTip(i, px) {
-  const x = Dyn.series[i], tip = document.getElementById('dynTip');
-  const rows = [];
-  let title;
-  if (Dyn.range === 'days') {
-    title = `${DYN_WD[x.wd]}, ${x.day} ${DYN_MON_GEN[x.mon]}${x.isNow ? ' · день ещё идёт' : ''}`;
-    rows.push(['Всего', x.total, null, true], ['Производители', x.farmer, DYN_COLORS.farmer],
-      ['Трейдеры', x.trader, DYN_COLORS.trader], ['Прочие', x.other, DYN_COLORS.other]);
-  } else {
-    title = `${DYN_MON_FULL[x.mon]} ${x.year}${x.isNow ? ` · по ${Number(Dyn.data.today.slice(8))}-е число` : ''}`;
-    rows.push([String(x.year), x.total, DYN_COLORS.farmer, true], [x.isNow ? `${x.year - 1}, весь месяц` : String(x.year - 1), x.prev, DYN_COLORS.prev]);
-    // Текущий месяц ещё не закончился — честное сравнение только с тем же отрезком год назад.
-    if (x.isNow) rows.push([`${x.year - 1}, к этому числу`, Dyn.data.lastYearMtd, null]);
-    if (x.prev && !x.isNow) {
-      const p = Math.round((x.total - x.prev) / x.prev * 100);
-      rows.push(['Изменение', (p > 0 ? '+' : '') + p + '%', null]);
-    }
-  }
-  tip.innerHTML = '';
-  const t = document.createElement('div');
-  t.className = 'dyn-tip-t'; t.textContent = title;
-  tip.append(t);
-  rows.forEach(([label, val, color, strong]) => {
-    const r = document.createElement('div'), key = document.createElement('i'), b = document.createElement('b');
-    r.className = 'dyn-tip-r';
-    if (color) key.style.borderColor = color; else key.style.visibility = 'hidden';
-    b.textContent = typeof val === 'number' ? dynNum(val) : val;
-    if (!strong) b.style.fontWeight = '600';
-    r.append(key, document.createTextNode(label), b);
-    tip.append(r);
-  });
-  tip.hidden = false;
-  const tw = tip.offsetWidth;
-  let left = px + 14;
-  if (left + tw > Dyn.geo.W) left = px - tw - 14;
-  tip.style.left = Math.max(0, left) + 'px';
-  tip.style.top = '8px';
+function dynAgo(date) {
+  const min = Math.round((Date.now() - date.getTime()) / 60000);
+  if (min < 1) return 'только что';
+  if (min < 60) return `${min} мин назад`;
+  if (min < 24 * 60) return `${Math.floor(min / 60)} ч назад`;
+  return date.toLocaleDateString('ru');
 }
 
 async function loadStats() {

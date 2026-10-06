@@ -154,28 +154,34 @@
       <div class="sc"><div class="sc-icon" style="background:var(--warnbg)"><svg viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M3 12h18"/><path d="M3 18h18"/></svg></div><div class="sc-info"><div class="sc-v" id="hmTraders">—</div><div class="sc-l">трейдеров</div></div></div>
     </div>
 
-    <section class="home-card dyn-card">
+    <section class="home-card dyn-card vol-card">
       <div class="dyn-hdr">
         <div>
-          <h3>Динамика деклараций</h3>
-          <div class="dyn-live" id="dynLive"><i class="dyn-dot"></i><span id="dynUpdated">загрузка…</span></div>
+          <h3>Объёмы по декларациям</h3>
+          <div class="dyn-live" id="volLive"><i class="dyn-dot"></i><span id="volUpdated">загрузка…</span></div>
         </div>
-        <div class="dyn-seg" role="tablist" aria-label="Период">
-          <button type="button" role="tab" data-range="days" class="act" aria-selected="true">30 дней</button>
-          <button type="button" role="tab" data-range="months" aria-selected="false">12 месяцев</button>
+        <div class="dyn-seg" role="tablist" aria-label="Вид графика">
+          <button type="button" role="tab" data-view="years" class="act" aria-selected="true">Сравнение лет</button>
+          <button type="button" role="tab" data-view="history" aria-selected="false">Вся история</button>
         </div>
       </div>
+      <form class="vol-filters" autocomplete="off" onsubmit="event.preventDefault()">
+        <label><span>Регион</span><select id="volRegion" class="fi"><option value="">Вся Россия</option></select></label>
+        <label><span>Район</span><select id="volDistrict" class="fi" disabled><option value="">Все районы</option></select></label>
+        <label><span>Культура</span><select id="volCrop" class="fi"><option value="">Все культуры</option></select></label>
+      </form>
       <div class="dyn-kpis">
-        <div class="dyn-kpi"><div class="dyn-kpi-l">Сегодня</div><div class="dyn-kpi-v" id="dynToday">—</div><div class="dyn-kpi-d" id="dynTodayD"></div></div>
-        <div class="dyn-kpi"><div class="dyn-kpi-l">За 7 дней</div><div class="dyn-kpi-v" id="dynWeek">—</div><div class="dyn-kpi-d" id="dynWeekD"></div></div>
-        <div class="dyn-kpi"><div class="dyn-kpi-l">С начала месяца</div><div class="dyn-kpi-v" id="dynMonth">—</div><div class="dyn-kpi-d" id="dynMonthD"></div></div>
+        <div class="dyn-kpi"><div class="dyn-kpi-l" id="volK1l">Этот месяц</div><div class="dyn-kpi-v" id="volK1">—</div><div class="dyn-kpi-d" id="volK1d"></div></div>
+        <div class="dyn-kpi"><div class="dyn-kpi-l" id="volK2l">С начала года</div><div class="dyn-kpi-v" id="volK2">—</div><div class="dyn-kpi-d" id="volK2d"></div></div>
+        <div class="dyn-kpi"><div class="dyn-kpi-l" id="volK3l">Прошлый год</div><div class="dyn-kpi-v" id="volK3">—</div><div class="dyn-kpi-d" id="volK3d"></div></div>
       </div>
-      <div class="dyn-legend" id="dynLegend"></div>
-      <div class="dyn-chart" id="dynChartBox">
-        <canvas id="homeChart" role="img" aria-label="График поданных деклараций"></canvas>
-        <div class="dyn-tip" id="dynTip" hidden></div>
+      <div class="dyn-legend vol-legend" id="volLegend"></div>
+      <div class="dyn-chart" id="volChartBox">
+        <canvas id="volChart" role="img" aria-label="График объёмов по декларациям"></canvas>
+        <div class="dyn-tip" id="volTip" hidden></div>
       </div>
-      <div id="hmChartEmpty" class="home-skel" hidden>Пока нет данных</div>
+      <div id="volEmpty" class="home-skel" hidden>Нет данных под выбранные условия</div>
+      <div class="vol-note" id="volNote"></div>
     </section>
 
     <div class="home-cols">

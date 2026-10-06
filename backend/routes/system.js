@@ -56,7 +56,7 @@ let homeCache = null; // { data, computedAt }
 /**
  * Сводка для раздела «Главная»: топ регионов из уже посчитанного справочника
  * geo_places (declCount там обновляет разметка НП). Кэш на те же 5 минут, что
- * у статистики. Динамика деклараций — отдельно, в /dynamics (обновляется чаще).
+ * у статистики. Объёмы для графика — отдельно, в /volumes.
  */
 router.get('/home', auth, (req, res, next) => {
   try {
@@ -78,63 +78,73 @@ router.get('/home', auth, (req, res, next) => {
   }
 });
 
-/**
- * «Динамика деклараций» на главной: поданные декларации по дню регистрации
- * (за 30 дней, с разбивкой по типу) и по месяцам (24 месяца — текущий год и
- * прошлый для сравнения). Считаются ВСЕ декларации, а не только действующие:
- * декларация на зерно живёт около года, и фильтр по статусу превращал всё
- * старше года в мнимый провал. Живой парсер доливает текущий месяц каждые
- * 30 минут, фронтенд опрашивает раз в минуту — отсюда кэш на минуту.
- * Все запросы идут по индексу regDate (помесячный — только по индексу), это
- * десятки миллисекунд, поэтому без worker-потока.
- */
-const DYN_CACHE_TTL_MS = 60 * 1000;
-let dynCache = null;
+// ── Объёмы по декларациям (график на главной) ────────────────────────────
+// Данные — сводка volume_monthly (workers/volumeStatsWorker.js, раз в час).
+const VOLUME_WORKER_PATH = path.join(__dirname, '../workers/volumeStatsWorker.js');
+let volumeBuilding = null;
+const volumeCache = new Map();
 
-// regDate — дата регистрации в ФСА, т.е. по Москве; «сегодня» считаем так же,
-// иначе с 00:00 до 03:00 МСК сервер в UTC показывал бы вчерашний день.
-const mskDate = (d = new Date()) => new Date(d.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+function rebuildVolumeStats() {
+  if (volumeBuilding) return volumeBuilding;
+  volumeBuilding = new Promise((resolve) => {
+    const worker = new Worker(VOLUME_WORKER_PATH);
+    worker.once('message', (msg) => {
+      worker.terminate();
+      volumeCache.clear();
+      resolve(msg);
+    });
+    worker.once('error', (err) => resolve({ error: err.message }));
+  }).finally(() => { volumeBuilding = null; });
+  return volumeBuilding;
+}
+router.rebuildVolumeStats = rebuildVolumeStats;
 
-router.get('/dynamics', auth, (req, res, next) => {
+router.get('/volumes', auth, (req, res, next) => {
   try {
-    if (dynCache && Date.now() - dynCache.computedAt < DYN_CACHE_TTL_MS) return res.json(dynCache.data);
+    const region = String(req.query.region || '');
+    const district = region ? String(req.query.district || '') : '';
+    const crop = String(req.query.crop || '');
+    const key = JSON.stringify([region, district, crop]);
+    const hit = volumeCache.get(key);
+    if (hit) return res.json(hit);
 
-    const today = mskDate();
-    const [y, m, d] = today.split('-').map(Number);
-    const daysFrom = mskDate(new Date(Date.now() - 29 * 86400 * 1000));
-    const monthsFrom = `${y - 2}-${String(m).padStart(2, '0')}-01`;
+    const where = [], params = [];
+    if (region) { where.push('region = ?'); params.push(region); }
+    if (district) { where.push('district = ?'); params.push(district); }
+    if (crop) { where.push('crop = ?'); params.push(crop); }
+    const w = where.length ? 'WHERE ' + where.join(' AND ') : '';
+    // Списки для фильтров считаем с учётом остальных условий, кроме своего
+    const wExcept = (skip) => {
+      const parts = [], ps = [];
+      if (region && skip !== 'region') { parts.push('region = ?'); ps.push(region); }
+      if (district && skip !== 'region' && skip !== 'district') { parts.push('district = ?'); ps.push(district); }
+      if (crop && skip !== 'crop') { parts.push('crop = ?'); ps.push(crop); }
+      return [parts.length ? 'WHERE ' + parts.join(' AND ') : '', ps];
+    };
 
-    const days = db.prepare(`
-      SELECT regDate AS date, COUNT(*) AS total,
-        SUM(farmerType IN ('farmer', 'farmer_trader')) AS farmer,
-        SUM(farmerType = 'trader') AS trader
-      FROM declarations
-      WHERE regDate >= ? AND regDate <= ?
-      GROUP BY regDate ORDER BY regDate
-    `).all(daysFrom, today);
+    const months = db.prepare(`SELECT ym, ROUND(SUM(tons)) tons, SUM(n) n, SUM(big) big FROM volume_monthly ${w} GROUP BY ym ORDER BY ym`).all(...params);
+    const [wr, pr] = wExcept('region');
+    const regions = db.prepare(`SELECT region v, ROUND(SUM(tons)) tons FROM volume_monthly ${wr ? wr + " AND region != ''" : "WHERE region != ''"} GROUP BY region ORDER BY tons DESC`).all(...pr);
+    let districts = [];
+    if (region) {
+      const [wd, pd] = wExcept('district');
+      districts = db.prepare(`SELECT district v, ROUND(SUM(tons)) tons FROM volume_monthly ${wd} ${wd ? 'AND' : 'WHERE'} district != '' GROUP BY district ORDER BY tons DESC`).all(...pd);
+    }
+    const [wc, pc] = wExcept('crop');
+    const crops = db.prepare(`SELECT crop v, ROUND(SUM(tons)) tons FROM volume_monthly ${wc} GROUP BY crop ORDER BY tons DESC`).all(...pc);
+    const meta = db.prepare('SELECT builtAt, maxBatchTons FROM volume_meta WHERE id = 1').get() || {};
 
-    const months = db.prepare(`
-      SELECT substr(regDate, 1, 7) AS ym, COUNT(*) AS total
-      FROM declarations
-      WHERE regDate >= ? AND regDate <= ?
-      GROUP BY ym ORDER BY ym
-    `).all(monthsFrom, today);
-
-    // Тот же отрезок месяца год назад — для честного сравнения «с начала месяца».
-    const lastYearMtd = db.prepare(
-      'SELECT COUNT(*) AS n FROM declarations WHERE regDate >= ? AND regDate <= ?'
-    ).get(`${y - 1}-${String(m).padStart(2, '0')}-01`, `${y - 1}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`).n;
-
-    const { lastUpdated } = db.prepare('SELECT MAX(updatedAt) AS lastUpdated FROM declarations').get();
-    const parser = db.prepare('SELECT state, time FROM status WHERE id = 1').get() || null;
-
-    const data = { today, days, months, lastYearMtd, lastUpdated, parser, computedAt: new Date().toISOString() };
-    dynCache = { data, computedAt: Date.now() };
+    const data = { months, regions, districts, crops, builtAt: meta.builtAt || null, maxBatchTons: meta.maxBatchTons || null, today: mskDate() };
+    volumeCache.set(key, data);
     res.json(data);
   } catch (err) {
     next(err);
   }
 });
+
+// regDate — дата регистрации в ФСА, т.е. по Москве; «сегодня» считаем так же,
+// иначе с 00:00 до 03:00 МСК сервер в UTC показывал бы вчерашний день.
+const mskDate = (d = new Date()) => new Date(d.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
 
 router.get('/stats', async (req, res, next) => {
   try {

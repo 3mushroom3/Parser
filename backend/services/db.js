@@ -459,6 +459,26 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_geo_status ON geo_places(status, declCount DESC);
 `);
 
+// Сводка объёмов для графика на главной (workers/volumeStatsWorker.js
+// пересобирает её целиком раз в час).
+db.exec(`
+  CREATE TABLE IF NOT EXISTS volume_monthly (
+    ym TEXT NOT NULL,
+    region TEXT NOT NULL DEFAULT '',
+    district TEXT NOT NULL DEFAULT '',
+    crop TEXT NOT NULL DEFAULT 'other',
+    tons REAL NOT NULL DEFAULT 0,
+    n INTEGER NOT NULL DEFAULT 0,
+    big INTEGER NOT NULL DEFAULT 0
+  );
+  CREATE INDEX IF NOT EXISTS idx_volume_region ON volume_monthly(region, district, crop);
+  CREATE TABLE IF NOT EXISTS volume_meta (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    builtAt TEXT,
+    maxBatchTons REAL
+  );
+`);
+
 // Поддержка — переписка внутри обращения. Первое сообщение — само обращение
 // (feedback.description); прочитанное отслеживаем по id последнего увиденного
 // сообщения: adminReadMsgId IS NULL — админ обращение ещё не открывал.

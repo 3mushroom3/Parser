@@ -272,6 +272,15 @@ if (process.env.NODE_ENV !== 'test') {
       logger.warn('========================================================================');
     }
 
+    // Сводка объёмов для графика на главной: только локальная база, внешних
+    // запросов нет — пересобираем и при DISABLE_JOBS. Раз в час подхватывает
+    // всё, что за это время долили парсер и открытые данные.
+    setTimeout(() => systemRoutes.rebuildVolumeStats().then(r => {
+      if (r.error) logger.error('[VOLUME] Ошибка сводки объёмов: %s', r.error);
+      else logger.info('[VOLUME] Сводка объёмов: %d строк за %d мс', r.rows, r.ms);
+    }), 20 * 1000);
+    setInterval(() => systemRoutes.rebuildVolumeStats(), 60 * 60 * 1000);
+
     // Локальная проверка интерфейса: без парсера, доливки открытых данных,
     // геокодера и т.п. — они ходят во внешние API и тратят суточные лимиты DaData.
     if (process.env.DISABLE_JOBS === 'true') {
