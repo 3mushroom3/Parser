@@ -571,7 +571,7 @@ const EXPORT_CSV_CHUNK_SIZE = 2000;
 const EXPORT_CSV_HEADERS = [
   'ID', 'Номер декларации', 'Заявитель', 'Источник', 'Статус', 'Группа продукции',
   'Тех.регламент', 'Дата регистрации', 'Дата окончания', 'Фамилия', 'Имя',
-  'Краткое наим.', 'Адрес', 'Телефон', 'Наименование продукции', 'Партия', 'Ссылка FSA'
+  'Краткое наим.', 'Адрес', 'Телефон', 'Наименование продукции', 'Партия'
 ];
 
 // SELECT * .all() без LIMIT на 4.9M строк (+ сборка CSV-строки в память для
@@ -612,7 +612,7 @@ router.get('/export/csv', auth, requireSubscription, exportLimiter, (req, res) =
         r.id, r.declNumber || '', r.applicantName || '', r.source, r.status || 'active',
         r.productGroup || '', r.technicalReglament || '', r.regDate, r.endDate,
         r.lastName, r.firstName, r.shortName, r.address, r.phone,
-        r.productName, r.batchSize, r.fsaUrl || ''
+        r.productName, r.batchSize
       ].map(csvEscape).join(',');
       res.write(line + '\r\n');
     }

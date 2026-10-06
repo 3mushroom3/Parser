@@ -95,6 +95,27 @@ app.set('trust proxy', 'loopback');
 
 app.use(morgan('short',{ stream: { write: message => logger.info(message.trim()) } }));
 app.use(express.json({ limit: '1mb' }));
+
+// Сервис не должен отправлять пользователя на первоисточник: адрес карточки на
+// pub.fsa.gov.ru (fsaUrl) и её номер там (fsaId), из которого адрес собирается,
+// вычищаем из ВСЕХ ответов API — маршрутов много, многие отдают SELECT *,
+// и точечно за каждым не уследить. Интерфейсу эти поля не нужны.
+const HIDDEN_KEYS = new Set(['fsaUrl', 'fsaId']);
+function stripHidden(v) {
+  if (Array.isArray(v)) { v.forEach(stripHidden); return v; }
+  if (v && typeof v === 'object' && !(v instanceof Date) && !Buffer.isBuffer(v)) {
+    for (const k of Object.keys(v)) {
+      if (HIDDEN_KEYS.has(k)) delete v[k];
+      else stripHidden(v[k]);
+    }
+  }
+  return v;
+}
+app.use('/api', (req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = body => json(stripHidden(body));
+  next();
+});
 app.use(express.static(path.join(__dirname, '..', 'frontend')));
 app.use('/uploads', express.static(path.join(__dirname, 'data', 'uploads')));
 
