@@ -12,6 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 cd backend && npm install   # установка зависимостей
 node server.js              # запуск сервера (порт 3001)
 node scripts/backfill-opendata.js [--limit N]  # разовый бэкафилл истории из открытых данных РДС
+node scripts/backfill-live-range.js 2026-03-01 2026-03-31  # догрузить период через живой API (месяцы, которых нет в открытых данных)
 node scripts/smoke-declaration.js 16827658     # отладка одной декларации без HTTP-сервера
 node scripts/probe-api.js 16827658             # диагностика сырых ответов FSA API
 node scripts/build-map-style.js                # пересобрать стиль карты (frontend/map/style-ru.json)

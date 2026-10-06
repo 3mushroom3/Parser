@@ -47,7 +47,7 @@ function loginSucceeded(ip) { loginAttempts.delete('login:' + ip); }
 setInterval(() => {
   const now = Date.now();
   for (const [ip, e] of loginAttempts) if (now > e.resetAt) loginAttempts.delete(ip);
-}, 3600000);
+}, 3600000).unref(); // не держит процесс скриптов (scripts/*), которые подключают server.js
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
