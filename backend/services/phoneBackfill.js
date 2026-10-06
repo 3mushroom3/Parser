@@ -30,6 +30,10 @@ db.exec(`
 `);
 
 const COMPANY_KEY = "COALESCE(NULLIF(inn, ''), shortName)";
+// ИП и КФХ (12-значный ИНН) не опрашиваем: ФСА не публикует их контакты —
+// это персональные данные физлица, поля contacts в карточке всегда пустые
+// (проверено: 15 603 опрошенных ИП — ни одного телефона, у юрлиц — 86%).
+const NOT_INDIVIDUAL = "length(COALESCE(inn, '')) != 12";
 
 const selectCompanies = db.prepare(`
   SELECT ${COMPANY_KEY} AS companyKey, MAX(fsaId) AS fsaId, COUNT(*) AS declCount
@@ -38,6 +42,7 @@ const selectCompanies = db.prepare(`
     AND (phone IS NULL OR phone = '')
     AND fsaId IS NOT NULL AND fsaId != ''
     AND ${COMPANY_KEY} IS NOT NULL AND ${COMPANY_KEY} != ''
+    AND ${NOT_INDIVIDUAL}
     AND NOT EXISTS (SELECT 1 FROM phone_backfill p WHERE p.companyKey = ${COMPANY_KEY})
   GROUP BY companyKey
   ORDER BY declCount DESC
@@ -62,6 +67,7 @@ function pendingCompanies() {
     SELECT COUNT(*) c FROM (
       SELECT ${COMPANY_KEY} AS k FROM declarations
       WHERE status = 'active' AND (phone IS NULL OR phone = '') AND fsaId IS NOT NULL AND fsaId != ''
+        AND ${NOT_INDIVIDUAL}
       GROUP BY k
     ) WHERE k IS NOT NULL AND k != ''
   `).get().c;
