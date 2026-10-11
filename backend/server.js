@@ -46,6 +46,7 @@ const { runNotifyJob } = require('./services/notifyJob');
 const { enrichExisting, autoEnrichJob, applyCacheToDb, selectPendingRecords, saveEnrichedRecords } = require('./services/innEnricher');
 const { runGeoJob } = require('./services/geoEnricher');
 const { runPhoneBackfill } = require('./services/phoneBackfill');
+const { applyImportedPhones } = require('./services/phoneBaseImport');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -356,6 +357,12 @@ if (process.env.NODE_ENV !== 'test') {
     // по одной карточке на компанию, дневным лимитом, чтобы не ловить WAF.
     cron.schedule(process.env.PHONE_CRON_SCHEDULE || '30 1 * * *', () => {
       const limit = parseInt(process.env.PHONE_DAILY_LIMIT || '2000', 10);
+      // У ИП и КФХ телефоны берутся из залитых баз (phone_imports): новые
+      // декларации из открытых данных приходят без них.
+      try {
+        const n = applyImportedPhones();
+        if (n) logger.info(`[PHONES] Из залитых баз проставлено деклараций: ${n}`);
+      } catch (e) { logger.error('[PHONES] Залитые базы: %s', e.message); }
       runPhoneBackfill({ limit }).catch(e => logger.error('[PHONES] Задание упало: %s', e.message));
     });
 
