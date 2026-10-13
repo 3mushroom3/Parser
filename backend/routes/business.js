@@ -38,7 +38,9 @@ router.get('/company', auth, requireSubscription, dataReadLimiter, (req, res) =>
     inn: first.inn || '',
     name: first.shortName || first.applicantName || first.lastName || '',
     address: first.address || '',
-    phone: first.phone || '',
+    // Не first.phone: первой может оказаться старая декларация без телефона,
+    // хотя в действующих он есть (дозагрузка из ФСА ставит его только им).
+    phone: (records.find(r => r.status === 'active' && r.phone) || records.find(r => r.phone) || {}).phone || '',
     farmerType: first.farmerType || 'unknown',
     okved: first.okved || '',
     lastName: first.lastName || '',
