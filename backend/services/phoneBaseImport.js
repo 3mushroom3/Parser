@@ -279,7 +279,7 @@ function matchLegalEntities(entries) {
     SELECT inn, shortName, applicantName, placeKey, MAX(address) AS address,
            SUM(status = 'active') AS active,
            SUM(status = 'active' AND (phone IS NULL OR phone = '')) AS activeNoPhone,
-           SUM(phone IS NULL OR phone = '') AS noPhone
+           SUM(phone IS NULL OR phone = '') AS noPhone, COUNT(*) AS total
     FROM declarations
     WHERE length(COALESCE(inn, '')) = 10 AND placeKey LIKE '%|%'
     GROUP BY inn, shortName, applicantName, placeKey
@@ -287,7 +287,8 @@ function matchLegalEntities(entries) {
   const orgs = new Map(), byKey = new Map();
   for (const d of rows) {
     let o = orgs.get(d.inn);
-    if (!o) orgs.set(d.inn, o = { name: d.shortName || d.applicantName, address: d.address, active: 0, activeNoPhone: 0, noPhone: 0 });
+    if (!o) orgs.set(d.inn, o = { name: d.shortName || d.applicantName, address: d.address, active: 0, activeNoPhone: 0, noPhone: 0, total: 0 });
+    o.total += d.total;
     o.active += d.active;
     o.activeNoPhone += d.activeNoPhone;
     o.noPhone += d.noPhone;
@@ -317,7 +318,9 @@ function matchLegalEntities(entries) {
   const matches = [];
   for (const [inn, list] of found) {
     const o = orgs.get(inn);
-    if (!o.noPhone) continue;
+    // Телефон хоть в одной декларации уже есть (из карточки ФСА) — не трогаем,
+    // иначе у одной компании в разных декларациях оказались бы разные номера.
+    if (o.noPhone < o.total) continue;
     const phone = mergePhones(list);
     if (!phone) continue;
     const newest = [...list].sort((a, b) => b.year - a.year)[0];
