@@ -985,6 +985,7 @@ async function loadHome() {
   try {
     const d = await apiFetch('/api/system/home');
     renderHomeRegions(d.topRegions || []);
+    if (d.topRegionsYear) document.getElementById('hmRegionsNote').textContent = `объём по декларациям за ${d.topRegionsYear} год`;
   } catch (_) {
     document.getElementById('hmRegions').innerHTML = '<div class="home-skel">Не удалось загрузить</div>';
   }
@@ -1015,13 +1016,13 @@ async function loadHome() {
 
 function renderHomeRegions(rows) {
   const el = document.getElementById('hmRegions');
-  if (!rows.length) { el.innerHTML = '<div class="home-skel">Регионы ещё не размечены</div>'; return; }
-  const max = rows[0].count || 1;
+  if (!rows.length) { el.innerHTML = '<div class="home-skel">Объёмы ещё не посчитаны</div>'; return; }
+  const max = rows[0].tons || 1;
   el.innerHTML = rows.map(r => `
     <div class="home-region">
       <span class="home-region-name" title="${escHtml(r.region)}">${escHtml(r.region)}</span>
-      <span class="home-region-bar"><i style="width:${Math.max(4, Math.round(r.count / max * 100))}%"></i></span>
-      <span class="home-region-val">${(r.count || 0).toLocaleString('ru')}</span>
+      <span class="home-region-bar"><i style="width:${Math.max(4, Math.round(r.tons / max * 100))}%"></i></span>
+      <span class="home-region-val">${fmtTons(r.tons || 0)}</span>
     </div>`).join('');
 }
 
@@ -1206,8 +1207,8 @@ function renderVolUpdated() {
 function renderVolNote() {
   const d = Vol.data;
   const big = d.months.reduce((s, r) => s + (r.big || 0), 0);
-  document.getElementById('volNote').textContent = 'Объём — заявленный в декларациях размер партии, по месяцу регистрации декларации.'
-    + (big ? ` Не учтены ${big.toLocaleString('ru')} ${plural(big, 'рамочная декларация', 'рамочные декларации', 'рамочных деклараций')} свыше ${fmtTons(d.maxBatchTons || 100000)} — это лимиты трейдеров, а не партии.` : '');
+  document.getElementById('volNote').textContent = 'Объём — заявленный в декларациях размер партии, по месяцу регистрации декларации. Декларации трейдеров не учитываются: они повторно декларируют зерно производителей.'
+    + (big ? ` Также не учтены ${big.toLocaleString('ru')} ${plural(big, 'рамочная декларация', 'рамочные декларации', 'рамочных деклараций')} свыше ${fmtTons(d.maxBatchTons || 100000)} — это рамочные лимиты, а не партии.` : '');
 }
 
 function volSeries() {
@@ -1442,14 +1443,6 @@ function dynAgo(date) {
 async function loadStats() {
   try {
     const s = await apiFetch('/api/system/stats');
-    document.getElementById('stTotal').textContent  = (s.total || 0).toLocaleString('ru');
-    document.getElementById('stTotalDecls').textContent = (s.totalDecls || 0).toLocaleString('ru') + ' деклараций';
-    document.getElementById('stActive').textContent = (s.activeProducers || 0).toLocaleString('ru');
-    document.getElementById('stActiveDecls').textContent = (s.active || 0).toLocaleString('ru') + ' деклараций';
-    document.getElementById('stFarmers').textContent = (s.farmerProducers || 0).toLocaleString('ru');
-    document.getElementById('stFarmerDecls').textContent = (s.farmerDecls || 0).toLocaleString('ru') + ' деклараций';
-    document.getElementById('stTraders').textContent = (s.traderProducers || 0).toLocaleString('ru');
-    document.getElementById('stTraderDecls').textContent = (s.traderDecls || 0).toLocaleString('ru') + ' деклараций';
     document.getElementById('sideTotalRec').textContent = (s.total || 0).toLocaleString('ru');
 
     // Счётчики у фильтра по типу: сколько компаний скрывается за каждым

@@ -54,23 +54,27 @@ function computeStats() {
 let homeCache = null; // { data, computedAt }
 
 /**
- * Сводка для раздела «Главная»: топ регионов из уже посчитанного справочника
- * geo_places (declCount там обновляет разметка НП). Кэш на те же 5 минут, что
- * у статистики. Объёмы для графика — отдельно, в /volumes.
+ * Сводка для раздела «Главная»: топ регионов по тоннам в декларациях за
+ * текущий год — из той же сводки volume_monthly, что и график объёмов. Кэш на
+ * те же 5 минут, что у статистики. Сами объёмы для графика — в /volumes.
  */
 router.get('/home', auth, (req, res, next) => {
   try {
     if (homeCache && Date.now() - homeCache.computedAt < STATS_CACHE_TTL_MS) {
       return res.json(homeCache.data);
     }
-    const topRegions = db.prepare(`
-      SELECT region, SUM(declCount) AS count
-      FROM geo_places
-      WHERE region IS NOT NULL AND region != '' AND declCount > 0
-      GROUP BY region ORDER BY count DESC LIMIT 6
-    `).all();
+    const year = mskDate().slice(0, 4);
+    let topRegions = [];
+    try {
+      topRegions = db.prepare(`
+        SELECT region, ROUND(SUM(tons)) AS tons
+        FROM volume_monthly
+        WHERE region != '' AND ym >= ?
+        GROUP BY region ORDER BY tons DESC LIMIT 6
+      `).all(`${year}-01`);
+    } catch (_) { /* сводка ещё не построена (первый запуск) */ }
 
-    const data = { topRegions };
+    const data = { topRegions, topRegionsYear: year };
     homeCache = { data, computedAt: Date.now() };
     res.json(data);
   } catch (err) {

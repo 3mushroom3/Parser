@@ -6,6 +6,10 @@
 // Рамочные декларации — «до 500 000 т» и т.п. — это лимиты трейдеров, а не
 // партии: 0,4% деклараций дают треть суммарного объёма и превращают график в
 // «урожай в пять раз больше страны». В тонны их не складываем, только считаем.
+//
+// Декларации трейдеров в сводку не входят вовсе: трейдер декларирует зерно,
+// которое уже задекларировал производитель, и одна партия считалась дважды
+// (за 2025 год трейдеры давали 79 млн т из 327).
 const { parentPort } = require('worker_threads');
 const db = require('../services/db');
 const { CROP_PATTERNS } = require('../services/cropPatterns');
@@ -38,6 +42,7 @@ try {
     FROM declarations d
     LEFT JOIN geo_places g ON g.key = d.placeKey
     WHERE d.regDate >= ?
+      AND COALESCE(d.farmerType, '') NOT IN ('trader', 'trader_farmer')
   `).iterate(FROM_DATE);
   for (const r of rows) {
     const crop = cropOf(r.product);

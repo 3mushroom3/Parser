@@ -186,7 +186,7 @@
 
     <div class="home-cols">
       <section class="home-card">
-        <div class="home-card-hdr"><h3>Топ регионов</h3><span class="home-card-note">по действующим декларациям</span></div>
+        <div class="home-card-hdr"><h3>Топ регионов</h3><span class="home-card-note" id="hmRegionsNote">по объёму в декларациях</span></div>
         <div id="hmRegions" class="home-regions"><div class="home-skel">Загрузка…</div></div>
       </section>
       <section class="home-card">
@@ -216,58 +216,6 @@
     <div class="body">
       <!-- MAIN -->
       <div class="main">
-        <!-- Stats -->
-        <div class="stats">
-          <div class="sc">
-            <div class="sc-icon" style="background:var(--acl)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#075c44" stroke-width="1.8">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-              </svg>
-            </div>
-            <div class="sc-info">
-              <div class="sc-l">Всего компаний</div>
-              <div class="sc-v" id="stTotal">—</div>
-              <div class="sc-l" id="stTotalDecls" style="margin-top:2px;margin-bottom:0">— деклараций</div>
-            </div>
-          </div>
-          <div class="sc">
-            <div class="sc-icon" style="background:var(--succbg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#157a4d" stroke-width="1.8">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </div>
-            <div class="sc-info">
-              <div class="sc-l">Действуют (всего)</div>
-              <div class="sc-v" id="stActive" style="color:var(--succ)">—</div>
-              <div class="sc-l" id="stActiveDecls" style="margin-top:2px;margin-bottom:0">— деклараций</div>
-            </div>
-          </div>
-          <div class="sc">
-            <div class="sc-icon" style="background:var(--succbg)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#157a4d" stroke-width="1.8">
-                <path d="M12 3v18m0-18l-4 4m4-4l4 4M5 21h14"/>
-              </svg>
-            </div>
-            <div class="sc-info">
-              <div class="sc-l">Производители (действ.)</div>
-              <div class="sc-v" id="stFarmers" style="color:var(--succ)">—</div>
-              <div class="sc-l" id="stFarmerDecls" style="margin-top:2px;margin-bottom:0">— деклараций</div>
-            </div>
-          </div>
-          <div class="sc">
-            <div class="sc-icon" style="background:#FFF4E5">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#B8740C" stroke-width="1.8">
-                <path d="M3 7h18M3 12h18M3 17h18"/>
-              </svg>
-            </div>
-            <div class="sc-info">
-              <div class="sc-l">Трейдеры (действ.)</div>
-              <div class="sc-v" id="stTraders" style="color:#B8740C">—</div>
-              <div class="sc-l" id="stTraderDecls" style="margin-top:2px;margin-bottom:0">— деклараций</div>
-            </div>
-          </div>
-        </div>
-
         <!-- Свежие декларации -->
         <div id="recentStrip" style="display:none;align-items:center;gap:10px;background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;margin-bottom:10px">
           <span style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;display:inline-block;animation:recentPulse 2s infinite"></span>Свежее</span>
