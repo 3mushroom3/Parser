@@ -166,7 +166,8 @@ function loadRegistryIndividuals() {
     SELECT inn, lastName, firstName, middleName, shortName, applicantName, placeKey,
            MAX(address) AS address,
            SUM(status = 'active') AS active,
-           SUM(status = 'active' AND (phone IS NULL OR phone = '')) AS activeNoPhone
+           SUM(status = 'active' AND (phone IS NULL OR phone = '')) AS activeNoPhone,
+           SUM(phone IS NULL OR phone = '') AS noPhone
     FROM declarations
     WHERE length(COALESCE(inn, '')) = 12
     GROUP BY inn, placeKey, shortName, applicantName, lastName, firstName, middleName
@@ -174,7 +175,7 @@ function loadRegistryIndividuals() {
   const people = new Map();
   for (const d of rows) {
     let p = people.get(d.inn);
-    if (!p) people.set(d.inn, p = { inn: d.inn, fios: new Set(), regions: new Set(), districts: new Set(), active: 0, activeNoPhone: 0, address: d.address });
+    if (!p) people.set(d.inn, p = { inn: d.inn, fios: new Set(), regions: new Set(), districts: new Set(), active: 0, activeNoPhone: 0, noPhone: 0, address: d.address });
     for (const s of [`${d.lastName || ''} ${d.firstName || ''} ${d.middleName || ''}`, d.applicantName, d.shortName]) {
       const f = fioOf(s);
       if (f) p.fios.add(f);
@@ -184,6 +185,7 @@ function loadRegistryIndividuals() {
     if (district) p.districts.add(normDistrict(district));
     p.active += d.active;
     p.activeNoPhone += d.activeNoPhone;
+    p.noPhone += d.noPhone;
   }
   return people;
 }
@@ -218,9 +220,10 @@ function matchBase(entries) {
   const matches = [], perRegion = new Map();
   let ambiguous = 0;
   for (const p of people.values()) {
-    if (!p.active) continue;
+    // Покрытие по регионам считаем по действующим, а телефон ищем всем: ИП с
+    // истёкшими декларациями в реестре тоже видны, и их в базах тысячи.
     for (const r of p.regions) {
-      if (!fileRegions.has(r)) continue;
+      if (!p.active || !fileRegions.has(r)) continue;
       if (!perRegion.has(r)) perRegion.set(r, { total: 0, matched: 0 });
       perRegion.get(r).total++;
     }
@@ -248,14 +251,83 @@ function matchBase(entries) {
     const phone = mergePhones(used.map(c => c.e));
     if (!phone) continue;
     const newest = used.map(c => c.e).sort((a, b) => (b.farm - a.farm) || (b.year - a.year))[0];
-    perRegion.get(newest.region).matched++;
+    if (p.active) perRegion.get(newest.region).matched++;
     matches.push({
       inn: p.inn, phone, matchedBy, sourceFile: newest.file, sourceName: newest.name,
       fio: newest.fio, address: p.address, baseDistrict: newest.district,
-      active: p.active, activeNoPhone: p.activeNoPhone,
+      active: p.active, activeNoPhone: p.activeNoPhone, noPhone: p.noPhone,
     });
   }
   return { matches, ambiguous, perRegion, individualsActive: [...people.values()].filter(p => p.active).length };
+}
+
+// Название юрлица без формы и кавычек: «Заря» ООО, ООО "ЗАРЯ" и Общество с
+// ограниченной ответственностью «Заря» дают один ключ.
+const LEGAL_FORMS = /(^| )(ооо|оао|зао|пао|ао|спк|сха|схпк|снт|тнв|кфх|кх|колхоз|общество с ограниченной ответственностью|акционерное общество|закрытое|открытое|публичное|сельскохозяйственный производственный кооператив|сельскохозяйственная артель|крестьянское фермерское хозяйство|крестьянское хозяйство|имени|им)(?= |$)/g;
+function legalCore(name) {
+  let t = norm(String(name || '').replace(/\([^)]*\)/g, ' '));
+  for (let i = 0; i < 3; i++) t = t.replace(LEGAL_FORMS, ' ');
+  return t.replace(/\s+/g, ' ').trim();
+}
+
+// Юрлица (10-значный ИНН): ФИО руководителя в декларациях нет, поэтому сверка
+// по названию + регион + район, и только если в реестре под таким ключом ровно
+// одна организация. Берём только тех, у кого телефона нет: номер из карточки
+// ФСА остаётся главным.
+function matchLegalEntities(entries) {
+  const rows = db.prepare(`
+    SELECT inn, shortName, applicantName, placeKey, MAX(address) AS address,
+           SUM(status = 'active') AS active,
+           SUM(status = 'active' AND (phone IS NULL OR phone = '')) AS activeNoPhone,
+           SUM(phone IS NULL OR phone = '') AS noPhone
+    FROM declarations
+    WHERE length(COALESCE(inn, '')) = 10 AND placeKey LIKE '%|%'
+    GROUP BY inn, shortName, applicantName, placeKey
+  `).all();
+  const orgs = new Map(), byKey = new Map();
+  for (const d of rows) {
+    let o = orgs.get(d.inn);
+    if (!o) orgs.set(d.inn, o = { name: d.shortName || d.applicantName, address: d.address, active: 0, activeNoPhone: 0, noPhone: 0 });
+    o.active += d.active;
+    o.activeNoPhone += d.activeNoPhone;
+    o.noPhone += d.noPhone;
+    const [region, district] = d.placeKey.split('|');
+    for (const n of [d.shortName, d.applicantName]) {
+      const core = legalCore(n);
+      if (core.length < 3) continue;
+      const k = core + '|' + region + '|' + normDistrict(district);
+      if (!byKey.has(k)) byKey.set(k, new Set());
+      byKey.get(k).add(d.inn);
+    }
+  }
+
+  const found = new Map();
+  let ambiguous = 0;
+  for (const e of entries) {
+    const core = legalCore(e.name);
+    if (core.length < 3 || !e.district) continue;
+    const inns = byKey.get(core + '|' + e.region + '|' + e.district);
+    if (!inns) continue;
+    if (inns.size > 1) { ambiguous++; continue; }
+    const inn = [...inns][0];
+    if (!found.has(inn)) found.set(inn, []);
+    found.get(inn).push(e);
+  }
+
+  const matches = [];
+  for (const [inn, list] of found) {
+    const o = orgs.get(inn);
+    if (!o.noPhone) continue;
+    const phone = mergePhones(list);
+    if (!phone) continue;
+    const newest = [...list].sort((a, b) => b.year - a.year)[0];
+    matches.push({
+      inn, phone, matchedBy: 'name', sourceFile: newest.file, sourceName: newest.name,
+      fio: o.name, address: o.address, baseDistrict: newest.district,
+      active: o.active, activeNoPhone: o.activeNoPhone, noPhone: o.noPhone,
+    });
+  }
+  return { matches, ambiguous };
 }
 
 const upsertImport = db.prepare(`
@@ -270,14 +342,15 @@ function saveMatches(matches) {
   return matches.length;
 }
 
-// Проставляет телефоны из phone_imports действующим декларациям без телефона.
+// Проставляет телефоны из phone_imports декларациям без телефона — любым, не
+// только действующим: компания с истёкшими декларациями в реестре тоже видна.
 // Чужие телефоны (из карточки ФСА) не перезаписывает. Вызывается и после
 // заливки, и ночью — для деклараций, пришедших после неё.
 function applyImportedPhones() {
   return db.prepare(`
     UPDATE declarations
     SET phone = (SELECT p.phone FROM phone_imports p WHERE p.inn = declarations.inn)
-    WHERE status = 'active' AND (phone IS NULL OR phone = '')
+    WHERE (phone IS NULL OR phone = '')
       AND inn IN (SELECT inn FROM phone_imports)
   `).run().changes;
 }
@@ -296,4 +369,4 @@ function rollbackImportedPhones() {
   })();
 }
 
-module.exports = { loadBase, matchBase, saveMatches, applyImportedPhones, rollbackImportedPhones, parsePhones, fioOf, regionKey };
+module.exports = { loadBase, matchBase, matchLegalEntities, saveMatches, applyImportedPhones, rollbackImportedPhones, parsePhones, fioOf, regionKey };

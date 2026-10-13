@@ -13,7 +13,7 @@
  * в phone_imports, а в декларациях заполняются только пустые поля.
  */
 require('dotenv').config();
-const { loadBase, matchBase, saveMatches, applyImportedPhones, rollbackImportedPhones } = require('../services/phoneBaseImport');
+const { loadBase, matchBase, matchLegalEntities, saveMatches, applyImportedPhones, rollbackImportedPhones } = require('../services/phoneBaseImport');
 
 const args = process.argv.slice(2);
 const has = name => args.includes(name);
@@ -42,15 +42,20 @@ function main() {
   const noRegion = files.filter(f => !f.region);
   if (noRegion.length) console.log('Регион не определён по имени файла: ' + noRegion.map(f => f.file).join('; '));
 
-  const { matches, ambiguous, perRegion, individualsActive } = matchBase(entries);
-  const byDistrict = matches.filter(m => m.matchedBy === 'district');
+  const { matches: people, ambiguous, perRegion, individualsActive } = matchBase(entries);
+  const legal = matchLegalEntities(entries);
+  const matches = [...people, ...legal.matches];
+  const byDistrict = people.filter(m => m.matchedBy === 'district');
   const sum = (list, f) => list.reduce((s, m) => s + m[f], 0);
   console.log(`\nИП и КФХ с действующими декларациями в реестре: ${individualsActive}`);
-  console.log(`Найдено в базе: ${matches.length} ` +
-    `(ФИО + регион + район: ${byDistrict.length}, без района при отсутствии тёзок: ${matches.length - byDistrict.length}); ` +
+  console.log(`Найдено ИП и КФХ: ${people.length} ` +
+    `(ФИО + регион + район: ${byDistrict.length}, без района при отсутствии тёзок: ${people.length - byDistrict.length}; ` +
+    `только с недействующими декларациями: ${people.filter(m => !m.active).length}); ` +
     `неоднозначных, пропущено: ${ambiguous}`);
-  console.log(`С мобильным: ${matches.filter(m => m.phone.startsWith('+79')).length}. ` +
-    `Действующих деклараций у найденных: ${sum(matches, 'active')}, из них без телефона: ${sum(matches, 'activeNoPhone')}`);
+  console.log(`Найдено юрлиц без телефона (название + регион + район): ${legal.matches.length} ` +
+    `(с действующими декларациями: ${legal.matches.filter(m => m.active).length}); неоднозначных, пропущено: ${legal.ambiguous}`);
+  console.log(`Всего: ${matches.length}, с мобильным: ${matches.filter(m => m.phone.startsWith('+79')).length}. ` +
+    `Деклараций без телефона у найденных: ${sum(matches, 'noPhone')}, из них действующих: ${sum(matches, 'activeNoPhone')}`);
 
   console.log('\nПо регионам (найдено / ИП с действующими декларациями):');
   for (const [region, s] of [...perRegion].sort((a, b) => b[1].total - a[1].total)) {
@@ -58,11 +63,13 @@ function main() {
   }
 
   if (sampleSize) {
-    console.log(`\nСлучайные ${sampleSize} пар для проверки:`);
-    const pool = [...matches];
-    for (let i = 0; i < sampleSize && pool.length; i++) {
-      const m = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-      console.log(`  [${m.matchedBy}] ${m.fio} | ${m.address || ''}\n      ↔ ${m.sourceName} | ${m.baseDistrict} | ${m.phone} | ${m.sourceFile}`);
+    for (const [title, list] of [['ИП и КФХ', people], ['юрлица', legal.matches]]) {
+      console.log(`\nСлучайные ${sampleSize} пар для проверки — ${title}:`);
+      const pool = [...list];
+      for (let i = 0; i < sampleSize && pool.length; i++) {
+        const m = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+        console.log(`  [${m.matchedBy}] ${m.fio} | ${m.address || ''}\n      ↔ ${m.sourceName} | ${m.baseDistrict} | ${m.phone} | ${m.sourceFile}`);
+      }
     }
   }
   if (skipped.length) console.log('\nПропущены листы незнакомого формата: ' + skipped.join('; '));
